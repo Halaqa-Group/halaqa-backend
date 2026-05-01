@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { envValidationSchema } from './config/env.validation';
+import { buildTypeOrmOptions } from './config/typeorm.config';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { TenantModule } from './modules/tenant/tenant.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -11,6 +18,15 @@ import { envValidationSchema } from './config/env.validation';
       validationSchema: envValidationSchema,
       validationOptions: { abortEarly: false },
     }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: buildTypeOrmOptions,
+    }),
+    TenantModule,
+    UsersModule,
+    RolesModule,
+    AuthModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],
