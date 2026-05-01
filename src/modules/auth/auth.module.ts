@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActiveUserGuard } from '../../common/guards/active-user.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { AuditInterceptor } from '../../common/interceptors/audit.interceptor';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { LoginAttempt } from './entities/login-attempt.entity';
@@ -19,6 +18,7 @@ import { AuthService } from './services/auth.service';
 import { MAIL_SERVICE, NodemailerMailService } from './services/mail.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { RateLimitService } from './services/rate-limit.service';
+import { RefreshTokenCleanupService } from './services/refresh-token-cleanup.service';
 import { TokenService } from './services/token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -48,12 +48,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RateLimitService,
     AuthService,
     PasswordResetService,
+    RefreshTokenCleanupService,
     NodemailerMailService,
     { provide: MAIL_SERVICE, useExisting: NodemailerMailService },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ActiveUserGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
-    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
   exports: [TypeOrmModule, PassportModule, TokenService, AuthService],
 })
