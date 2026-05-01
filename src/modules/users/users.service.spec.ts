@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -15,6 +16,9 @@ import { UsersService } from './users.service';
 
 jest.mock('bcrypt');
 const mockedHash = bcrypt.hash as jest.MockedFunction<typeof bcrypt.hash>;
+const mockedCompare = bcrypt.compare as jest.MockedFunction<
+  typeof bcrypt.compare
+>;
 
 const ACTOR: AuthenticatedUser = {
   id: 1,
@@ -161,6 +165,7 @@ describe('UsersService', () => {
     m = makeMocks();
     service = makeService(m);
     mockedHash.mockReset();
+    mockedCompare.mockReset();
   });
 
   describe('create', () => {
@@ -407,6 +412,150 @@ describe('UsersService', () => {
       await service.setPasswordAndBumpVersion(7, '$2b$12$hash', m.manager);
 
       expect(m.txUsers.builder.execute).toHaveBeenCalled();
+      expect(m.users.builder.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateMe', () => {
+    it('updates only the whitelisted fields and maps photo_url to photoUrl', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+
+      await service.updateMe(99, {
+        name: 'New Name',
+        phone: '+970599000000',
+        photo_url: 'https://cdn/x.jpg',
+      });
+
+      const patch = m.users.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toEqual({
+        name: 'New Name',
+        phone: '+970599000000',
+        photoUrl: 'https://cdn/x.jpg',
+      });
+    });
+
+    it('omits keys for fields the caller did not send', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+
+      await service.updateMe(99, { name: 'Solo' });
+
+      const patch = m.users.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toEqual({ name: 'Solo' });
+      expect('phone' in patch).toBe(false);
+      expect('photoUrl' in patch).toBe(false);
+    });
+
+    it('throws NotFound when the user disappears between update and re-read', async () => {
+      m.users.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.updateMe(99, { name: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('does not bump tokenVersion or revoke any refresh tokens', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+
+      await service.updateMe(99, { name: 'Quiet' });
+
+      expect(m.users.builder.execute).not.toHaveBeenCalled();
+      expect(m.refreshTokens.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changePassword', () => {
+    const dto = {
+      currentPassword: 'OldPass1234',
+      password: 'NewPass1234',
+      password_confirmation: 'NewPass1234',
+    };
+
+    it('verifies the current password, hashes the new one, and updates the user row', async () => {
+      m.users.findOne.mockResolvedValueOnce({
+        ...ACTIVE_USER_VIEW,
+        password: '$2b$12$old',
+      });
+      mockedCompare.mockResolvedValueOnce(true as never);
+      mockedHash.mockResolvedValueOnce('$2b$12$new' as never);
+
+      await service.changePassword(99, dto, 'currenthash');
+
+      expect(mockedCompare).toHaveBeenCalledWith('OldPass1234', '$2b$12$old');
+      expect(mockedHash).toHaveBeenCalledWith('NewPass1234', 12);
+      const patch = m.users.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toEqual({ password: '$2b$12$new' });
+    });
+
+    it('throws Unauthorized and never hashes when the current password is wrong', async () => {
+      m.users.findOne.mockResolvedValueOnce({
+        ...ACTIVE_USER_VIEW,
+        password: '$2b$12$old',
+      });
+      mockedCompare.mockResolvedValueOnce(false as never);
+
+      await expect(
+        service.changePassword(99, dto, 'currenthash'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockedHash).not.toHaveBeenCalled();
+      expect(m.users.update).not.toHaveBeenCalled();
+      expect(m.refreshTokens.update).not.toHaveBeenCalled();
+    });
+
+    it('revokes every refresh token EXCEPT the one matching the current cookie hash', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+      mockedCompare.mockResolvedValueOnce(true as never);
+      mockedHash.mockResolvedValueOnce('$2b$12$new' as never);
+
+      await service.changePassword(99, dto, 'currenthash');
+
+      const where = m.refreshTokens.update.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      const set = m.refreshTokens.update.mock.calls[0][1] as Record<
+        string,
+        unknown
+      >;
+      expect(where.userId).toBe(99);
+      // tokenHash uses TypeORM's Not(...) operator wrapper; assert presence by key
+      expect('tokenHash' in where).toBe(true);
+      expect(set.revokedReason).toBe('password_change');
+    });
+
+    it('revokes ALL active refresh tokens when the caller has no refresh cookie', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+      mockedCompare.mockResolvedValueOnce(true as never);
+      mockedHash.mockResolvedValueOnce('$2b$12$new' as never);
+
+      await service.changePassword(99, dto, null);
+
+      const where = m.refreshTokens.update.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(where.userId).toBe(99);
+      expect('tokenHash' in where).toBe(false);
+    });
+
+    it('throws NotFound and short-circuits when the user does not exist', async () => {
+      m.users.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.changePassword(99, dto, 'currenthash'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockedCompare).not.toHaveBeenCalled();
+      expect(mockedHash).not.toHaveBeenCalled();
+    });
+
+    it('does not bump tokenVersion (current access token must keep working)', async () => {
+      m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
+      mockedCompare.mockResolvedValueOnce(true as never);
+      mockedHash.mockResolvedValueOnce('$2b$12$new' as never);
+
+      await service.changePassword(99, dto, 'currenthash');
+
       expect(m.users.builder.execute).not.toHaveBeenCalled();
     });
   });
