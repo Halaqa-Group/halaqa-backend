@@ -5,7 +5,6 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { CookieOptions, Response } from 'express';
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
 import { RefreshToken, RevokedReason } from '../entities/refresh-token.entity';
 import { RequestContext } from '../request-context';
 
@@ -49,7 +48,7 @@ export class TokenService {
     const row = this.refreshRepo.create({
       userId,
       tokenHash: hashToken(raw),
-      familyId: uuidv4(),
+      familyId: crypto.randomUUID(),
       parentId: null,
       deviceName: ctx.deviceName,
       deviceType: ctx.deviceType,
