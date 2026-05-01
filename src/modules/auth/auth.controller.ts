@@ -23,9 +23,11 @@ import { ApiMessage } from '../../common/api-message';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { UsersService } from '../users/users.service';
 import {
   AuthSuccessEnvelope,
   ErrorEnvelope,
+  MeEnvelope,
   MessageEnvelope,
   ValidateResetTokenEnvelope,
 } from './dto/auth.responses';
@@ -48,6 +50,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly passwordReset: PasswordResetService,
     private readonly tokens: TokenService,
+    private readonly users: UsersService,
   ) {}
 
   @Public()
@@ -190,6 +193,27 @@ export class AuthController {
   })
   async validateResetToken(@Query('token') token: string) {
     return this.passwordReset.validateResetToken(token);
+  }
+
+  @Get('me')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Get the authenticated user',
+    description:
+      'Authorization is role-based — the response carries a flat `roles` slug array and intentionally ' +
+      'no `permissions` field.',
+  })
+  @ApiResponse({ status: 200, type: MeEnvelope })
+  @ApiResponse({ status: 401, type: ErrorEnvelope })
+  async me(@CurrentUser() actor: AuthenticatedUser) {
+    const view = await this.users.findOne(actor.id, actor.schoolId);
+    return {
+      id: view.id,
+      name: view.name,
+      email: view.email,
+      phone: view.phone,
+      roles: view.roles,
+    };
   }
 
   @Public()

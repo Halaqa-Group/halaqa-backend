@@ -112,3 +112,33 @@ export class ValidateResetTokenEnvelope {
   @ApiProperty({ type: ValidateResetTokenData })
   data!: ValidateResetTokenData;
 }
+
+export class MeResponse {
+  @ApiProperty({ example: 1 })
+  id!: number;
+
+  @ApiProperty({ example: 'أحمد المدير' })
+  name!: string;
+
+  @ApiProperty({ example: 'admin@school.com', format: 'email' })
+  email!: string;
+
+  @ApiProperty({ nullable: true, example: '+970599123456' })
+  phone!: string | null;
+
+  @ApiProperty({
+    type: [String],
+    example: ['principal'],
+    description:
+      'Flat list of role slugs. Authorization is role-based — there is no `permissions` field.',
+  })
+  roles!: string[];
+}
+
+export class MeEnvelope {
+  @ApiProperty({ example: 200 })
+  code!: number;
+
+  @ApiProperty({ type: MeResponse })
+  data!: MeResponse;
+}

@@ -3,18 +3,28 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  IsNull,
+  Not,
+  Repository,
+} from 'typeorm';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Role } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
 import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQuery } from './dto/list-users.query';
+import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 
@@ -140,6 +150,41 @@ export class UsersService {
     return this.toView(user);
   }
 
+  async updateMe(userId: number, dto: UpdateMeDto): Promise<UserView> {
+    await this.users.update(userId, {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.phone !== undefined && { phone: dto.phone }),
+      ...(dto.photo_url !== undefined && { photoUrl: dto.photo_url }),
+    });
+    return this.findOneById(userId);
+  }
+
+  async changePassword(
+    userId: number,
+    dto: ChangePasswordDto,
+    currentRefreshHash: string | null,
+  ): Promise<void> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+    if (!(await bcrypt.compare(dto.currentPassword, user.password))) {
+      throw new UnauthorizedException('Invalid current password');
+    }
+
+    const newHash = await bcrypt.hash(dto.password, this.bcryptRounds());
+    await this.users.update(userId, { password: newHash });
+
+    await this.refreshTokens.update(
+      {
+        userId,
+        revokedAt: IsNull(),
+        ...(currentRefreshHash !== null && {
+          tokenHash: Not(currentRefreshHash),
+        }),
+      },
+      { revokedAt: new Date(), revokedReason: 'password_change' },
+    );
+  }
+
   async update(
     id: number,
     dto: UpdateUserDto,
@@ -247,6 +292,15 @@ export class UsersService {
       })
       .where('id = :id', { id: userId })
       .execute();
+  }
+
+  private async findOneById(id: number): Promise<UserView> {
+    const user = await this.users.findOne({
+      where: { id },
+      relations: { userRoles: { role: true } },
+    });
+    if (!user) throw new NotFoundException();
+    return this.toView(user);
   }
 
   private async findRawOrThrow(id: number, schoolId: number): Promise<User> {

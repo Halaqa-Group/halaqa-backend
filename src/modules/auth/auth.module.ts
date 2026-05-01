@@ -13,6 +13,7 @@ import { AuthController } from './auth.controller';
 import { LoginAttempt } from './entities/login-attempt.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { MeController } from './me.controller';
 import { SessionsController } from './sessions.controller';
 import { AuthService } from './services/auth.service';
 import { MAIL_SERVICE, NodemailerMailService } from './services/mail.service';
@@ -40,7 +41,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TypeOrmModule.forFeature([RefreshToken, LoginAttempt, PasswordResetToken]),
     UsersModule,
   ],
-  controllers: [AuthController, SessionsController],
+  controllers: [AuthController, SessionsController, MeController],
   providers: [
     JwtStrategy,
     TokenService,
