@@ -91,3 +91,24 @@ export class SessionsEnvelope {
   @ApiProperty({ type: [SessionResponse] })
   data!: SessionResponse[];
 }
+
+export class MessageEnvelope {
+  @ApiProperty({ example: 200 })
+  code!: number;
+
+  @ApiProperty({ example: 'A reset link has been sent.' })
+  message!: string;
+}
+
+export class ValidateResetTokenData {
+  @ApiProperty({ example: 'admin@school.com', format: 'email' })
+  email!: string;
+}
+
+export class ValidateResetTokenEnvelope {
+  @ApiProperty({ example: 200 })
+  code!: number;
+
+  @ApiProperty({ type: ValidateResetTokenData })
+  data!: ValidateResetTokenData;
+}

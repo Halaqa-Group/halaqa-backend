@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -12,17 +14,27 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { ApiMessage } from '../../common/api-message';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
-import { AuthSuccessEnvelope, ErrorEnvelope } from './dto/auth.responses';
+import {
+  AuthSuccessEnvelope,
+  ErrorEnvelope,
+  MessageEnvelope,
+  ValidateResetTokenEnvelope,
+} from './dto/auth.responses';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { buildRequestContext } from './request-context';
 import { AuthService } from './services/auth.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { REFRESH_COOKIE_NAME, TokenService } from './services/token.service';
 
 interface RequestWithCookies extends Request {
@@ -34,6 +46,7 @@ interface RequestWithCookies extends Request {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly passwordReset: PasswordResetService,
     private readonly tokens: TokenService,
   ) {}
 
@@ -138,5 +151,65 @@ export class AuthController {
   ): Promise<void> {
     await this.authService.logoutAll(user.id);
     this.tokens.clearRefreshCookie(res);
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request a password-reset email',
+    description:
+      'Always returns 200 with the same message regardless of whether the email exists — never reveals ' +
+      'membership. The reset token is one-time, valid for 1 hour.',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, type: MessageEnvelope })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() req: Request,
+  ): Promise<ApiMessage> {
+    const ctx = buildRequestContext(req);
+    await this.passwordReset.requestReset(dto.email, ctx.ip);
+    return new ApiMessage('A reset link has been sent.');
+  }
+
+  @Public()
+  @Get('validate-reset-token')
+  @ApiOperation({
+    summary: 'Check whether a reset token is currently usable',
+    description:
+      'Read-only — does not consume the token, bump tokenVersion, or revoke anything. Used by the reset-password page ' +
+      'to render the email and gate the form.',
+  })
+  @ApiQuery({ name: 'token', required: true })
+  @ApiResponse({ status: 200, type: ValidateResetTokenEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired token',
+    type: ErrorEnvelope,
+  })
+  async validateResetToken(@Query('token') token: string) {
+    return this.passwordReset.validateResetToken(token);
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Consume a reset token and set a new password',
+    description:
+      '`password` and `password_confirmation` must match (validated before any DB work). On success: bumps ' +
+      '`tokenVersion`, revokes every active refresh token (`password_change`), and marks the reset token used.',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, type: MessageEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid token or password mismatch',
+    type: ErrorEnvelope,
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<ApiMessage> {
+    await this.passwordReset.consumeResetToken(dto);
+    return new ApiMessage('Password has been reset successfully');
   }
 }

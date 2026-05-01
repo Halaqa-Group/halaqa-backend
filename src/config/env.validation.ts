@@ -22,4 +22,11 @@ export const envValidationSchema = Joi.object({
   BCRYPT_ROUNDS: Joi.number().integer().min(10).max(15).default(12),
 
   COOKIE_SECURE: Joi.boolean().default(false),
+
+  APP_URL: Joi.string().uri().required(),
+  MAIL_FROM: Joi.string().required(),
+  SMTP_HOST: Joi.string().allow('').optional(),
+  SMTP_PORT: Joi.number().port().default(587),
+  SMTP_USER: Joi.string().allow('').optional(),
+  SMTP_PASS: Joi.string().allow('').optional(),
 });

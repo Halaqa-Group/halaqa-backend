@@ -15,6 +15,8 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { SessionsController } from './sessions.controller';
 import { AuthService } from './services/auth.service';
+import { MAIL_SERVICE, NodemailerMailService } from './services/mail.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { RateLimitService } from './services/rate-limit.service';
 import { TokenService } from './services/token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -44,6 +46,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TokenService,
     RateLimitService,
     AuthService,
+    PasswordResetService,
+    NodemailerMailService,
+    { provide: MAIL_SERVICE, useExisting: NodemailerMailService },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ActiveUserGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

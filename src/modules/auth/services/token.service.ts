@@ -7,6 +7,7 @@ import { CookieOptions, Response } from 'express';
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { RefreshToken, RevokedReason } from '../entities/refresh-token.entity';
 import { RequestContext } from '../request-context';
+import { generateRawToken, hashToken } from '../token-crypto';
 
 export const REFRESH_COOKIE_NAME = 'refresh_token';
 const COOKIE_PATH = '/auth';
@@ -181,12 +182,4 @@ export class TokenService {
     const days = this.config.get<number>('JWT_REFRESH_TTL_DAYS', 30);
     return days * 24 * 60 * 60 * 1000;
   }
-}
-
-function generateRawToken(): string {
-  return crypto.randomBytes(32).toString('base64url');
-}
-
-function hashToken(raw: string): string {
-  return crypto.createHash('sha256').update(raw).digest('hex');
 }

@@ -148,6 +148,124 @@
         ]
       }
     },
+    "/auth/forgot-password": {
+      "post": {
+        "description": "Always returns 200 with the same message regardless of whether the email exists — never reveals membership. The reset token is one-time, valid for 1 hour.",
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Request a password-reset email",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/validate-reset-token": {
+      "get": {
+        "description": "Read-only — does not consume the token, bump tokenVersion, or revoke anything. Used by the reset-password page to render the email and gate the form.",
+        "operationId": "AuthController_validateResetToken",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResetTokenEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check whether a reset token is currently usable",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "description": "`password` and `password_confirmation` must match (validated before any DB work). On success: bumps `tokenVersion`, revokes every active refresh token (`password_change`), and marks the reset token used.",
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token or password mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Consume a reset token and set a new password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/auth/sessions": {
       "get": {
         "description": "Returns one entry per active refresh token. The entry for the device that owns the current cookie is flagged with `current: true`.",
@@ -367,6 +485,87 @@
         "required": [
           "code",
           "message"
+        ]
+      },
+      "ForgotPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@school.com",
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "MessageEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "message": {
+            "type": "string",
+            "example": "A reset link has been sent."
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "ValidateResetTokenData": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@school.com",
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ValidateResetTokenEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/ValidateResetTokenData"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Raw token from the password-reset email link."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "password_confirmation": {
+            "type": "string",
+            "description": "Must match `password`."
+          }
+        },
+        "required": [
+          "token",
+          "password",
+          "password_confirmation"
         ]
       },
       "SessionResponse": {
