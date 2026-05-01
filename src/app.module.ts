@@ -8,6 +8,7 @@ import { envValidationSchema } from './config/env.validation';
 import { buildTypeOrmOptions } from './config/typeorm.config';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DevSeederModule } from './modules/dev/dev-seeder.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { UsersModule } from './modules/users/users.module';
@@ -29,6 +30,7 @@ import { UsersModule } from './modules/users/users.module';
     RolesModule,
     AuthModule,
     AuditModule,
+    DevSeederModule,
   ],
   controllers: [AppController],
   providers: [AppService],
