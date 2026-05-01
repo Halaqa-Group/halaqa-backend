@@ -1,4 +1,8 @@
-import { EntityManager, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { Role } from '../roles/role.entity';
+import { UserRole } from '../roles/user-role.entity';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
@@ -27,12 +31,25 @@ function makeRepo(builder: MockBuilder): MockRepo {
   return { createQueryBuilder: jest.fn().mockReturnValue(builder) };
 }
 
+const STUB_REPO = {} as unknown as Repository<unknown>;
+
+function buildService(userRepo: Repository<User>): UsersService {
+  return new UsersService(
+    {} as unknown as ConfigService,
+    userRepo,
+    STUB_REPO as Repository<Role>,
+    STUB_REPO as Repository<UserRole>,
+    STUB_REPO as Repository<RefreshToken>,
+    {} as unknown as DataSource,
+  );
+}
+
 describe('UsersService', () => {
   describe('setPasswordAndBumpVersion', () => {
     it('updates the password and increments token_version where id = userId', async () => {
       const builder = makeBuilder();
       const repo = makeRepo(builder);
-      const service = new UsersService(repo as unknown as Repository<User>);
+      const service = buildService(repo as unknown as Repository<User>);
 
       await service.setPasswordAndBumpVersion(7, '$2b$12$hash');
 
@@ -55,7 +72,7 @@ describe('UsersService', () => {
       const manager = {
         getRepository: jest.fn().mockReturnValue(txRepo),
       } as unknown as EntityManager;
-      const service = new UsersService(ownRepo as unknown as Repository<User>);
+      const service = buildService(ownRepo as unknown as Repository<User>);
 
       await service.setPasswordAndBumpVersion(7, '$2b$12$hash', manager);
 
