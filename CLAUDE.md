@@ -37,6 +37,17 @@ pnpm exec jest src/app.controller.spec.ts
 pnpm exec jest -t "should return"
 ```
 
+## OpenAPI spec
+
+The committed spec at [docs/openapi.json](docs/openapi.json) is generated, not hand-edited.
+
+```bash
+pnpm run docs:export      # regenerate docs/openapi.json
+pnpm run docs:check       # exit non-zero if committed spec is stale
+```
+
+`docs:check` boots `AppModule` (so it needs a live DB and valid env), rebuilds the spec in-memory, and string-compares to the committed file. Use it in CI or pre-commit to prevent drift.
+
 ## Database migrations
 
 Schema lives in TypeORM entity decorators. Dev still runs with `DB_SYNCHRONIZE=true` for fast iteration, but the canonical schema is captured in [migrations/](migrations/) and is what production should apply. The CLI uses the standalone DataSource at [src/config/data-source.ts](src/config/data-source.ts), separate from the Nest-managed runtime config in [src/config/typeorm.config.ts](src/config/typeorm.config.ts).

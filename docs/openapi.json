@@ -688,6 +688,44 @@
         ]
       }
     },
+    "/auth/me": {
+      "get": {
+        "description": "Authorization is role-based — the response carries a flat `roles` slug array and intentionally no `permissions` field.",
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the authenticated user",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/auth/reset-password": {
       "post": {
         "description": "`password` and `password_confirmation` must match (validated before any DB work). On success: bumps `tokenVersion`, revokes every active refresh token (`password_change`), and marks the reset token used.",
@@ -807,6 +845,102 @@
         "summary": "Revoke a specific device session",
         "tags": [
           "Sessions"
+        ]
+      }
+    },
+    "/me": {
+      "patch": {
+        "description": "Whitelist enforced via DTO + global `forbidNonWhitelisted` — sending `email`, `school_id`, `status`, or `roles` returns 400 (BR-USR-06).",
+        "operationId": "MeController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Disallowed field or validation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update own profile (name, phone, photo_url)",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/me/change-password": {
+      "post": {
+        "description": "Verifies the current password before applying. Revokes every other refresh token for the user (`password_change`); the caller's current refresh cookie keeps working so the active session is preserved.",
+        "operationId": "MeController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current password mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Change own password (BR-USR-05)",
+        "tags": [
+          "Me"
         ]
       }
     }
@@ -1248,6 +1382,62 @@
           "data"
         ]
       },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "أحمد المدير"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@school.com",
+            "format": "email"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "+970599123456"
+          },
+          "roles": {
+            "example": [
+              "principal"
+            ],
+            "description": "Flat list of role slugs. Authorization is role-based — there is no `permissions` field.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "phone",
+          "roles"
+        ]
+      },
+      "MeEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/MeResponse"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
       "ResetPasswordDto": {
         "type": "object",
         "properties": {
@@ -1340,6 +1530,45 @@
         "required": [
           "code",
           "data"
+        ]
+      },
+      "UpdateMeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 100
+          },
+          "phone": {
+            "type": "string",
+            "example": "+970599123456"
+          },
+          "photo_url": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "Current password — required to authorise the change."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "password_confirmation": {
+            "type": "string",
+            "description": "Must match `password`."
+          }
+        },
+        "required": [
+          "currentPassword",
+          "password",
+          "password_confirmation"
         ]
       }
     }
