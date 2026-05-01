@@ -1,0 +1,446 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Log in with email and password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Reads the `refresh_token` cookie. Replaying a rotated/revoked token revokes the entire token family and returns 401 (BR-AUTH-07).",
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or revoked refresh cookie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Rotate the refresh cookie and mint a new access token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Idempotent — clears the cookie either way and never reveals whether the token was valid.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Logged out (no body)"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Revoke the current refresh cookie",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "description": "Kills every device session for the authenticated user. Existing access tokens still work until they expire (15 min); see BR-USR-07 for cut-on-next-request via `tokenVersion`.",
+        "operationId": "AuthController_logoutAll",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "All sessions revoked (no body)"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Revoke every refresh token for the caller",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "description": "Returns one entry per active refresh token. The entry for the device that owns the current cookie is flagged with `current: true`.",
+        "operationId": "SessionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List active sessions for the caller",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/auth/sessions/{id}": {
+      "delete": {
+        "description": "Revokes the refresh token row identified by `id` if and only if it belongs to the caller. Cross-user requests return 404, never 403, so token IDs are not enumerable.",
+        "operationId": "SessionsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Refresh token row id (BIGINT as string)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session revoked (no body)"
+          },
+          "404": {
+            "description": "Session not found or not owned by caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Revoke a specific device session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Halaqa Backend API",
+    "description": "Authentication, user management, and school operations for the Halaqa system. All JSON responses are wrapped in a uniform envelope: `{ \"code\": <http>, \"data\": ... }` on success, `{ \"code\": <http>, \"message\": \"...\" }` on errors. Refresh tokens travel as HttpOnly cookies on `/auth/*`; access tokens use Bearer auth.",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Login, refresh, logout, password reset"
+    },
+    {
+      "name": "Sessions",
+      "description": "List and revoke active devices"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "cookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refresh_token"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@school.com",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "example": "Passw0rd!",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "أحمد المدير"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@school.com",
+            "format": "email"
+          },
+          "roles": {
+            "example": [
+              "principal"
+            ],
+            "description": "Flat array of role slugs the user holds.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "roles"
+        ]
+      },
+      "AuthSuccessData": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "description": "JWT access token (HS256, 15 min). Use as `Authorization: Bearer <token>`."
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUserResponse"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "AuthSuccessEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/AuthSuccessData"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 401
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid credentials"
+          },
+          "details": {
+            "description": "Validation error list (only on 400 with multiple field errors).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "SessionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "42"
+          },
+          "deviceName": {
+            "type": "object",
+            "nullable": true,
+            "example": null
+          },
+          "deviceType": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile_ios",
+              "mobile_android",
+              "desktop",
+              "other"
+            ],
+            "example": "web"
+          },
+          "ipAddress": {
+            "type": "object",
+            "nullable": true,
+            "example": "1.2.3.4"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean",
+            "example": true,
+            "description": "True for the device that owns the cookie on the current request."
+          }
+        },
+        "required": [
+          "id",
+          "deviceName",
+          "deviceType",
+          "ipAddress",
+          "lastUsedAt",
+          "issuedAt",
+          "current"
+        ]
+      },
+      "SessionsEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionResponse"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      }
+    }
+  }
+}
