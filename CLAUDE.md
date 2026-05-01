@@ -37,6 +37,28 @@ pnpm exec jest src/app.controller.spec.ts
 pnpm exec jest -t "should return"
 ```
 
+## Database migrations
+
+Schema lives in TypeORM entity decorators. Dev still runs with `DB_SYNCHRONIZE=true` for fast iteration, but the canonical schema is captured in [migrations/](migrations/) and is what production should apply. The CLI uses the standalone DataSource at [src/config/data-source.ts](src/config/data-source.ts), separate from the Nest-managed runtime config in [src/config/typeorm.config.ts](src/config/typeorm.config.ts).
+
+```bash
+pnpm migration:run                            # apply pending migrations
+pnpm migration:show                           # which are applied / pending
+pnpm migration:revert                         # roll back the most recent
+pnpm migration:generate migrations/<Name>     # diff entities vs DB → new migration
+```
+
+`migration:generate` diffs entities against the **currently connected** database. With `DB_SYNCHRONIZE=true` your dev DB matches the entities exactly, so the diff is empty. To regenerate against a clean schema, first spin up an empty temporary DB (`halaqa_migrations`):
+
+```bash
+pnpm exec ts-node scripts/with-empty-db.ts create
+$env:DB_NAME = 'halaqa_migrations'              # PowerShell — bash: DB_NAME=halaqa_migrations
+pnpm migration:generate migrations/<Name>
+pnpm exec ts-node scripts/with-empty-db.ts drop
+```
+
+For production: set `DB_SYNCHRONIZE=false` and run `pnpm migration:run` against the prod DB before/at deploy time.
+
 ## Architecture notes
 
 - **Entrypoint**: [src/main.ts](src/main.ts) bootstraps `AppModule`. `app.listen(process.env.PORT ?? 3000)` — no global pipes, filters, CORS, or prefix configured yet; add them here when needed.
