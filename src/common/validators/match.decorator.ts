@@ -7,6 +7,7 @@ import {
 export function Match(property: string, options?: ValidationOptions) {
   return (object: object, propertyName: string): void => {
     registerDecorator({
+      name: 'Match',
       target: object.constructor,
       propertyName,
       constraints: [property],
