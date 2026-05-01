@@ -14,4 +14,7 @@ export const envValidationSchema = Joi.object({
   DB_SYNCHRONIZE: Joi.boolean().default(false),
 
   DEFAULT_SCHOOL_ID: Joi.number().integer().positive().required(),
+
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_TTL: Joi.string().default('15m'),
 });
