@@ -10,7 +10,7 @@ import { RequestContext } from '../request-context';
 import { generateRawToken, hashToken } from '../token-crypto';
 
 export const REFRESH_COOKIE_NAME = 'refresh_token';
-const COOKIE_PATH = '/auth';
+const COOKIE_PATH = '/api/auth';
 
 export interface IssuedRefresh {
   raw: string;
