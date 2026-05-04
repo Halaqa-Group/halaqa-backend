@@ -27,6 +27,9 @@ export interface AuthUserView {
 export interface AuthResult {
   accessToken: string;
   rawRefresh: string;
+  // TTL the controller should pin the refresh cookie's maxAge to. Driven by
+  // `rememberMe` at login time and preserved across rotations.
+  refreshTtlMs: number;
   user: AuthUserView;
 }
 
@@ -97,7 +100,8 @@ export class AuthService {
       school_id: user.schoolId,
       tv: user.tokenVersion,
     });
-    const refresh = await this.tokens.issueRefreshToken(user.id, ctx);
+    const ttlMs = this.tokens.pickRefreshTtl(dto.rememberMe ?? false);
+    const refresh = await this.tokens.issueRefreshToken(user.id, ctx, ttlMs);
 
     await this.recordAttempt({
       email: dto.email,
@@ -112,6 +116,7 @@ export class AuthService {
     return {
       accessToken,
       rawRefresh: refresh.raw,
+      refreshTtlMs: ttlMs,
       user: this.toAuthUserView(user),
     };
   }
@@ -137,6 +142,7 @@ export class AuthService {
     return {
       accessToken,
       rawRefresh: rotation.raw,
+      refreshTtlMs: rotation.ttlMs,
       user: this.toAuthUserView(user),
     };
   }

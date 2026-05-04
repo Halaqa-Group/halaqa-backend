@@ -67,6 +67,7 @@ function makeService(repo: MockRepo, jwt = makeJwt()): TokenService {
 }
 
 function activeRow(overrides: Partial<RefreshToken> = {}): RefreshToken {
+  const now = Date.now();
   return {
     id: 'old-id',
     userId: 1,
@@ -79,7 +80,8 @@ function activeRow(overrides: Partial<RefreshToken> = {}): RefreshToken {
     ipAddress: null,
     revokedAt: null,
     revokedReason: null,
-    expiresAt: new Date(Date.now() + 60_000),
+    issuedAt: new Date(now - 60_000),
+    expiresAt: new Date(now + 60_000),
     ...overrides,
   } as RefreshToken;
 }
@@ -110,7 +112,7 @@ describe('TokenService', () => {
       const repo = makeRepo();
       const service = makeService(repo);
 
-      const result = await service.issueRefreshToken(1, CTX);
+      const result = await service.issueRefreshToken(1, CTX, 30 * 24 * 60 * 60 * 1000);
 
       expect(result.raw.length).toBeGreaterThan(40);
       expect(repo.save).toHaveBeenCalledTimes(1);

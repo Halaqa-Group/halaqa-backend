@@ -19,6 +19,9 @@ export interface IssuedRefresh {
 
 export interface RotationResult extends IssuedRefresh {
   oldRow: RefreshToken;
+  // The TTL preserved from the original token, so the controller can pin the
+  // new cookie's maxAge to the same window.
+  ttlMs: number;
 }
 
 export interface AccessTokenPayload {
@@ -44,6 +47,7 @@ export class TokenService {
   async issueRefreshToken(
     userId: number,
     ctx: RequestContext,
+    ttlMs: number,
   ): Promise<IssuedRefresh> {
     const raw = generateRawToken();
     const row = this.refreshRepo.create({
@@ -55,10 +59,18 @@ export class TokenService {
       deviceType: ctx.deviceType,
       userAgent: ctx.userAgent,
       ipAddress: ctx.ip,
-      expiresAt: this.refreshExpiry(),
+      expiresAt: new Date(Date.now() + ttlMs),
     });
     await this.refreshRepo.save(row);
     return { raw, row };
+  }
+
+  /**
+   * TTL the next refresh cookie should live for, given the user's choice at
+   * login. Stored as days in env to keep the unit symmetric across both knobs.
+   */
+  pickRefreshTtl(rememberMe: boolean): number {
+    return rememberMe ? this.rememberTtlMs() : this.defaultTtlMs();
   }
 
   async rotateRefreshToken(
@@ -88,6 +100,11 @@ export class TokenService {
       throw new UnauthorizedException();
     }
 
+    // Preserve the original session length across rotation so a "remember me"
+    // login keeps its 30-day window and a default login keeps its short one,
+    // without needing a column on the row itself.
+    const ttlMs = old.expiresAt.getTime() - old.issuedAt.getTime();
+
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(RefreshToken);
       const raw = generateRawToken();
@@ -100,7 +117,7 @@ export class TokenService {
         deviceType: ctx.deviceType ?? old.deviceType,
         userAgent: ctx.userAgent ?? old.userAgent,
         ipAddress: ctx.ip ?? old.ipAddress,
-        expiresAt: this.refreshExpiry(),
+        expiresAt: new Date(Date.now() + ttlMs),
       });
       await repo.save(newRow);
 
@@ -111,7 +128,7 @@ export class TokenService {
         lastUsedAt: new Date(),
       });
 
-      return { raw, row: newRow, oldRow: old };
+      return { raw, row: newRow, oldRow: old, ttlMs };
     });
   }
 
@@ -152,8 +169,8 @@ export class TokenService {
     });
   }
 
-  setRefreshCookie(res: Response, raw: string): void {
-    res.cookie(REFRESH_COOKIE_NAME, raw, this.cookieOptions());
+  setRefreshCookie(res: Response, raw: string, maxAgeMs: number): void {
+    res.cookie(REFRESH_COOKIE_NAME, raw, this.cookieOptions(maxAgeMs));
   }
 
   clearRefreshCookie(res: Response): void {
@@ -164,22 +181,23 @@ export class TokenService {
     return hashToken(raw);
   }
 
-  private cookieOptions(): CookieOptions {
+  private cookieOptions(maxAgeMs: number): CookieOptions {
     return {
       httpOnly: true,
       secure: this.config.get<boolean>('COOKIE_SECURE', false),
       sameSite: 'strict',
       path: COOKIE_PATH,
-      maxAge: this.refreshTtlMs(),
+      maxAge: maxAgeMs,
     };
   }
 
-  private refreshExpiry(): Date {
-    return new Date(Date.now() + this.refreshTtlMs());
+  private rememberTtlMs(): number {
+    const days = this.config.get<number>('JWT_REFRESH_TTL_DAYS', 30);
+    return days * 24 * 60 * 60 * 1000;
   }
 
-  private refreshTtlMs(): number {
-    const days = this.config.get<number>('JWT_REFRESH_TTL_DAYS', 30);
+  private defaultTtlMs(): number {
+    const days = this.config.get<number>('JWT_REFRESH_TTL_DAYS_DEFAULT', 1);
     return days * 24 * 60 * 60 * 1000;
   }
 }

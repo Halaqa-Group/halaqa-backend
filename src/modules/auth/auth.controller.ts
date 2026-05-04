@@ -79,7 +79,7 @@ export class AuthController {
   ) {
     const ctx = buildRequestContext(req);
     const result = await this.authService.login(dto, ctx);
-    this.tokens.setRefreshCookie(res, result.rawRefresh);
+    this.tokens.setRefreshCookie(res, result.rawRefresh, result.refreshTtlMs);
     return { accessToken: result.accessToken, user: result.user };
   }
 
@@ -113,7 +113,7 @@ export class AuthController {
         raw,
         buildRequestContext(req),
       );
-      this.tokens.setRefreshCookie(res, result.rawRefresh);
+      this.tokens.setRefreshCookie(res, result.rawRefresh, result.refreshTtlMs);
       return { accessToken: result.accessToken, user: result.user };
     } catch (err) {
       this.tokens.clearRefreshCookie(res);

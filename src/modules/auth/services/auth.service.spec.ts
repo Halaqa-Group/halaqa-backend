@@ -47,6 +47,7 @@ function makeMocks(): Mocks {
     } as unknown as ConfigService,
     tokens: {
       signAccessToken: jest.fn().mockResolvedValue('access.jwt'),
+      pickRefreshTtl: jest.fn().mockReturnValue(86_400_000),
       issueRefreshToken: jest
         .fn()
         .mockResolvedValue({ raw: 'rawA', row: { id: 'rt-1' } }),

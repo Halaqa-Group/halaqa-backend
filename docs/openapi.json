@@ -480,6 +480,34 @@
         ]
       }
     },
+    "/roles": {
+      "get": {
+        "description": "Returns the seeded role catalog. Used by the user-management UI to populate role pickers and by anywhere that needs to map between numeric ids and slugs.",
+        "operationId": "RolesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleListEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List all roles",
+        "tags": [
+          "Roles"
+        ]
+      }
+    },
     "/auth/login": {
       "post": {
         "description": "On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
@@ -769,6 +797,54 @@
         ]
       }
     },
+    "/auth/change-password": {
+      "post": {
+        "description": "Verifies the current password before applying. Revokes every other refresh token for the user (`password_change`); the caller's current refresh cookie keeps working so the active session is preserved. Mounted under `/auth` so the cookie (Path=`/api/auth`) is in scope.",
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current password mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Change own password (BR-USR-05)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/auth/sessions": {
       "get": {
         "description": "Returns one entry per active refresh token. The entry for the device that owns the current cookie is flagged with `current: true`.",
@@ -891,54 +967,6 @@
           }
         ],
         "summary": "Update own profile (name, phone, photo_url)",
-        "tags": [
-          "Me"
-        ]
-      }
-    },
-    "/me/change-password": {
-      "post": {
-        "description": "Verifies the current password before applying. Revokes every other refresh token for the user (`password_change`); the caller's current refresh cookie keeps working so the active session is preserved.",
-        "operationId": "MeController_changePassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Current password mismatch",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "access-token": []
-          }
-        ],
-        "summary": "Change own password (BR-USR-05)",
         "tags": [
           "Me"
         ]
@@ -1254,6 +1282,64 @@
           "message"
         ]
       },
+      "RoleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "slug": {
+            "type": "string",
+            "enum": [
+              "principal",
+              "vice_principal",
+              "supervisor",
+              "teacher",
+              "parent"
+            ],
+            "example": "principal"
+          },
+          "nameAr": {
+            "type": "string",
+            "example": "مدير"
+          },
+          "nameEn": {
+            "type": "string",
+            "example": "Principal"
+          },
+          "level": {
+            "type": "number",
+            "example": 100
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "nameAr",
+          "nameEn",
+          "level"
+        ]
+      },
+      "RoleListEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleResponse"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
       "LoginDto": {
         "type": "object",
         "properties": {
@@ -1266,6 +1352,11 @@
             "type": "string",
             "example": "Passw0rd!",
             "minLength": 1
+          },
+          "rememberMe": {
+            "type": "boolean",
+            "description": "When true, issues a long-lived refresh cookie (`JWT_REFRESH_TTL_DAYS`). When false or absent, the cookie is short-lived (`JWT_REFRESH_TTL_DAYS_DEFAULT`).",
+            "default": false
           }
         },
         "required": [
@@ -1403,6 +1494,10 @@
             "nullable": true,
             "example": "+970599123456"
           },
+          "photoUrl": {
+            "type": "object",
+            "nullable": true
+          },
           "roles": {
             "example": [
               "principal"
@@ -1419,6 +1514,7 @@
           "name",
           "email",
           "phone",
+          "photoUrl",
           "roles"
         ]
       },
@@ -1456,6 +1552,28 @@
         },
         "required": [
           "token",
+          "password",
+          "password_confirmation"
+        ]
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "Current password — required to authorise the change."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "password_confirmation": {
+            "type": "string",
+            "description": "Must match `password`."
+          }
+        },
+        "required": [
+          "currentPassword",
           "password",
           "password_confirmation"
         ]
@@ -1548,28 +1666,6 @@
             "type": "string"
           }
         }
-      },
-      "ChangePasswordDto": {
-        "type": "object",
-        "properties": {
-          "currentPassword": {
-            "type": "string",
-            "description": "Current password — required to authorise the change."
-          },
-          "password": {
-            "type": "string",
-            "minLength": 8
-          },
-          "password_confirmation": {
-            "type": "string",
-            "description": "Must match `password`."
-          }
-        },
-        "required": [
-          "currentPassword",
-          "password",
-          "password_confirmation"
-        ]
       }
     }
   }
