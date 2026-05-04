@@ -42,7 +42,7 @@ export class PasswordResetService {
       requestedIp: ip,
     });
 
-    const link = `${this.appUrl()}/reset?token=${raw}`;
+    const link = `${this.appUrl()}/auth/reset-password?token=${raw}`;
     await this.mail.sendResetEmail(user.email, link);
   }
 

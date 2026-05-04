@@ -119,7 +119,7 @@ describe('PasswordResetService', () => {
       const [to, link] = m.mail.sendResetEmail.mock.calls[0];
       expect(to).toBe('admin@school.com');
       expect(link).toMatch(
-        /^http:\/\/localhost:3000\/reset\?token=[A-Za-z0-9_-]+$/,
+        /^http:\/\/localhost:3000\/auth\/reset-password\?token=[A-Za-z0-9_-]+$/,
       );
     });
   });

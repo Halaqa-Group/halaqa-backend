@@ -20,9 +20,11 @@ import {
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { ApiMessage } from '../../common/api-message';
+import { Audit } from '../../common/decorators/audit.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { ChangePasswordDto } from '../users/dto/change-password.dto';
 import { UsersService } from '../users/users.service';
 import {
   AuthSuccessEnvelope,
@@ -212,6 +214,7 @@ export class AuthController {
       name: view.name,
       email: view.email,
       phone: view.phone,
+      photoUrl: view.photoUrl,
       roles: view.roles,
     };
   }
@@ -235,5 +238,34 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<ApiMessage> {
     await this.passwordReset.consumeResetToken(dto);
     return new ApiMessage('Password has been reset successfully');
+  }
+
+  @HttpCode(200)
+  @Post('change-password')
+  @Audit('user.password.changed_by_self')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Change own password (BR-USR-05)',
+    description:
+      'Verifies the current password before applying. Revokes every other refresh token for the user ' +
+      "(`password_change`); the caller's current refresh cookie keeps working so the active session is preserved. " +
+      'Mounted under `/auth` so the cookie (Path=`/api/auth`) is in scope.',
+  })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({ status: 200, type: MessageEnvelope })
+  @ApiResponse({
+    status: 401,
+    description: 'Current password mismatch',
+    type: ErrorEnvelope,
+  })
+  async changePassword(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: RequestWithCookies,
+  ): Promise<ApiMessage> {
+    const raw = req.cookies?.[REFRESH_COOKIE_NAME];
+    const currentHash = raw ? this.tokens.hashRaw(raw) : null;
+    await this.users.changePassword(actor.id, dto, currentHash);
+    return new ApiMessage('Password updated');
   }
 }

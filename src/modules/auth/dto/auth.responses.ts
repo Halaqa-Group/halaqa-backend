@@ -126,6 +126,9 @@ export class MeResponse {
   @ApiProperty({ nullable: true, example: '+970599123456' })
   phone!: string | null;
 
+  @ApiProperty({ nullable: true })
+  photoUrl!: string | null;
+
   @ApiProperty({
     type: [String],
     example: ['principal'],
