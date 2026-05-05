@@ -9,7 +9,10 @@ import { buildTypeOrmOptions } from './config/typeorm.config';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DevSeederModule } from './modules/dev/dev-seeder.module';
+import { HalaqatModule } from './modules/halaqat/halaqat.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { StudentsModule } from './modules/students/students.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -30,6 +33,9 @@ import { UsersModule } from './modules/users/users.module';
     RolesModule,
     AuthModule,
     AuditModule,
+    NotificationsModule,
+    HalaqatModule,
+    StudentsModule,
     DevSeederModule,
   ],
   controllers: [AppController],

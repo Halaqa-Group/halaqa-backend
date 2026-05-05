@@ -18,7 +18,7 @@ import {
 } from 'typeorm';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
-import { Role } from '../roles/role.entity';
+import { Role, type RoleSlug } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
 import { AdminResetPasswordDto } from './dto/admin-reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -244,6 +244,27 @@ export class UsersService {
       await this.userRoles.insert({ userId, roleId, assignedBy: actor.id });
     }
     return this.findOne(userId, actor.schoolId);
+  }
+
+  async findByEmail(email: string, schoolId: number): Promise<User | null> {
+    return this.users.findOne({ where: { email, schoolId } });
+  }
+
+  async ensureRoleBySlug(
+    userId: number,
+    slug: RoleSlug,
+    actor: AuthenticatedUser,
+    manager?: EntityManager,
+  ): Promise<boolean> {
+    const role = await this.rolesRepo.findOne({ where: { slug } });
+    if (!role) throw new BadRequestException(`Unknown role slug: ${slug}`);
+
+    const userRoleRepo = manager?.getRepository(UserRole) ?? this.userRoles;
+    const existing = await userRoleRepo.findOne({ where: { userId, roleId: role.id } });
+    if (existing) return false;
+
+    await userRoleRepo.insert({ userId, roleId: role.id, assignedBy: actor.id });
+    return true;
   }
 
   async removeRole(

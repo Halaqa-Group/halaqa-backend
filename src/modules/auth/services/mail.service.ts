@@ -5,6 +5,7 @@ import type { Transporter } from 'nodemailer';
 
 export interface MailService {
   sendResetEmail(to: string, link: string): Promise<void>;
+  sendParentInvite(to: string, link: string): Promise<void>;
 }
 
 @Injectable()
@@ -56,6 +57,22 @@ export class NodemailerMailService
     });
     if (!this.hasSmtp) {
       this.logger.log(`reset email (jsonTransport) → ${to}: ${link}`);
+    }
+  }
+
+  async sendParentInvite(to: string, link: string): Promise<void> {
+    await this.transporter.sendMail({
+      from: this.from,
+      to,
+      subject: 'You have been added as a guardian',
+      text: `You have been added as a parent/guardian. Set your password using this link (valid for 7 days):\n\n${link}`,
+      html:
+        `<p>You have been added as a parent/guardian.</p>` +
+        `<p>Set your password using this link (valid for 7 days):</p>` +
+        `<p><a href="${link}">${link}</a></p>`,
+    });
+    if (!this.hasSmtp) {
+      this.logger.log(`parent invite (jsonTransport) → ${to}: ${link}`);
     }
   }
 }
