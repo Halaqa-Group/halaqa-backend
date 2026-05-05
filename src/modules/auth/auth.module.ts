@@ -55,6 +55,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     { provide: APP_GUARD, useClass: ActiveUserGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [TypeOrmModule, PassportModule, TokenService, AuthService],
+  exports: [TypeOrmModule, PassportModule, TokenService, AuthService, MAIL_SERVICE],
 })
 export class AuthModule {}

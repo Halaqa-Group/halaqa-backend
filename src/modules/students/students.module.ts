@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { AuthModule } from '../auth/auth.module';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { UsersModule } from '../users/users.module';
 import { MyChildrenController } from './controllers/my-children.controller';
@@ -17,6 +18,7 @@ import { StudentsService } from './services/students.service';
     TypeOrmModule.forFeature([Student, StudentGuardian, PasswordResetToken]),
     UsersModule,
     AuditModule,
+    AuthModule,
   ],
   controllers: [
     StudentsController,
