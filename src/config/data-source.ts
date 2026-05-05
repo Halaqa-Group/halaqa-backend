@@ -5,8 +5,14 @@ import { AuditLog } from '../modules/audit/audit-log.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { Halaqa } from '../modules/halaqat/entities/halaqa.entity';
+import { HalaqaTeacher } from '../modules/halaqat/entities/halaqa-teacher.entity';
+import { StudentHalaqa } from '../modules/halaqat/entities/student-halaqa.entity';
+import { SupervisorHalaqa } from '../modules/halaqat/entities/supervisor-halaqa.entity';
 import { Role } from '../modules/roles/role.entity';
 import { UserRole } from '../modules/roles/user-role.entity';
+import { StudentGuardian } from '../modules/students/entities/student-guardian.entity';
+import { Student } from '../modules/students/entities/student.entity';
 import { School } from '../modules/tenant/school.entity';
 import { User } from '../modules/users/entities/user.entity';
 
@@ -36,6 +42,12 @@ export default new DataSource({
     LoginAttempt,
     PasswordResetToken,
     AuditLog,
+    Student,
+    StudentGuardian,
+    Halaqa,
+    StudentHalaqa,
+    HalaqaTeacher,
+    SupervisorHalaqa,
   ],
   migrations: ['migrations/*.ts'],
   migrationsTableName: 'typeorm_migrations',

@@ -559,4 +559,47 @@ describe('UsersService', () => {
       expect(m.users.builder.execute).not.toHaveBeenCalled();
     });
   });
+
+  describe('findByEmail', () => {
+    it('returns user when found in the same school', async () => {
+      m.users.findOne.mockResolvedValue(ACTIVE_USER_VIEW);
+      const result = await service.findByEmail('x@s.com', 1);
+      expect(result).toBe(ACTIVE_USER_VIEW);
+      expect(m.users.findOne).toHaveBeenCalledWith({
+        where: { email: 'x@s.com', schoolId: 1 },
+      });
+    });
+
+    it('returns null when not found', async () => {
+      m.users.findOne.mockResolvedValue(null);
+      const result = await service.findByEmail('unknown@x.com', 1);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('ensureRoleBySlug', () => {
+    it('inserts role assignment and returns true when role is new', async () => {
+      m.users.findOne.mockResolvedValue(ACTIVE_USER_VIEW);
+      m.rolesRepo.findOne.mockResolvedValue({ id: 4, slug: 'parent', level: 10 } as Role);
+      m.userRoles.findOne.mockResolvedValue(null);
+
+      const assigned = await service.ensureRoleBySlug(99, 'parent', ACTOR);
+
+      expect(assigned).toBe(true);
+      expect(m.userRoles.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 99, roleId: 4, assignedBy: ACTOR.id }),
+      );
+    });
+
+    it('is idempotent — returns false and does not insert when role already exists', async () => {
+      m.users.findOne.mockResolvedValue(ACTIVE_USER_VIEW);
+      m.rolesRepo.findOne.mockResolvedValue({ id: 4, slug: 'parent', level: 10 } as Role);
+      m.userRoles.findOne.mockResolvedValue({ userId: 99, roleId: 4 });
+
+      const assigned = await service.ensureRoleBySlug(99, 'parent', ACTOR);
+
+      expect(assigned).toBe(false);
+      expect(m.userRoles.insert).not.toHaveBeenCalled();
+    });
+  });
 });
