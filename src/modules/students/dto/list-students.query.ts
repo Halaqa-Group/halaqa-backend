@@ -79,8 +79,7 @@ export class ListStudentsQuery {
     example: '300123456',
     maxLength: 20,
     description:
-      'Exact-match filter on national ID number (normalized before comparison). ' +
-      'Returns 400 for supervisor/teacher callers.',
+      'Exact-match filter on national ID number (normalized before comparison).',
   })
   @IsOptional()
   @IsString()

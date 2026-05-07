@@ -75,14 +75,13 @@ export class StudentResponse {
   photo_url!: string | null;
 
   @ApiProperty({
-    required: false,
     nullable: true,
     example: '300123456',
     description:
-      'National ID number. Present (possibly null) for principal/VP/parent callers. ' +
-      'Key omitted entirely for supervisor/teacher callers.',
+      'National ID number. Always present when you can see the student. ' +
+      'Value is null for legacy students created before this field was required.',
   })
-  id_number?: string | null;
+  id_number!: string | null;
 }
 
 export class StudentDetailResponse extends StudentResponse {
@@ -180,7 +179,7 @@ export type StudentView = {
   daily_far_pages_capacity: string;
   notes: string | null;
   photo_url: string | null;
-  id_number?: string | null;
+  id_number: string | null;
 };
 
 export type StudentDetailView = StudentView & { guardians: GuardianView[] };

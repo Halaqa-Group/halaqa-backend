@@ -174,29 +174,18 @@ export class StudentsService {
       );
     }
 
-    const canSearchById = isPrincipalOrVP || roles.includes('parent');
-
     if (query.q) {
-      if (canSearchById) {
-        const qNorm = `%${this.idValidator.normalize(query.q)}%`;
-        qb.andWhere(
-          new Brackets((b) =>
-            b
-              .where('s.name LIKE :q', { q: `%${query.q}%` })
-              .orWhere('s.idNumber LIKE :qNorm', { qNorm }),
-          ),
-        );
-      } else {
-        qb.andWhere('s.name LIKE :q', { q: `%${query.q}%` });
-      }
+      const qNorm = `%${this.idValidator.normalize(query.q)}%`;
+      qb.andWhere(
+        new Brackets((b) =>
+          b
+            .where('s.name LIKE :q', { q: `%${query.q}%` })
+            .orWhere('s.idNumber LIKE :qNorm', { qNorm }),
+        ),
+      );
     }
 
     if (query.id_number !== undefined) {
-      if (!canSearchById) {
-        throw new BadRequestException(
-          'Filtering by id_number is not allowed for your role.',
-        );
-      }
       qb.andWhere('s.idNumber = :idNum', {
         idNum: this.idValidator.normalize(query.id_number),
       });
@@ -598,16 +587,12 @@ export class StudentsService {
     }
   }
 
-  toView(student: Student, actor: AuthenticatedUser): StudentView {
+  toView(student: Student, _actor: AuthenticatedUser): StudentView {
     const formatDate = (d: Date | string | null): string | null => {
       if (!d) return null;
       if (d instanceof Date) return d.toISOString().split('T')[0];
       return String(d).split('T')[0];
     };
-
-    const canSeeId = actor.roles.some((r) =>
-      ['principal', 'vice_principal', 'parent'].includes(r.slug),
-    );
 
     const base: StudentView = {
       id: student.id,
@@ -621,11 +606,8 @@ export class StudentsService {
       daily_far_pages_capacity: String(student.dailyFarPagesCapacity),
       notes: student.notes,
       photo_url: student.photoUrl,
+      id_number: student.idNumber,
     };
-
-    if (canSeeId) {
-      base.id_number = student.idNumber;
-    }
 
     return base;
   }
