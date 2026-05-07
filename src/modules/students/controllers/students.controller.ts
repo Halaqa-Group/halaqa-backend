@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -170,6 +171,7 @@ export class StudentsController {
 
   @Post(':id/restore')
   @Roles('principal', 'vice_principal')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore a soft-deleted student',
     description:
@@ -192,6 +194,7 @@ export class StudentsController {
   @Post(':id/graduate')
   @UseGuards(StudentScopeGuard)
   @Roles('principal', 'vice_principal')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Graduate a student (BR-STU-04)',
     description:

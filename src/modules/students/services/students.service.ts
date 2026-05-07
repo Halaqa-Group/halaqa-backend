@@ -251,7 +251,7 @@ export class StudentsService {
     manager?: EntityManager,
   ): Promise<Student> {
     const repo = manager?.getRepository(Student) ?? this.students;
-    const student = await repo.findOne({ where: { id }, withDeleted: true });
+    const student = await repo.findOne({ where: { id } });
 
     if (!student || student.schoolId !== actor.schoolId) {
       throw new NotFoundException();
