@@ -19,6 +19,15 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addCookieAuth('refresh_token', { type: 'apiKey', in: 'cookie' })
     .addTag('Auth', 'Login, refresh, logout, password reset')
     .addTag('Sessions', 'List and revoke active devices')
+    .addTag(
+      'Students',
+      'Student CRUD, soft-delete/restore, and graduation. Visibility is role-scoped.',
+    )
+    .addTag(
+      'Guardians',
+      'Link, update, and unlink guardians for a student.',
+    )
+    .addTag('My Children', 'Parent-only views over their linked students.')
     .build();
 
   return SwaggerModule.createDocument(app, config);
