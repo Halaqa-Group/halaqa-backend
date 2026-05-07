@@ -720,10 +720,10 @@ describe('StudentsService', () => {
       const service = makeService(repo, makeGuardianRepo(), ds);
 
       await service.list({ q: 'يوسف' }, TEACHER);
-      const andWhereCalls = qb.andWhere.mock.calls as [string | object][][][];
+      const andWhereCalls = qb.andWhere.mock.calls as Array<[string | object, ...unknown[]]>;
       // The name-only path calls andWhere with a string containing 'name'
       const hasNameLike = andWhereCalls.some(
-        (c) => typeof c[0] === 'string' && c[0].includes('name'),
+        (c) => typeof c[0] === 'string' && (c[0] as string).includes('name'),
       );
       expect(hasNameLike).toBe(true);
     });

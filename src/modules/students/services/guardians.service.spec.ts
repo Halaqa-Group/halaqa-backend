@@ -112,7 +112,7 @@ function makeTxMocks(existingGuardians: StudentGuardian[] = []): TxMocks {
     userRepo: {
       findOne: jest.fn().mockResolvedValue(GUARDIAN_USER),
       save: jest.fn().mockResolvedValue({ ...GUARDIAN_USER, id: 99 }),
-      create: jest.fn().mockImplementation((d: unknown) => ({ ...d, id: 99 })),
+      create: jest.fn().mockImplementation((d: Record<string, unknown>) => ({ ...d, id: 99 })),
     },
     resetRepo: {
       save: jest.fn().mockResolvedValue({}),

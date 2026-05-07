@@ -8,6 +8,7 @@ const BASE_STUDENT: Student = {
   id: 10,
   schoolId: 1,
   name: 'محمد',
+  idNumber: null,
   gender: 'male',
   dob: null,
   joinDate: new Date(),

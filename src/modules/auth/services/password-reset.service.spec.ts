@@ -46,6 +46,7 @@ function makeMocks(): Mocks {
     } as unknown as ConfigService,
     mail: {
       sendResetEmail: jest.fn().mockResolvedValue(undefined),
+      sendParentInvite: jest.fn().mockResolvedValue(undefined),
     },
     tokens: {
       revokeAllForUser: jest.fn().mockResolvedValue(undefined),
