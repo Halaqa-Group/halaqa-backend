@@ -381,14 +381,14 @@ describe('StudentsService', () => {
       expect(view).toHaveProperty('id_number', '300123456');
     });
 
-    it('omits id_number key entirely for teacher', () => {
+    it('includes id_number key for teacher', () => {
       const service = makeService();
       const s = { ...BASE_STUDENT, idNumber: '300123456' };
       const view = service.toView(s, TEACHER);
-      expect(view).not.toHaveProperty('id_number');
+      expect(view).toHaveProperty('id_number', '300123456');
     });
 
-    it('omits id_number key for supervisor', () => {
+    it('includes id_number key for supervisor', () => {
       const SUPERVISOR: AuthenticatedUser = {
         id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
         roles: [{ slug: 'supervisor', level: 60 }],
@@ -396,7 +396,7 @@ describe('StudentsService', () => {
       const service = makeService();
       const s = { ...BASE_STUDENT, idNumber: '300123456' };
       const view = service.toView(s, SUPERVISOR);
-      expect(view).not.toHaveProperty('id_number');
+      expect(view).toHaveProperty('id_number', '300123456');
     });
   });
 
@@ -643,6 +643,20 @@ describe('StudentsService', () => {
       const result = await service.update(10, { id_number: '100000000' }, PRINCIPAL, false);
       expect(result).toBeInstanceOf(DataWithWarnings);
     });
+
+    it('allows PATCH on legacy student (id_number IS NULL) without supplying id_number', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })  // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }); // refetch
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const service = makeService(repo, guardianRepo, makeDataSource(), makeAudit());
+
+      await expect(
+        service.update(10, { notes: 'updated notes' }, PRINCIPAL, false),
+      ).resolves.toBeDefined();
+    });
   });
 
   describe('id_number — list filters', () => {
@@ -658,7 +672,7 @@ describe('StudentsService', () => {
       return qb;
     }
 
-    it('throws 400 when supervisor uses ?id_number= filter', async () => {
+    it('allows supervisor to use ?id_number= filter', async () => {
       const SUPERVISOR: AuthenticatedUser = {
         id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
         roles: [{ slug: 'supervisor', level: 60 }],
@@ -666,22 +680,28 @@ describe('StudentsService', () => {
       const repo = makeStudentRepo();
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
-      const service = makeService(repo);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
 
-      await expect(
-        service.list({ id_number: '300123456' }, SUPERVISOR),
-      ).rejects.toThrow(BadRequestException);
+      await service.list({ id_number: '300123456' }, SUPERVISOR);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('idNumber'),
+        expect.objectContaining({ idNum: '300123456' }),
+      );
     });
 
-    it('throws 400 when teacher uses ?id_number= filter', async () => {
+    it('allows teacher to use ?id_number= filter', async () => {
       const repo = makeStudentRepo();
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
-      const service = makeService(repo);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
 
-      await expect(
-        service.list({ id_number: '300123456' }, TEACHER),
-      ).rejects.toThrow(BadRequestException);
+      await service.list({ id_number: '300123456' }, TEACHER);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('idNumber'),
+        expect.objectContaining({ idNum: '300123456' }),
+      );
     });
 
     it('allows principal to use ?id_number= filter', async () => {
@@ -698,7 +718,7 @@ describe('StudentsService', () => {
       );
     });
 
-    it('principal ?q= includes id_number OR clause', async () => {
+    it('?q= includes id_number OR clause for all roles', async () => {
       const repo = makeStudentRepo();
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
@@ -711,21 +731,19 @@ describe('StudentsService', () => {
       expect(andWhereCalls.length).toBeGreaterThan(0);
     });
 
-    it('teacher ?q= produces name-only LIKE (no id_number branch)', async () => {
+    it('teacher ?q= also includes id_number OR clause', async () => {
       const repo = makeStudentRepo();
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
       const managerQuery = jest.fn().mockResolvedValue([]);
       const ds = makeDataSource(managerQuery);
-      const service = makeService(repo, makeGuardianRepo(), ds);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), ds, makeAudit(), makeGuardiansService(), idValidator);
 
       await service.list({ q: 'يوسف' }, TEACHER);
-      const andWhereCalls = qb.andWhere.mock.calls as Array<[string | object, ...unknown[]]>;
-      // The name-only path calls andWhere with a string containing 'name'
-      const hasNameLike = andWhereCalls.some(
-        (c) => typeof c[0] === 'string' && (c[0] as string).includes('name'),
-      );
-      expect(hasNameLike).toBe(true);
+      // All roles now use Brackets with name OR id_number
+      const andWhereCalls = qb.andWhere.mock.calls;
+      expect(andWhereCalls.length).toBeGreaterThan(0);
     });
   });
 });

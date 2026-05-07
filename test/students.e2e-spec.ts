@@ -195,6 +195,14 @@ describe('Students (e2e)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('400 — missing required field (id_number)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/students')
+        .set('Authorization', `Bearer ${principalToken}`)
+        .send({ name: `${RUN}-no-id`, gender: 'male', join_date: '2024-09-01' });
+      expect(res.status).toBe(400);
+    });
+
     it('401 — unauthenticated request', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/students')
@@ -425,9 +433,9 @@ describe('Students (e2e)', () => {
     });
   });
 
-  // ── GET /api/students?id_number= — role-gated filter ─────────────────────
+  // ── GET /api/students?id_number= — id_number filter ──────────────────────
 
-  describe('GET /api/students?id_number= — role-gated filter', () => {
+  describe('GET /api/students?id_number= — id_number filter', () => {
     let studentId: number;
 
     beforeAll(async () => {
@@ -466,18 +474,18 @@ describe('Students (e2e)', () => {
       expect(match!.id_number).toBe('222222226');
     });
 
-    it('400 — supervisor cannot filter by id_number', async () => {
+    it('200 — supervisor can filter by id_number (scope limits results)', async () => {
       await request(app.getHttpServer())
         .get('/api/students?id_number=222222226')
         .set('Authorization', `Bearer ${supervisorToken}`)
-        .expect(400);
+        .expect(200);
     });
 
-    it('400 — teacher cannot filter by id_number', async () => {
+    it('200 — teacher can filter by id_number (scope limits results)', async () => {
       await request(app.getHttpServer())
         .get('/api/students?id_number=222222226')
         .set('Authorization', `Bearer ${teacherToken}`)
-        .expect(400);
+        .expect(200);
     });
   });
 
@@ -544,6 +552,7 @@ describe('Students (e2e)', () => {
         name: `${RUN}-lifecycle`,
         gender: 'female',
         join_date: '2024-09-01',
+        id_number: '777777778',
       });
       expect(res.status).toBe(201);
       studentId = res.body.data.id as number;
