@@ -1,14 +1,30 @@
 import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Repository } from 'typeorm';
+import { ErrorEnvelope } from '../../auth/dto/auth.responses';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
-import { GuardianView, StudentDetailView, StudentListResult } from '../dto/student.responses';
+import {
+  GuardianView,
+  StudentDetailEnvelope,
+  StudentDetailView,
+  StudentListEnvelope,
+  StudentListResult,
+} from '../dto/student.responses';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { Student } from '../entities/student.entity';
 import { StudentsService } from '../services/students.service';
 
+@ApiTags('My Children')
+@ApiBearerAuth('access-token')
 @Controller('me/children')
 @Roles('parent')
 export class MyChildrenController {
@@ -21,6 +37,18 @@ export class MyChildrenController {
   ) {}
 
   @Get()
+  @ApiOperation({
+    summary: 'List own children (parent only)',
+    description:
+      'Returns all students for which the authenticated parent has a `student_guardians` entry. ' +
+      '**Cross-school exception**: this is the only endpoint in the system that returns students from multiple schools. ' +
+      'A parent\'s children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. ' +
+      'Soft-deleted students are excluded. No pagination — returns all children in one response. ' +
+      'Does NOT write an audit log.',
+  })
+  @ApiResponse({ status: 200, type: StudentListEnvelope })
+  @ApiResponse({ status: 401, type: ErrorEnvelope })
+  @ApiResponse({ status: 403, description: 'Caller does not have the parent role', type: ErrorEnvelope })
   async list(@CurrentUser() actor: AuthenticatedUser): Promise<StudentListResult> {
     const rows = await this.studentRepo
       .createQueryBuilder('s')
@@ -41,6 +69,20 @@ export class MyChildrenController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get a child by ID (parent only)',
+    description:
+      'Returns the full student record including all guardians. ' +
+      'Returns **404** if the student does not exist or the caller is not linked to the student as a guardian — ' +
+      'never 403, to avoid leaking student existence. ' +
+      '**Cross-school exception**: parent may access a child in a different school than their own. ' +
+      'Does NOT write an audit log.',
+  })
+  @ApiParam({ name: 'id', description: 'Student ID' })
+  @ApiResponse({ status: 200, type: StudentDetailEnvelope })
+  @ApiResponse({ status: 401, type: ErrorEnvelope })
+  @ApiResponse({ status: 403, description: 'Caller does not have the parent role', type: ErrorEnvelope })
+  @ApiResponse({ status: 404, description: 'Student not found or caller is not the student\'s guardian', type: ErrorEnvelope })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
