@@ -1955,6 +1955,18 @@
     {
       "name": "Sessions",
       "description": "List and revoke active devices"
+    },
+    {
+      "name": "Students",
+      "description": "Student CRUD, soft-delete/restore, and graduation. Visibility is role-scoped."
+    },
+    {
+      "name": "Guardians",
+      "description": "Link, update, and unlink guardians for a student."
+    },
+    {
+      "name": "My Children",
+      "description": "Parent-only views over their linked students."
     }
   ],
   "servers": [],
