@@ -1,11 +1,4 @@
 import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ApiBearerAuth,
@@ -49,7 +42,7 @@ export class MyChildrenController {
     description:
       'Returns all students for which the authenticated parent has a `student_guardians` entry. ' +
       '**Cross-school exception**: this is the only endpoint in the system that returns students from multiple schools. ' +
-      'A parent\'s children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. ' +
+      "A parent's children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. " +
       'Soft-deleted students are excluded. No pagination — returns all children in one response. ' +
       'Does NOT write an audit log.',
   })
@@ -68,7 +61,7 @@ export class MyChildrenController {
       .getManyAndCount();
 
     return {
-      items: rows[0].map((s) => this.studentsService.toView(s)),
+      items: rows[0].map((s) => this.studentsService.toView(s, actor)),
       total: rows[1],
       page: 1,
       limit: rows[1],
@@ -89,7 +82,7 @@ export class MyChildrenController {
   @ApiResponse({ status: 200, type: StudentDetailEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, description: 'Caller does not have the parent role', type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or caller is not the student\'s guardian', type: ErrorEnvelope })
+  @ApiResponse({ status: 404, description: "Student not found or caller is not the student's guardian", type: ErrorEnvelope })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
@@ -120,6 +113,6 @@ export class MyChildrenController {
       can_pickup: !!sg.canPickup,
     }));
 
-    return { ...this.studentsService.toView(student), guardians };
+    return { ...this.studentsService.toView(student, actor), guardians };
   }
 }

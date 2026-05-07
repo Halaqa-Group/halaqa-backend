@@ -5,6 +5,7 @@
  */
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -14,6 +15,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { CAPACITY_LIMITS } from '../capacity.config';
 import type { StudentGender, StudentStatus } from '../entities/student.entity';
@@ -96,4 +98,30 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsString()
   photo_url?: string;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '300123456',
+    maxLength: 20,
+    description:
+      'National ID number. Set to null to clear a previously-set value (requires force_id_number_change: true). ' +
+      'Changing an already-set value also requires the flag. ' +
+      'A bad checksum is stored with a warning in the response.',
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateStudentDto) => o.id_number !== null)
+  @IsString()
+  @MaxLength(20)
+  id_number?: string | null;
+
+  @ApiProperty({
+    required: false,
+    example: true,
+    description:
+      'Required when changing or clearing an already-set id_number. Transient — never persisted.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  force_id_number_change?: boolean;
 }

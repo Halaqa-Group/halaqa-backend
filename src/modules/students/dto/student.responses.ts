@@ -73,6 +73,16 @@ export class StudentResponse {
 
   @ApiProperty({ nullable: true, example: 'https://cdn.example.com/photos/1.jpg' })
   photo_url!: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '300123456',
+    description:
+      'National ID number. Present (possibly null) for principal/VP/parent callers. ' +
+      'Key omitted entirely for supervisor/teacher callers.',
+  })
+  id_number?: string | null;
 }
 
 export class StudentDetailResponse extends StudentResponse {
@@ -100,6 +110,14 @@ export class StudentEnvelope {
 
   @ApiProperty({ type: StudentResponse })
   data!: StudentResponse;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    example: ['id_number.checksum_invalid'],
+    description: 'Non-fatal warnings. Present only when id_number validation produced warnings.',
+  })
+  warnings?: string[];
 }
 
 export class StudentDetailEnvelope {
@@ -108,6 +126,14 @@ export class StudentDetailEnvelope {
 
   @ApiProperty({ type: StudentDetailResponse })
   data!: StudentDetailResponse;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    example: ['id_number.checksum_invalid'],
+    description: 'Non-fatal warnings. Present only when id_number validation produced warnings.',
+  })
+  warnings?: string[];
 }
 
 export class StudentListEnvelope {
@@ -154,6 +180,7 @@ export type StudentView = {
   daily_far_pages_capacity: string;
   notes: string | null;
   photo_url: string | null;
+  id_number?: string | null;
 };
 
 export type StudentDetailView = StudentView & { guardians: GuardianView[] };

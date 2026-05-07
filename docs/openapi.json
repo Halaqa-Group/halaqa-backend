@@ -1055,6 +1055,17 @@
               "example": false,
               "type": "boolean"
             }
+          },
+          {
+            "name": "id_number",
+            "required": false,
+            "in": "query",
+            "description": "Exact-match filter on national ID number (normalized before comparison). Returns 400 for supervisor/teacher callers.",
+            "schema": {
+              "maxLength": 20,
+              "example": "300123456",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2710,6 +2721,12 @@
             "type": "object",
             "nullable": true,
             "example": "https://cdn.example.com/photos/1.jpg"
+          },
+          "id_number": {
+            "type": "object",
+            "nullable": true,
+            "example": "300123456",
+            "description": "National ID number. Present (possibly null) for principal/VP/parent callers. Key omitted entirely for supervisor/teacher callers."
           }
         },
         "required": [
@@ -2901,6 +2918,12 @@
             "nullable": true,
             "example": "https://cdn.example.com/photos/1.jpg"
           },
+          "id_number": {
+            "type": "object",
+            "nullable": true,
+            "example": "300123456",
+            "description": "National ID number. Present (possibly null) for principal/VP/parent callers. Key omitted entirely for supervisor/teacher callers."
+          },
           "guardians": {
             "type": "array",
             "items": {
@@ -2932,6 +2955,16 @@
           },
           "data": {
             "$ref": "#/components/schemas/StudentDetailResponse"
+          },
+          "warnings": {
+            "example": [
+              "id_number.checksum_invalid"
+            ],
+            "description": "Non-fatal warnings. Present only when id_number validation produced warnings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -3058,6 +3091,12 @@
             "type": "string",
             "example": "https://cdn.example.com/photos/1.jpg"
           },
+          "id_number": {
+            "type": "string",
+            "example": "300123456",
+            "maxLength": 20,
+            "description": "National ID number. Format is country-specific (Palestinian: 9 digits). A bad checksum is stored with a warning, not rejected. Unique per school (soft-deleted rows included in the constraint)."
+          },
           "guardians": {
             "description": "Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.",
             "type": "array",
@@ -3081,6 +3120,16 @@
           },
           "data": {
             "$ref": "#/components/schemas/StudentResponse"
+          },
+          "warnings": {
+            "example": [
+              "id_number.checksum_invalid"
+            ],
+            "description": "Non-fatal warnings. Present only when id_number validation produced warnings.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -3151,6 +3200,18 @@
           "photo_url": {
             "type": "string",
             "example": "https://cdn.example.com/photos/1.jpg"
+          },
+          "id_number": {
+            "type": "object",
+            "nullable": true,
+            "example": "300123456",
+            "maxLength": 20,
+            "description": "National ID number. Set to null to clear a previously-set value (requires force_id_number_change: true). Changing an already-set value also requires the flag. A bad checksum is stored with a warning in the response."
+          },
+          "force_id_number_change": {
+            "type": "boolean",
+            "example": true,
+            "description": "Required when changing or clearing an already-set id_number. Transient — never persisted."
           }
         }
       },

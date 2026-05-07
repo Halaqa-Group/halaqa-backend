@@ -12,6 +12,7 @@ import { Student } from './entities/student.entity';
 import { StudentScopeGuard } from './guards/student-scope.guard';
 import { GuardiansService } from './services/guardians.service';
 import { StudentsService } from './services/students.service';
+import { PalestinianIdValidator } from './validators/palestinian-id.validator';
 
 @Module({
   imports: [
@@ -25,7 +26,12 @@ import { StudentsService } from './services/students.service';
     StudentGuardiansController,
     MyChildrenController,
   ],
-  providers: [StudentsService, GuardiansService, StudentScopeGuard],
+  providers: [
+    StudentsService,
+    GuardiansService,
+    StudentScopeGuard,
+    { provide: 'ID_NUMBER_VALIDATOR', useClass: PalestinianIdValidator },
+  ],
   exports: [StudentsService],
 })
 export class StudentsModule {}

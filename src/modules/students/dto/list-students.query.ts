@@ -13,6 +13,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import type { StudentGender, StudentStatus } from '../entities/student.entity';
@@ -72,4 +73,17 @@ export class ListStudentsQuery {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   include_deleted?: boolean;
+
+  @ApiProperty({
+    required: false,
+    example: '300123456',
+    maxLength: 20,
+    description:
+      'Exact-match filter on national ID number (normalized before comparison). ' +
+      'Returns 400 for supervisor/teacher callers.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  id_number?: string;
 }

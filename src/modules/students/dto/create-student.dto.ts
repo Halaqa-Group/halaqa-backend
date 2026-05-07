@@ -103,6 +103,20 @@ export class CreateStudentDto {
 
   @ApiProperty({
     required: false,
+    example: '300123456',
+    maxLength: 20,
+    description:
+      'National ID number. Format is country-specific (Palestinian: 9 digits). ' +
+      'A bad checksum is stored with a warning, not rejected. ' +
+      'Unique per school (soft-deleted rows included in the constraint).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  id_number?: string;
+
+  @ApiProperty({
+    required: false,
     type: [LinkGuardianDto],
     description: 'Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.',
   })

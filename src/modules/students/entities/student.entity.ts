@@ -16,6 +16,7 @@ export type StudentGender = 'male' | 'female';
 
 @Entity('students')
 @Index('idx_student_school_status', ['schoolId', 'status'])
+@Index('idx_student_idnum_school', ['idNumber', 'schoolId'], { unique: true })
 export class Student {
   @PrimaryGeneratedColumn({ type: 'int' })
   id!: number;
@@ -25,6 +26,9 @@ export class Student {
 
   @Column({ type: 'varchar', length: 100 })
   name!: string;
+
+  @Column({ name: 'id_number', type: 'varchar', length: 20, nullable: true })
+  idNumber!: string | null;
 
   @Column({ type: 'enum', enum: ['male', 'female'] })
   gender!: StudentGender;
