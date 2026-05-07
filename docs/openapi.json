@@ -974,18 +974,108 @@
     },
     "/students": {
       "get": {
+        "description": "Results are scoped by role: principal/vice_principal see all in the school; supervisor/teacher see students in their halaqat; parent sees only their linked children. Supports pagination and filters.",
         "operationId": "StudentsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search across student name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "graduated"
+              ]
+            }
+          },
+          {
+            "name": "gender",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "male",
+                "female"
+              ]
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by halaqa id.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "include_deleted",
+            "required": false,
+            "in": "query",
+            "description": "When true, soft-deleted students are also returned (principal/vice_principal only).",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentListEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List students visible to the caller",
         "tags": [
           "Students"
         ]
       },
       "post": {
+        "description": "Principal/vice_principal only. Daily-page capacities default to 1/5/10 (hifz/near/far) when omitted (BR-STD-02). Guardians may be linked inline.",
         "operationId": "StudentsController_create",
         "parameters": [],
         "requestBody": {
@@ -1000,9 +1090,22 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a student (with optional guardians)",
         "tags": [
           "Students"
         ]
@@ -1010,6 +1113,7 @@
     },
     "/students/{id}": {
       "get": {
+        "description": "Visibility enforced by `StudentScopeGuard` — returns 404 instead of 403 when the student is out of scope.",
         "operationId": "StudentsController_findOne",
         "parameters": [
           {
@@ -1023,14 +1127,28 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one student with guardians",
         "tags": [
           "Students"
         ]
       },
       "patch": {
+        "description": "Principal/vice_principal can edit any field. Teachers may only adjust daily-page capacities and notes (other fields in the body are ignored for teacher-only callers).",
         "operationId": "StudentsController_update",
         "parameters": [
           {
@@ -1054,14 +1172,28 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a student",
         "tags": [
           "Students"
         ]
       },
       "delete": {
+        "description": "Sets `deleted_at`. The student is hidden from default queries but recoverable via `/restore`.",
         "operationId": "StudentsController_softDelete",
         "parameters": [
           {
@@ -1075,9 +1207,15 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "Soft-deleted (no body)"
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Soft-delete a student",
         "tags": [
           "Students"
         ]
@@ -1085,6 +1223,7 @@
     },
     "/students/{id}/restore": {
       "post": {
+        "description": "Clears `deleted_at`. Principal/vice_principal only.",
         "operationId": "StudentsController_restore",
         "parameters": [
           {
@@ -1098,9 +1237,22 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Restore a soft-deleted student",
         "tags": [
           "Students"
         ]
@@ -1108,6 +1260,7 @@
     },
     "/students/{id}/graduate": {
       "post": {
+        "description": "Sets status to `graduated` and stamps the graduation date (defaults to today when omitted).",
         "operationId": "StudentsController_graduate",
         "parameters": [
           {
@@ -1131,9 +1284,22 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mark a student as graduated",
         "tags": [
           "Students"
         ]
@@ -1141,12 +1307,14 @@
     },
     "/students/{id}/guardians": {
       "get": {
+        "description": "Visibility follows the same scope rules as `GET /students/:id`. Ordered by link-creation time.",
         "operationId": "StudentGuardiansController_list",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "Student id (path param `:id` from the parent route).",
             "schema": {
               "type": "number"
             }
@@ -1154,20 +1322,35 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianListEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List guardians linked to a student",
         "tags": [
-          "StudentGuardians"
+          "Guardians"
         ]
       },
       "post": {
+        "description": "Either reference an existing parent user (`guardian_user_id`) or create one inline (`email` + `name`). Setting `is_primary: true` demotes any existing primary on the student (BR-STD-04).",
         "operationId": "StudentGuardiansController_link",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "Student id (path param `:id` from the parent route).",
             "schema": {
               "type": "number"
             }
@@ -1185,22 +1368,37 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Link a guardian to a student",
         "tags": [
-          "StudentGuardians"
+          "Guardians"
         ]
       }
     },
     "/students/{id}/guardians/{guardianUserId}": {
       "patch": {
+        "description": "Adjust relation, primary flag, or pickup permission. Promoting one guardian to primary demotes the existing primary.",
         "operationId": "StudentGuardiansController_update",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "Student id (path param `:id` from the parent route).",
             "schema": {
               "type": "number"
             }
@@ -1226,20 +1424,35 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a guardian link",
         "tags": [
-          "StudentGuardians"
+          "Guardians"
         ]
       },
       "delete": {
+        "description": "Removes the link only — does not delete the guardian user.",
         "operationId": "StudentGuardiansController_unlink",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "Student id (path param `:id` from the parent route).",
             "schema": {
               "type": "number"
             }
@@ -1255,30 +1468,51 @@
         ],
         "responses": {
           "204": {
-            "description": ""
+            "description": "Unlinked (no body)"
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unlink a guardian from a student",
         "tags": [
-          "StudentGuardians"
+          "Guardians"
         ]
       }
     },
     "/me/children": {
       "get": {
+        "description": "Parent-only. Returns every (non-deleted) student that this user is linked to as a guardian, newest first. The list is unpaginated — `page` and `limit` mirror the total for client compatibility.",
         "operationId": "MyChildrenController_list",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentListEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List the caller’s linked children",
         "tags": [
-          "MyChildren"
+          "My Children"
         ]
       }
     },
     "/me/children/{id}": {
       "get": {
+        "description": "Parent-only. Returns 404 (not 403) if the student isn’t linked to the caller — never reveals existence.",
         "operationId": "MyChildrenController_findOne",
         "parameters": [
           {
@@ -1292,11 +1526,24 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentEnvelope"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one of the caller’s children with guardians",
         "tags": [
-          "MyChildren"
+          "My Children"
         ]
       }
     }
@@ -1315,6 +1562,18 @@
     {
       "name": "Sessions",
       "description": "List and revoke active devices"
+    },
+    {
+      "name": "Students",
+      "description": "Student CRUD, soft-delete/restore, and graduation. Visibility is role-scoped."
+    },
+    {
+      "name": "Guardians",
+      "description": "Link, update, and unlink guardians for a student."
+    },
+    {
+      "name": "My Children",
+      "description": "Parent-only views over their linked students."
     }
   ],
   "servers": [],
@@ -1995,25 +2254,556 @@
           }
         }
       },
-      "CreateStudentDto": {
+      "StudentView": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7
+          },
+          "name": {
+            "type": "string",
+            "example": "محمد أحمد"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "example": "male"
+          },
+          "dob": {
+            "type": "object",
+            "nullable": true,
+            "example": "2012-04-15",
+            "description": "ISO date (YYYY-MM-DD), or null if unknown."
+          },
+          "join_date": {
+            "type": "string",
+            "example": "2024-09-01"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "graduated"
+            ],
+            "example": "active"
+          },
+          "daily_hifz_pages_capacity": {
+            "type": "string",
+            "example": "1",
+            "description": "Stringified decimal — pages per day for hifz (new memorization)."
+          },
+          "daily_near_pages_capacity": {
+            "type": "string",
+            "example": "5",
+            "description": "Stringified decimal — pages per day for near revision."
+          },
+          "daily_far_pages_capacity": {
+            "type": "string",
+            "example": "10",
+            "description": "Stringified decimal — pages per day for far revision."
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true,
+            "example": null
+          },
+          "photo_url": {
+            "type": "object",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "gender",
+          "dob",
+          "join_date",
+          "status",
+          "daily_hifz_pages_capacity",
+          "daily_near_pages_capacity",
+          "daily_far_pages_capacity",
+          "notes",
+          "photo_url"
+        ]
       },
-      "UpdateStudentDto": {
+      "StudentListResult": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudentView"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
       },
-      "GraduateStudentDto": {
+      "StudentListEnvelope": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentListResult"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "GuardianUserView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 42
+          },
+          "name": {
+            "type": "string",
+            "example": "أبو محمد"
+          },
+          "email": {
+            "type": "string",
+            "example": "parent@school.com",
+            "format": "email"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "+970599123456"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "phone"
+        ]
+      },
+      "GuardianView": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/GuardianUserView"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "father",
+              "mother",
+              "grandfather",
+              "grandmother",
+              "uncle",
+              "aunt",
+              "sibling",
+              "other"
+            ],
+            "example": "father"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "example": true,
+            "description": "At most one primary guardian per student (BR-STD-04)."
+          },
+          "can_pickup": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this guardian is allowed to pick the student up."
+          }
+        },
+        "required": [
+          "user",
+          "relation",
+          "is_primary",
+          "can_pickup"
+        ]
+      },
+      "StudentDetailView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7
+          },
+          "name": {
+            "type": "string",
+            "example": "محمد أحمد"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "example": "male"
+          },
+          "dob": {
+            "type": "object",
+            "nullable": true,
+            "example": "2012-04-15",
+            "description": "ISO date (YYYY-MM-DD), or null if unknown."
+          },
+          "join_date": {
+            "type": "string",
+            "example": "2024-09-01"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "graduated"
+            ],
+            "example": "active"
+          },
+          "daily_hifz_pages_capacity": {
+            "type": "string",
+            "example": "1",
+            "description": "Stringified decimal — pages per day for hifz (new memorization)."
+          },
+          "daily_near_pages_capacity": {
+            "type": "string",
+            "example": "5",
+            "description": "Stringified decimal — pages per day for near revision."
+          },
+          "daily_far_pages_capacity": {
+            "type": "string",
+            "example": "10",
+            "description": "Stringified decimal — pages per day for far revision."
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true,
+            "example": null
+          },
+          "photo_url": {
+            "type": "object",
+            "nullable": true,
+            "example": null
+          },
+          "guardians": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuardianView"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "gender",
+          "dob",
+          "join_date",
+          "status",
+          "daily_hifz_pages_capacity",
+          "daily_near_pages_capacity",
+          "daily_far_pages_capacity",
+          "notes",
+          "photo_url",
+          "guardians"
+        ]
+      },
+      "StudentEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentDetailView"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
       },
       "LinkGuardianDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "guardian_user_id": {
+            "type": "number",
+            "example": 42,
+            "description": "Existing parent user id to link. Provide either `guardian_user_id` OR `email` (+ `name` if creating)."
+          },
+          "email": {
+            "type": "string",
+            "example": "parent@school.com",
+            "format": "email",
+            "description": "Used to find an existing parent user, or to create one when paired with `name`."
+          },
+          "name": {
+            "type": "string",
+            "example": "أبو محمد",
+            "description": "Required only when creating a new parent user via `email`."
+          },
+          "phone": {
+            "type": "string",
+            "example": "+970599123456"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "father",
+              "mother",
+              "grandfather",
+              "grandmother",
+              "uncle",
+              "aunt",
+              "sibling",
+              "other"
+            ],
+            "example": "father"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "default": false,
+            "description": "At most one primary guardian per student (BR-STD-04)."
+          },
+          "can_pickup": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "relation"
+        ]
+      },
+      "CreateStudentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "محمد أحمد",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "example": "male"
+          },
+          "dob": {
+            "type": "string",
+            "example": "2012-04-15",
+            "format": "date",
+            "description": "Date of birth (ISO YYYY-MM-DD)."
+          },
+          "join_date": {
+            "type": "string",
+            "example": "2024-09-01",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "graduated"
+            ],
+            "default": "active"
+          },
+          "daily_hifz_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20,
+            "default": 1,
+            "description": "Pages per day for hifz (new memorization)."
+          },
+          "daily_near_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "default": 5,
+            "description": "Pages per day for near revision."
+          },
+          "daily_far_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 10,
+            "description": "Pages per day for far revision."
+          },
+          "notes": {
+            "type": "string"
+          },
+          "photo_url": {
+            "type": "string"
+          },
+          "guardians": {
+            "description": "Guardians to link at creation. Each entry either references an existing user (`guardian_user_id`) or creates a parent user from `email` + `name`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkGuardianDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "gender",
+          "join_date"
+        ]
+      },
+      "UpdateStudentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "محمد أحمد",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female"
+            ]
+          },
+          "dob": {
+            "type": "string",
+            "example": "2012-04-15",
+            "format": "date"
+          },
+          "join_date": {
+            "type": "string",
+            "example": "2024-09-01",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "graduated"
+            ]
+          },
+          "daily_hifz_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "daily_near_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "daily_far_pages_capacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "notes": {
+            "type": "string"
+          },
+          "photo_url": {
+            "type": "string"
+          }
+        }
+      },
+      "GraduateStudentDto": {
+        "type": "object",
+        "properties": {
+          "graduation_date": {
+            "type": "string",
+            "example": "2025-06-30",
+            "format": "date",
+            "description": "Defaults to today when omitted."
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "GuardianListEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuardianView"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "GuardianEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/GuardianView"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
       },
       "UpdateGuardianDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "relation": {
+            "type": "string",
+            "enum": [
+              "father",
+              "mother",
+              "grandfather",
+              "grandmother",
+              "uncle",
+              "aunt",
+              "sibling",
+              "other"
+            ]
+          },
+          "is_primary": {
+            "type": "boolean",
+            "description": "At most one primary guardian per student (BR-STD-04)."
+          },
+          "can_pickup": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }
