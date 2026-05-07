@@ -9,6 +9,7 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -102,7 +103,7 @@ export class CreateStudentDto {
   photo_url?: string;
 
   @ApiProperty({
-    required: false,
+    required: true,
     example: '300123456',
     maxLength: 20,
     description:
@@ -110,10 +111,10 @@ export class CreateStudentDto {
       'A bad checksum is stored with a warning, not rejected. ' +
       'Unique per school (soft-deleted rows included in the constraint).',
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @MaxLength(20)
-  id_number?: string;
+  id_number!: string;
 
   @ApiProperty({
     required: false,
