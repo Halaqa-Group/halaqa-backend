@@ -1,14 +1,29 @@
 import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
-import { GuardianView, StudentDetailView, StudentListResult } from '../dto/student.responses';
+import {
+  GuardianView,
+  StudentDetailView,
+  StudentEnvelope,
+  StudentListEnvelope,
+  StudentListResult,
+} from '../dto/student.responses';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { Student } from '../entities/student.entity';
 import { StudentsService } from '../services/students.service';
 
+@ApiTags('My Children')
+@ApiBearerAuth('access-token')
 @Controller('me/children')
 @Roles('parent')
 export class MyChildrenController {
@@ -21,6 +36,13 @@ export class MyChildrenController {
   ) {}
 
   @Get()
+  @ApiOperation({
+    summary: 'List the caller’s linked children',
+    description:
+      'Parent-only. Returns every (non-deleted) student that this user is linked to as a guardian, ' +
+      'newest first. The list is unpaginated — `page` and `limit` mirror the total for client compatibility.',
+  })
+  @ApiResponse({ status: 200, type: StudentListEnvelope })
   async list(@CurrentUser() actor: AuthenticatedUser): Promise<StudentListResult> {
     const rows = await this.studentRepo
       .createQueryBuilder('s')
@@ -41,6 +63,13 @@ export class MyChildrenController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get one of the caller’s children with guardians',
+    description:
+      'Parent-only. Returns 404 (not 403) if the student isn’t linked to the caller — never reveals existence.',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, type: StudentEnvelope })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
