@@ -1,4 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+/**
+ * Body for POST /students (principal / vice_principal).
+ * An optional `guardians` array creates and links guardians atomically.
+ * The first entry is forced to is_primary=true regardless of the submitted value.
+ * Whitelist is enforced globally (forbidNonWhitelisted=true); school_id is inferred from the token.
+ */
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
@@ -17,7 +23,7 @@ import type { StudentGender, StudentStatus } from '../entities/student.entity';
 import { LinkGuardianDto } from './link-guardian.dto';
 
 export class CreateStudentDto {
-  @ApiProperty({ example: 'محمد أحمد', minLength: 2, maxLength: 100 })
+  @ApiProperty({ example: 'يوسف محمد', minLength: 2, maxLength: 100 })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
@@ -27,32 +33,31 @@ export class CreateStudentDto {
   @IsEnum(['male', 'female'])
   gender!: StudentGender;
 
-  @ApiPropertyOptional({
-    example: '2012-04-15',
-    format: 'date',
-    description: 'Date of birth (ISO YYYY-MM-DD).',
-  })
+  @ApiProperty({ required: false, format: 'date', example: '2015-06-01', nullable: true })
   @IsOptional()
   @IsDateString()
   dob?: string;
 
-  @ApiProperty({ example: '2024-09-01', format: 'date' })
+  @ApiProperty({ format: 'date', example: '2024-09-01' })
   @IsDateString()
   join_date!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    required: false,
     enum: ['active', 'inactive', 'graduated'],
-    default: 'active',
+    example: 'active',
+    description: 'Defaults to `active` when omitted.',
   })
   @IsOptional()
   @IsEnum(['active', 'inactive', 'graduated'])
   status?: StudentStatus;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    required: false,
+    example: 1.0,
     minimum: CAPACITY_LIMITS.hifz.min,
     maximum: CAPACITY_LIMITS.hifz.max,
-    default: 1,
-    description: 'Pages per day for hifz (new memorization).',
+    description: 'Daily Hifz memorisation target in pages. Defaults to 0.5.',
   })
   @IsOptional()
   @IsNumber()
@@ -60,11 +65,12 @@ export class CreateStudentDto {
   @Max(CAPACITY_LIMITS.hifz.max)
   daily_hifz_pages_capacity?: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    required: false,
+    example: 2.0,
     minimum: CAPACITY_LIMITS.near.min,
     maximum: CAPACITY_LIMITS.near.max,
-    default: 5,
-    description: 'Pages per day for near revision.',
+    description: 'Daily near-review target in pages. Defaults to 2.',
   })
   @IsOptional()
   @IsNumber()
@@ -72,11 +78,12 @@ export class CreateStudentDto {
   @Max(CAPACITY_LIMITS.near.max)
   daily_near_pages_capacity?: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    required: false,
+    example: 5.0,
     minimum: CAPACITY_LIMITS.far.min,
     maximum: CAPACITY_LIMITS.far.max,
-    default: 10,
-    description: 'Pages per day for far revision.',
+    description: 'Daily far-review target in pages. Defaults to 5.',
   })
   @IsOptional()
   @IsNumber()
@@ -84,21 +91,20 @@ export class CreateStudentDto {
   @Max(CAPACITY_LIMITS.far.max)
   daily_far_pages_capacity?: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false, example: 'Needs extra support on Juz 30.' })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false, example: 'https://cdn.example.com/photos/1.jpg' })
   @IsOptional()
   @IsString()
   photo_url?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    required: false,
     type: [LinkGuardianDto],
-    description:
-      'Guardians to link at creation. Each entry either references an existing user (`guardian_user_id`) ' +
-      'or creates a parent user from `email` + `name`.',
+    description: 'Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.',
   })
   @IsOptional()
   @ValidateNested({ each: true })

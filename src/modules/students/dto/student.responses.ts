@@ -1,107 +1,88 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class GuardianUserView {
-  @ApiProperty({ example: 42 })
+export class GuardianUserResponse {
+  @ApiProperty({ example: 12 })
   id!: number;
 
-  @ApiProperty({ example: 'أبو محمد' })
+  @ApiProperty({ example: 'محمد أبو أحمد' })
   name!: string;
 
-  @ApiProperty({ example: 'parent@school.com', format: 'email' })
+  @ApiProperty({ example: 'parent@example.com', format: 'email' })
   email!: string;
 
-  @ApiProperty({ nullable: true, example: '+970599123456' })
+  @ApiProperty({ nullable: true, example: '+970599000001' })
   phone!: string | null;
 }
 
-export class GuardianView {
-  @ApiProperty({ type: GuardianUserView })
-  user!: GuardianUserView;
+export class GuardianResponse {
+  @ApiProperty({ type: GuardianUserResponse })
+  user!: GuardianUserResponse;
 
   @ApiProperty({
-    enum: [
-      'father',
-      'mother',
-      'grandfather',
-      'grandmother',
-      'uncle',
-      'aunt',
-      'sibling',
-      'other',
-    ],
+    enum: ['father', 'mother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'other'],
     example: 'father',
   })
   relation!: string;
 
-  @ApiProperty({
-    example: true,
-    description: 'At most one primary guardian per student (BR-STD-04).',
-  })
+  @ApiProperty({ example: true, description: 'Exactly one guardian per student has this set.' })
   is_primary!: boolean;
 
-  @ApiProperty({
-    example: true,
-    description: 'Whether this guardian is allowed to pick the student up.',
-  })
+  @ApiProperty({ example: true })
   can_pickup!: boolean;
 }
 
-export class StudentView {
-  @ApiProperty({ example: 7 })
+export class StudentResponse {
+  @ApiProperty({ example: 1 })
   id!: number;
 
-  @ApiProperty({ example: 'محمد أحمد' })
+  @ApiProperty({ example: 'يوسف محمد' })
   name!: string;
 
   @ApiProperty({ enum: ['male', 'female'], example: 'male' })
   gender!: string;
 
-  @ApiProperty({
-    nullable: true,
-    example: '2012-04-15',
-    description: 'ISO date (YYYY-MM-DD), or null if unknown.',
-  })
+  @ApiProperty({ nullable: true, format: 'date', example: '2015-06-01' })
   dob!: string | null;
 
-  @ApiProperty({ example: '2024-09-01' })
+  @ApiProperty({ format: 'date', example: '2024-09-01' })
   join_date!: string;
 
   @ApiProperty({ enum: ['active', 'inactive', 'graduated'], example: 'active' })
   status!: string;
 
   @ApiProperty({
-    example: '1',
-    description: 'Stringified decimal — pages per day for hifz (new memorization).',
+    example: '1.00',
+    description: 'Daily Hifz memorisation target in pages (0–20).',
   })
   daily_hifz_pages_capacity!: string;
 
   @ApiProperty({
-    example: '5',
-    description: 'Stringified decimal — pages per day for near revision.',
+    example: '2.00',
+    description: 'Daily near-review target in pages (0–50).',
   })
   daily_near_pages_capacity!: string;
 
   @ApiProperty({
-    example: '10',
-    description: 'Stringified decimal — pages per day for far revision.',
+    example: '5.00',
+    description: 'Daily far-review target in pages (0–100).',
   })
   daily_far_pages_capacity!: string;
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({ nullable: true, example: 'Needs extra support on Juz 30.' })
   notes!: string | null;
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({ nullable: true, example: 'https://cdn.example.com/photos/1.jpg' })
   photo_url!: string | null;
 }
 
-export class StudentDetailView extends StudentView {
-  @ApiProperty({ type: [GuardianView] })
-  guardians!: GuardianView[];
+export class StudentDetailResponse extends StudentResponse {
+  @ApiProperty({ type: [GuardianResponse] })
+  guardians!: GuardianResponse[];
 }
 
-export class StudentListResult {
-  @ApiProperty({ type: [StudentView] })
-  items!: StudentView[];
+export class StudentListData {
+  @ApiProperty({ type: [StudentResponse] })
+  items!: StudentResponse[];
 
   @ApiProperty({ example: 42 })
   total!: number;
@@ -117,30 +98,69 @@ export class StudentEnvelope {
   @ApiProperty({ example: 200 })
   code!: number;
 
-  @ApiProperty({ type: StudentDetailView })
-  data!: StudentDetailView;
+  @ApiProperty({ type: StudentResponse })
+  data!: StudentResponse;
+}
+
+export class StudentDetailEnvelope {
+  @ApiProperty({ example: 200 })
+  code!: number;
+
+  @ApiProperty({ type: StudentDetailResponse })
+  data!: StudentDetailResponse;
 }
 
 export class StudentListEnvelope {
   @ApiProperty({ example: 200 })
   code!: number;
 
-  @ApiProperty({ type: StudentListResult })
-  data!: StudentListResult;
-}
-
-export class GuardianListEnvelope {
-  @ApiProperty({ example: 200 })
-  code!: number;
-
-  @ApiProperty({ type: [GuardianView] })
-  data!: GuardianView[];
+  @ApiProperty({ type: StudentListData })
+  data!: StudentListData;
 }
 
 export class GuardianEnvelope {
   @ApiProperty({ example: 200 })
   code!: number;
 
-  @ApiProperty({ type: GuardianView })
-  data!: GuardianView;
+  @ApiProperty({ type: GuardianResponse })
+  data!: GuardianResponse;
 }
+
+export class GuardianListEnvelope {
+  @ApiProperty({ example: 200 })
+  code!: number;
+
+  @ApiProperty({ type: [GuardianResponse] })
+  data!: GuardianResponse[];
+}
+
+// Plain interfaces kept for service-layer compatibility
+export type GuardianView = {
+  user: { id: number; name: string; email: string; phone: string | null };
+  relation: string;
+  is_primary: boolean;
+  can_pickup: boolean;
+};
+
+export type StudentView = {
+  id: number;
+  name: string;
+  gender: string;
+  dob: string | null;
+  join_date: string;
+  status: string;
+  daily_hifz_pages_capacity: string;
+  daily_near_pages_capacity: string;
+  daily_far_pages_capacity: string;
+  notes: string | null;
+  photo_url: string | null;
+};
+
+export type StudentDetailView = StudentView & { guardians: GuardianView[] };
+
+export type StudentListResult = {
+  items: StudentView[];
+  total: number;
+  page: number;
+  limit: number;
+};
