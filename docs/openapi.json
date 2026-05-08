@@ -1060,7 +1060,7 @@
             "name": "id_number",
             "required": false,
             "in": "query",
-            "description": "Exact-match filter on national ID number (normalized before comparison). Returns 400 for supervisor/teacher callers.",
+            "description": "Exact-match filter on national ID number (normalized before comparison).",
             "schema": {
               "maxLength": 20,
               "example": "300123456",
@@ -2726,7 +2726,7 @@
             "type": "object",
             "nullable": true,
             "example": "300123456",
-            "description": "National ID number. Present (possibly null) for principal/VP/parent callers. Key omitted entirely for supervisor/teacher callers."
+            "description": "National ID number. Always present when you can see the student. Value is null for legacy students created before this field was required."
           }
         },
         "required": [
@@ -2740,7 +2740,8 @@
           "daily_near_pages_capacity",
           "daily_far_pages_capacity",
           "notes",
-          "photo_url"
+          "photo_url",
+          "id_number"
         ]
       },
       "StudentListData": {
@@ -2922,7 +2923,7 @@
             "type": "object",
             "nullable": true,
             "example": "300123456",
-            "description": "National ID number. Present (possibly null) for principal/VP/parent callers. Key omitted entirely for supervisor/teacher callers."
+            "description": "National ID number. Always present when you can see the student. Value is null for legacy students created before this field was required."
           },
           "guardians": {
             "type": "array",
@@ -2943,6 +2944,7 @@
           "daily_far_pages_capacity",
           "notes",
           "photo_url",
+          "id_number",
           "guardians"
         ]
       },
@@ -3108,7 +3110,8 @@
         "required": [
           "name",
           "gender",
-          "join_date"
+          "join_date",
+          "id_number"
         ]
       },
       "StudentEnvelope": {
