@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
-import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { UsersModule } from '../users/users.module';
 import { MyChildrenController } from './controllers/my-children.controller';
 import { StudentGuardiansController } from './controllers/student-guardians.controller';
@@ -16,7 +15,7 @@ import { PalestinianIdValidator } from './validators/palestinian-id.validator';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Student, StudentGuardian, PasswordResetToken]),
+    TypeOrmModule.forFeature([Student, StudentGuardian]),
     UsersModule,
     AuditModule,
     AuthModule,

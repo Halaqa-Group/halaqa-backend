@@ -1,21 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
-import { generateRawToken, hashToken } from '../../auth/token-crypto';
-import { PasswordResetToken } from '../../auth/entities/password-reset-token.entity';
-import {
-  MAIL_SERVICE,
-  type MailService,
-} from '../../auth/services/mail.service';
 import {
   NOTIFICATION_SERVICE,
   type NotificationService,
@@ -28,20 +21,14 @@ import { GuardianView } from '../dto/student.responses';
 import { Student } from '../entities/student.entity';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
 @Injectable()
 export class GuardiansService {
   constructor(
     @InjectRepository(StudentGuardian)
     private readonly sgRepo: Repository<StudentGuardian>,
-    @InjectRepository(PasswordResetToken)
-    private readonly resetTokenRepo: Repository<PasswordResetToken>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
     private readonly audit: AuditService,
-    private readonly config: ConfigService,
-    @Inject(MAIL_SERVICE) private readonly mail: MailService,
     @Inject(NOTIFICATION_SERVICE)
     private readonly notifications: NotificationService,
   ) {}
@@ -68,7 +55,6 @@ export class GuardiansService {
     }
 
     let guardianUserId: number;
-    let createdParent = false;
 
     const em = manager ?? this.dataSource.manager;
 
@@ -78,95 +64,38 @@ export class GuardiansService {
       });
       if (!user) throw new NotFoundException();
       guardianUserId = user.id;
-      const assigned = await this.usersService.ensureRoleBySlug(
-        guardianUserId,
-        'parent',
-        actor,
-        manager,
-      );
-      if (assigned) {
-        await this.audit.log({
-          actor,
-          action: 'user.role.assign',
-          entityType: 'user',
-          entityId: guardianUserId,
-          newValues: { role: 'parent' },
-        });
-      }
     } else if (dto.email !== undefined) {
-      const existing = await this.usersService.findByEmail(
-        dto.email,
-        actor.schoolId,
-      );
-      if (existing) {
-        guardianUserId = existing.id;
-        const assigned = await this.usersService.ensureRoleBySlug(
-          guardianUserId,
-          'parent',
-          actor,
-          manager,
-        );
-        if (assigned) {
-          await this.audit.log({
-            actor,
-            action: 'user.role.assign',
-            entityType: 'user',
-            entityId: guardianUserId,
-            newValues: { role: 'parent' },
-          });
-        }
-      } else {
-        if (!dto.name) {
-          throw new BadRequestException(
-            'name is required when creating a new parent user',
+      const user = await this.usersService.findByEmail(dto.email, actor.schoolId);
+      if (!user) {
+        const deleted = await this.usersService.findByEmail(dto.email, actor.schoolId, true);
+        if (deleted) {
+          throw new ConflictException(
+            'This user account has been deactivated. Restore the account before linking.',
           );
         }
-        const tempPassword = await bcrypt.hash(
-          generateRawToken(),
-          this.bcryptRounds(),
-        );
-        const newUser = await em.save(
-          em.create(User, {
-            schoolId: actor.schoolId,
-            name: dto.name,
-            email: dto.email,
-            password: tempPassword,
-            phone: dto.phone ?? null,
-            status: 'active',
-          }),
-        );
-        guardianUserId = newUser.id;
-        createdParent = true;
-
-        await this.usersService.ensureRoleBySlug(
-          guardianUserId,
-          'parent',
-          actor,
-          manager,
-        );
-        await this.audit.log({
-          actor,
-          action: 'user.role.assign',
-          entityType: 'user',
-          entityId: guardianUserId,
-          newValues: { role: 'parent', createdUser: true },
-        });
-
-        const raw = generateRawToken();
-        await em.save(
-          em.create(PasswordResetToken, {
-            userId: guardianUserId,
-            tokenHash: hashToken(raw),
-            expiresAt: new Date(Date.now() + INVITE_TTL_MS),
-          }),
-        );
-        const appUrl = this.config.getOrThrow<string>('APP_URL');
-        await this.mail.sendParentInvite(dto.email, `${appUrl}/auth/reset?token=${raw}`);
+        throw new NotFoundException('No user found with this email in this school.');
       }
+      guardianUserId = user.id;
     } else {
       throw new BadRequestException(
         'Either guardian_user_id or email is required',
       );
+    }
+
+    const assigned = await this.usersService.ensureRoleBySlug(
+      guardianUserId,
+      'parent',
+      actor,
+      manager,
+    );
+    if (assigned) {
+      await this.audit.log({
+        actor,
+        action: 'user.role.assign',
+        entityType: 'user',
+        entityId: guardianUserId,
+        newValues: { role: 'parent' },
+      });
     }
 
     return this.dataSource.transaction(async (tx) => {
@@ -209,7 +138,6 @@ export class GuardiansService {
           relation: dto.relation,
           isPrimary,
           canPickup: dto.can_pickup ?? true,
-          createdParent,
         },
       });
 
@@ -378,9 +306,5 @@ export class GuardiansService {
       is_primary: !!sg.isPrimary,
       can_pickup: !!sg.canPickup,
     };
-  }
-
-  private bcryptRounds(): number {
-    return this.config.getOrThrow<number>('BCRYPT_ROUNDS');
   }
 }

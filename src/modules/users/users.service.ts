@@ -246,8 +246,12 @@ export class UsersService {
     return this.findOne(userId, actor.schoolId);
   }
 
-  async findByEmail(email: string, schoolId: number): Promise<User | null> {
-    return this.users.findOne({ where: { email, schoolId } });
+  async findByEmail(
+    email: string,
+    schoolId: number,
+    withDeleted = false,
+  ): Promise<User | null> {
+    return this.users.findOne({ where: { email, schoolId }, withDeleted });
   }
 
   async ensureRoleBySlug(

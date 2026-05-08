@@ -64,14 +64,12 @@ export class StudentGuardiansController {
   @ApiOperation({
     summary: 'Link a guardian to a student (BR-STU-05)',
     description:
-      'Links a guardian to the student via one of two flows:\n\n' +
-      '**ID flow** (`guardian_user_id`): the user must exist in the same school. ' +
-      '`ensureRoleBySlug("parent", ...)` is called — idempotent, adds role if missing. ' +
-      'Returns 404 if the user does not exist in this school.\n\n' +
-      '**Email flow** (`email`): if a user with that email exists, they are linked (same as ID flow). ' +
-      'If not, a new user is created with a random temporary password and the `parent` role, ' +
-      'and a parent-invite email is dispatched containing a set-password link (7-day TTL).\n\n' +
-      '**`is_primary` invariant (seven cases):**\n' +
+      'Links an existing user to the student as a guardian via one of two flows:\n\n' +
+      '**ID flow** (`guardian_user_id`): the user must exist in the same school. Returns 404 if not found.\n\n' +
+      '**Email flow** (`email`): looks up an existing user by email in the same school. ' +
+      'Returns 404 if not found, 409 if the account exists but is deactivated.\n\n' +
+      'Both flows call `ensureRoleBySlug("parent", ...)` — idempotent, adds the role if missing.\n\n' +
+      '**`is_primary` rules:**\n' +
       '1. First guardian on the student → forced to `is_primary=true`.\n' +
       '2. Subsequent guardian with `is_primary=true` → unsets the existing primary first.\n' +
       '3. Subsequent guardian with `is_primary=false` (or omitted) → leaves existing primary alone.\n\n' +
@@ -84,6 +82,7 @@ export class StudentGuardiansController {
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
   @ApiResponse({ status: 404, description: 'Student or guardian user not found in this school', type: ErrorEnvelope })
+  @ApiResponse({ status: 409, description: 'Guardian user account is deactivated', type: ErrorEnvelope })
   link(
     @Param('id', ParseIntPipe) studentId: number,
     @Body() dto: LinkGuardianDto,

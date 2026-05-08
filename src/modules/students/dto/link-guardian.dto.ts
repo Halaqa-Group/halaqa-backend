@@ -1,9 +1,7 @@
 /**
  * Body for POST /students/:id/guardians.
  * Exactly one of guardian_user_id or email must be supplied (mutually exclusive).
- * - guardian_user_id: link an existing user; must belong to the same school.
- * - email: if a user with that email already exists they are linked; otherwise a new user is created
- *   with a parent role and a parent-invite email is sent. In the new-user case, `name` is required.
+ * Both flows require the user to already exist in the school.
  */
 import { ApiProperty } from '@nestjs/swagger';
 import {
@@ -12,7 +10,6 @@ import {
   IsEnum,
   IsNumber,
   IsOptional,
-  IsString,
   ValidateIf,
 } from 'class-validator';
 import type { GuardianRelation } from '../entities/student-guardian.entity';
@@ -31,28 +28,11 @@ export class LinkGuardianDto {
     required: false,
     example: 'parent@example.com',
     format: 'email',
-    description: 'Email of the guardian. Mutually exclusive with `guardian_user_id`. Creates a new user if not found.',
+    description: 'Email of an existing user. Mutually exclusive with `guardian_user_id`. Returns 404 if not found.',
   })
   @ValidateIf((o: LinkGuardianDto) => !o.guardian_user_id)
   @IsEmail()
   email?: string;
-
-  @ApiProperty({
-    required: false,
-    example: 'محمد أبو أحمد',
-    description: 'Required when `email` is provided and the user does not yet exist.',
-  })
-  @ValidateIf(
-    (o: LinkGuardianDto) =>
-      o.email !== undefined && o.guardian_user_id === undefined,
-  )
-  @IsString()
-  name?: string;
-
-  @ApiProperty({ required: false, example: '+970599000001' })
-  @IsOptional()
-  @IsString()
-  phone?: string;
 
   @ApiProperty({
     enum: ['father', 'mother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'other'],
