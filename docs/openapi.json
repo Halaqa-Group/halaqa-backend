@@ -972,6 +972,357 @@
         ]
       }
     },
+    "/halaqat": {
+      "post": {
+        "description": "Creates a new halaqa in the caller's school. Optionally assigns a primary (main) teacher and initial weekly schedule in the same transaction. Runs a schedule conflict check (BR-HLQ-02) if both primary_teacher_user_id and schedule slots are provided.",
+        "operationId": "HalaqatController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHalaqaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "400": {
+            "description": ""
+          },
+          "404": {
+            "description": "primary_teacher_user_id not found in this school"
+          },
+          "409": {
+            "description": "Schedule conflict"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a halaqa",
+        "tags": [
+          "Halaqat"
+        ]
+      },
+      "get": {
+        "description": "Returns a paginated list of halaqat visible to the caller.\n- **principal / vice_principal**: all halaqat in the school.\n- **supervisor**: only halaqat they supervise.\n- **teacher**: only halaqat where they have an active assignment.\n- **parent**: no access (403).",
+        "operationId": "HalaqatController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 1.",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 20.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "Memorization",
+                "Tajweed",
+                "Aqeedah"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "active",
+                "archived",
+                "completed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "supervisor_user_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter to halaqat supervised by this user.",
+            "schema": {
+              "example": 5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "teacher_user_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter to halaqat where this teacher has an active assignment.",
+            "schema": {
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Substring match on name",
+            "schema": {
+              "maxLength": 100,
+              "example": "فجر",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List halaqat (role-scoped)",
+        "tags": [
+          "Halaqat"
+        ]
+      }
+    },
+    "/halaqat/{id}": {
+      "get": {
+        "description": "Returns the full halaqa record with schedule, active teachers, supervisors, and student count. Out-of-scope or cross-school access returns 404 (never 403) per BR-HLQ-01.",
+        "operationId": "HalaqatController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Halaqa ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "Not found or out of scope"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get halaqa detail",
+        "tags": [
+          "Halaqat"
+        ]
+      },
+      "patch": {
+        "description": "Updates name, type, and/or evaluation_settings. Changing type requires principal/vice_principal; all other fields accept supervisor or active teacher. Status changes go through /archive, /complete, or /restore instead.",
+        "operationId": "HalaqatController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Halaqa ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHalaqaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Same shape as GET /halaqat/:id"
+          },
+          "403": {
+            "description": "type field requires principal/vice_principal"
+          },
+          "404": {
+            "description": "Not found or out of scope"
+          },
+          "409": {
+            "description": "Type change would violate BR-HLQ-03"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update halaqa fields",
+        "tags": [
+          "Halaqat"
+        ]
+      }
+    },
+    "/halaqat/{id}/archive": {
+      "post": {
+        "description": "Sets status=archived, deleted_at=now. Ends all active teacher assignments and sets active student enrollments to archived. Refuses if any student is status=active (BR-HLQ-10).",
+        "operationId": "HalaqatController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Halaqa ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "Has active students, or already archived"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Archive a halaqa (soft-delete)",
+        "tags": [
+          "Halaqat"
+        ]
+      }
+    },
+    "/halaqat/{id}/complete": {
+      "post": {
+        "description": "Sets status=completed. Ends all active teacher assignments and marks active student enrollments as completed.",
+        "operationId": "HalaqatController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Halaqa ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "Halaqa is not active"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mark a halaqa as completed",
+        "tags": [
+          "Halaqat"
+        ]
+      }
+    },
+    "/halaqat/{id}/restore": {
+      "post": {
+        "description": "Sets status=active, clears deleted_at. Only works on archived halaqat. Does not restore teacher assignments or student enrollments.",
+        "operationId": "HalaqatController_restore",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Halaqa ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or not archived"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Restore an archived halaqa",
+        "tags": [
+          "Halaqat"
+        ]
+      }
+    },
     "/students": {
       "get": {
         "description": "Returns a paginated list of students visible to the caller. Scope rules per role:\n- **principal / vice_principal**: all active students in the school.\n- **supervisor**: students in halaqat the supervisor oversees.\n- **teacher**: students in halaqat where the teacher is primary.\n- **parent**: their own children across all schools (the one exception to strict school-scoping).\n\n`include_deleted=true` is silently ignored for non-principal/VP callers. Does NOT write an audit log (read-only).",
@@ -1584,7 +1935,7 @@
         ]
       },
       "post": {
-        "description": "Links a guardian to the student via one of two flows:\n\n**ID flow** (`guardian_user_id`): the user must exist in the same school. `ensureRoleBySlug(\"parent\", ...)` is called — idempotent, adds role if missing. Returns 404 if the user does not exist in this school.\n\n**Email flow** (`email`): if a user with that email exists, they are linked (same as ID flow). If not, a new user is created with a random temporary password and the `parent` role, and a parent-invite email is dispatched containing a set-password link (7-day TTL).\n\n**`is_primary` invariant (seven cases):**\n1. First guardian on the student → forced to `is_primary=true`.\n2. Subsequent guardian with `is_primary=true` → unsets the existing primary first.\n3. Subsequent guardian with `is_primary=false` (or omitted) → leaves existing primary alone.\n\nAudit: `student.guardian.link`.",
+        "description": "Links an existing user to the student as a guardian via one of two flows:\n\n**ID flow** (`guardian_user_id`): the user must exist in the same school. Returns 404 if not found.\n\n**Email flow** (`email`): looks up an existing user by email in the same school. Returns 404 if not found, 409 if the account exists but is deactivated.\n\nBoth flows call `ensureRoleBySlug(\"parent\", ...)` — idempotent, adds the role if missing.\n\n**`is_primary` rules:**\n1. First guardian on the student → forced to `is_primary=true`.\n2. Subsequent guardian with `is_primary=true` → unsets the existing primary first.\n3. Subsequent guardian with `is_primary=false` (or omitted) → leaves existing primary alone.\n\nAudit: `student.guardian.link`.",
         "operationId": "StudentGuardiansController_link",
         "parameters": [
           {
@@ -1650,6 +2001,16 @@
           },
           "404": {
             "description": "Student or guardian user not found in this school",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guardian user account is deactivated",
             "content": {
               "application/json": {
                 "schema": {
@@ -2658,6 +3019,122 @@
           }
         }
       },
+      "ScheduleEntryDto": {
+        "type": "object",
+        "properties": {
+          "day_of_week": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0=Saturday … 6=Friday"
+          },
+          "prayer_slot": {
+            "type": "string",
+            "enum": [
+              "fajr",
+              "dhuhr",
+              "asr",
+              "maghrib",
+              "isha"
+            ],
+            "example": "fajr",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "example": "05:00:00",
+            "nullable": true,
+            "description": "HH:MM:SS — display only."
+          },
+          "end_time": {
+            "type": "string",
+            "example": "06:00:00",
+            "nullable": true,
+            "description": "HH:MM:SS — display only."
+          }
+        },
+        "required": [
+          "day_of_week"
+        ]
+      },
+      "CreateHalaqaDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "حلقة الفجر للحفظ",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Memorization",
+              "Tajweed",
+              "Aqeedah"
+            ],
+            "example": "Memorization"
+          },
+          "evaluation_settings": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "description": "Free-form JSON for evaluation weights and thresholds."
+          },
+          "primary_teacher_user_id": {
+            "type": "number",
+            "example": 12,
+            "description": "Creates an active main-teacher assignment on creation. Runs schedule-conflict check."
+          },
+          "schedule": {
+            "description": "Initial weekly schedule. Duplicate day_of_week values are rejected.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleEntryDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "UpdateHalaqaDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "حلقة الفجر للحفظ - متقدم",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Memorization",
+              "Tajweed",
+              "Aqeedah"
+            ],
+            "example": "Memorization",
+            "description": "Only principal / vice_principal may change the type."
+          },
+          "evaluation_settings": {
+            "type": "object",
+            "nullable": true,
+            "example": {
+              "weights": {
+                "mistake": 1
+              }
+            },
+            "description": "Free-form JSON. Pass null to clear."
+          }
+        }
+      },
+      "ApiMessage": {
+        "type": "object",
+        "properties": {}
+      },
       "StudentResponse": {
         "type": "object",
         "properties": {
@@ -2986,16 +3463,7 @@
             "type": "string",
             "example": "parent@example.com",
             "format": "email",
-            "description": "Email of the guardian. Mutually exclusive with `guardian_user_id`. Creates a new user if not found."
-          },
-          "name": {
-            "type": "string",
-            "example": "محمد أبو أحمد",
-            "description": "Required when `email` is provided and the user does not yet exist."
-          },
-          "phone": {
-            "type": "string",
-            "example": "+970599000001"
+            "description": "Email of an existing user. Mutually exclusive with `guardian_user_id`. Returns 404 if not found."
           },
           "relation": {
             "type": "string",
