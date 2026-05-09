@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActingTeacherController } from './controllers/acting-teacher.controller';
 import { HalaqatController } from './controllers/halaqat.controller';
+import { StudentEnrollmentController } from './controllers/student-enrollment.controller';
 import { TeacherAssignmentController } from './controllers/teacher-assignment.controller';
 import { HalaqaActivityLog } from './entities/halaqa-activity-log.entity';
 import { HalaqaSchedule } from './entities/halaqa-schedule.entity';
@@ -15,6 +16,7 @@ import { HalaqaActivityLogService } from './services/halaqa-activity-log.service
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
 import { ScheduleService } from './services/schedule.service';
+import { StudentEnrollmentService } from './services/student-enrollment.service';
 import { TeacherAssignmentService } from './services/teacher-assignment.service';
 
 @Module({
@@ -28,8 +30,8 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
       HalaqaActivityLog,
     ]),
   ],
-  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService],
+  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController, StudentEnrollmentController],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService],
+  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService],
 })
 export class HalaqatModule {}

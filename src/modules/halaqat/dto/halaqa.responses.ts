@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import type { HalaqaStatus, HalaqaType } from '../entities/halaqa.entity';
 import type { EndReason, TeacherRole } from '../entities/halaqa-teacher.entity';
 import type { PrayerSlot } from '../entities/halaqa-schedule.entity';
+import type { StudentHalaqaStatus } from '../entities/student-halaqa.entity';
 
 // ─── Shared nested shapes ──────────────────────────────────────────────────
 
@@ -85,6 +86,13 @@ export class HalaqaDetailResponse {
   @ApiProperty({ example: 8 }) students_count!: number;
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) created_at!: Date;
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) updated_at!: Date;
+}
+
+export class StudentEnrollmentResponse {
+  @ApiProperty({ example: 42 }) student_id!: number;
+  @ApiProperty({ example: 'محمد علي' }) student_name!: string;
+  @ApiProperty({ example: '2026-05-09' }) enrollment_date!: string;
+  @ApiProperty({ enum: ['active', 'transferred', 'completed', 'archived'], example: 'active' }) status!: StudentHalaqaStatus;
 }
 
 /** PUT /halaqat/:id/schedule */
