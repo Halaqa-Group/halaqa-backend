@@ -49,7 +49,7 @@ export class HalaqatService {
   }
 
   /** Verify that userId exists in the school and holds the given role slug. */
-  private async verifyUserRoleInSchool(
+  async verifyUserRoleInSchool(
     userId: number,
     schoolId: number,
     roleSlug: 'teacher' | 'supervisor',

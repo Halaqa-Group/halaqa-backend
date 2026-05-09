@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HalaqatController } from './controllers/halaqat.controller';
+import { TeacherAssignmentController } from './controllers/teacher-assignment.controller';
 import { HalaqaActivityLog } from './entities/halaqa-activity-log.entity';
 import { HalaqaSchedule } from './entities/halaqa-schedule.entity';
 import { HalaqaTeacher } from './entities/halaqa-teacher.entity';
@@ -12,6 +13,7 @@ import { HalaqaActivityLogService } from './services/halaqa-activity-log.service
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
 import { ScheduleService } from './services/schedule.service';
+import { TeacherAssignmentService } from './services/teacher-assignment.service';
 
 @Module({
   imports: [
@@ -24,8 +26,8 @@ import { ScheduleService } from './services/schedule.service';
       HalaqaActivityLog,
     ]),
   ],
-  controllers: [HalaqatController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard],
+  controllers: [HalaqatController, TeacherAssignmentController],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService],
+  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService],
 })
 export class HalaqatModule {}
