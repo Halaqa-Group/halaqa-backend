@@ -7,6 +7,7 @@ import { HalaqaTeacher } from './entities/halaqa-teacher.entity';
 import { Halaqa } from './entities/halaqa.entity';
 import { StudentHalaqa } from './entities/student-halaqa.entity';
 import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
+import { HalaqaAccessGuard, HalaqaEditAccessGuard } from './guards/halaqa-scope.guard';
 import { HalaqaActivityLogService } from './services/halaqa-activity-log.service';
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
@@ -24,7 +25,7 @@ import { ScheduleService } from './services/schedule.service';
     ]),
   ],
   controllers: [HalaqatController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard],
+  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard],
 })
 export class HalaqatModule {}

@@ -29,6 +29,7 @@ import { CreateHalaqaDto } from '../dto/create-halaqa.dto';
 import { ListHalaqatQuery } from '../dto/list-halaqat.query';
 import { SetScheduleDto } from '../dto/set-schedule.dto';
 import { UpdateHalaqaDto } from '../dto/update-halaqa.dto';
+import { HalaqaAccessGuard, HalaqaEditAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
 import { HalaqatService } from '../services/halaqat.service';
 import { ScheduleService } from '../services/schedule.service';
 
@@ -86,6 +87,8 @@ export class HalaqatController {
 
   @Get(':id')
   @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
+  @UseGuards(HalaqaAccessGuard)
+  @RequiresHalaqaPermission('read')
   @ApiOperation({
     summary: 'Get halaqa detail',
     description:
@@ -104,6 +107,8 @@ export class HalaqatController {
 
   @Patch(':id')
   @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
+  @UseGuards(HalaqaEditAccessGuard)
+  @RequiresHalaqaPermission('write')
   @ApiOperation({
     summary: 'Update halaqa fields',
     description:
@@ -190,6 +195,8 @@ export class HalaqatController {
 
   @Get(':id/schedule')
   @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
+  @UseGuards(HalaqaAccessGuard)
+  @RequiresHalaqaPermission('read')
   @ApiOperation({
     summary: 'Get halaqa schedule',
     description: 'Returns the weekly schedule entries for the halaqa, ordered by day_of_week.',
