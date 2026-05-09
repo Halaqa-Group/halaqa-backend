@@ -18,6 +18,7 @@ import { HalaqaActivityLogService } from './services/halaqa-activity-log.service
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
 import { ScheduleService } from './services/schedule.service';
+import { HalaqaCronService } from './services/halaqa-cron.service';
 import { ReverseLookupService } from './services/reverse-lookup.service';
 import { StudentEnrollmentService } from './services/student-enrollment.service';
 import { SupervisorAssignmentService } from './services/supervisor-assignment.service';
@@ -35,7 +36,7 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
     ]),
   ],
   controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController, StudentEnrollmentController, SupervisorAssignmentController, ReverseLookupController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService, HalaqaCronService],
   exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService],
 })
 export class HalaqatModule {}
