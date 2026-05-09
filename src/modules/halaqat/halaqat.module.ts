@@ -10,6 +10,7 @@ import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
 import { HalaqaActivityLogService } from './services/halaqa-activity-log.service';
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
+import { ScheduleService } from './services/schedule.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { ScheduleConflictService } from './services/schedule-conflict.service';
     ]),
   ],
   controllers: [HalaqatController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService],
+  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService],
 })
 export class HalaqatModule {}

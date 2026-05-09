@@ -86,3 +86,9 @@ export class HalaqaDetailResponse {
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) created_at!: Date;
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) updated_at!: Date;
 }
+
+/** PUT /halaqat/:id/schedule */
+export class SetScheduleResponse {
+  @ApiProperty({ type: [ScheduleEntryResponse] }) schedule!: ScheduleEntryResponse[];
+  @ApiProperty({ type: [String], example: [] }) warnings!: string[];
+}

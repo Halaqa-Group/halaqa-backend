@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -26,14 +27,19 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { CreateHalaqaDto } from '../dto/create-halaqa.dto';
 import { ListHalaqatQuery } from '../dto/list-halaqat.query';
+import { SetScheduleDto } from '../dto/set-schedule.dto';
 import { UpdateHalaqaDto } from '../dto/update-halaqa.dto';
 import { HalaqatService } from '../services/halaqat.service';
+import { ScheduleService } from '../services/schedule.service';
 
 @ApiTags('Halaqat')
 @ApiBearerAuth('access-token')
 @Controller('halaqat')
 export class HalaqatController {
-  constructor(private readonly service: HalaqatService) {}
+  constructor(
+    private readonly service: HalaqatService,
+    private readonly scheduleService: ScheduleService,
+  ) {}
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
@@ -178,5 +184,45 @@ export class HalaqatController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.service.restore(id, actor);
+  }
+
+  // ─── Schedule ──────────────────────────────────────────────────────────────
+
+  @Get(':id/schedule')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
+  @ApiOperation({
+    summary: 'Get halaqa schedule',
+    description: 'Returns the weekly schedule entries for the halaqa, ordered by day_of_week.',
+  })
+  @ApiParam({ name: 'id', description: 'Halaqa ID' })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404, description: 'Not found or out of scope' })
+  getSchedule(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.scheduleService.getSchedule(id, actor);
+  }
+
+  @Put(':id/schedule')
+  @Roles('principal', 'vice_principal')
+  @ApiOperation({
+    summary: 'Replace halaqa schedule',
+    description:
+      'Atomically replaces the full weekly schedule. ' +
+      'Runs BR-HLQ-02 conflict check for existing non-acting teachers and returns warnings (non-blocking). ' +
+      'Send an empty array to clear the schedule.',
+  })
+  @ApiParam({ name: 'id', description: 'Halaqa ID' })
+  @ApiBody({ type: SetScheduleDto })
+  @ApiResponse({ status: 200, description: 'schedule + warnings array' })
+  @ApiResponse({ status: 400, description: 'Duplicate day_of_week' })
+  @ApiResponse({ status: 404, description: 'Not found or out of scope' })
+  setSchedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetScheduleDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.scheduleService.setSchedule(id, dto, actor);
   }
 }
