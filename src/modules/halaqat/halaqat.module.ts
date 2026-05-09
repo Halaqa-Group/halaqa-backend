@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ActingTeacherController } from './controllers/acting-teacher.controller';
 import { HalaqatController } from './controllers/halaqat.controller';
 import { TeacherAssignmentController } from './controllers/teacher-assignment.controller';
 import { HalaqaActivityLog } from './entities/halaqa-activity-log.entity';
@@ -9,6 +10,7 @@ import { Halaqa } from './entities/halaqa.entity';
 import { StudentHalaqa } from './entities/student-halaqa.entity';
 import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
 import { HalaqaAccessGuard, HalaqaEditAccessGuard } from './guards/halaqa-scope.guard';
+import { ActingTeacherService } from './services/acting-teacher.service';
 import { HalaqaActivityLogService } from './services/halaqa-activity-log.service';
 import { HalaqatService } from './services/halaqat.service';
 import { ScheduleConflictService } from './services/schedule-conflict.service';
@@ -26,8 +28,8 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
       HalaqaActivityLog,
     ]),
   ],
-  controllers: [HalaqatController, TeacherAssignmentController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService],
+  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController],
+  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService],
+  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService],
 })
 export class HalaqatModule {}

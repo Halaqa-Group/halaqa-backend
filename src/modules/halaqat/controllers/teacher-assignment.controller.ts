@@ -24,15 +24,20 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AssignTeacherDto } from '../dto/assign-teacher.dto';
 import { EndAssignmentDto } from '../dto/end-assignment.dto';
+import { SetActingDto } from '../dto/set-acting.dto';
 import { UpdateTeacherAssignmentDto } from '../dto/update-teacher-assignment.dto';
 import { HalaqaAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import { ActingTeacherService } from '../services/acting-teacher.service';
 import { TeacherAssignmentService } from '../services/teacher-assignment.service';
 
 @ApiTags('Teacher Assignments')
 @ApiBearerAuth('access-token')
 @Controller('halaqat/:id/teachers')
 export class TeacherAssignmentController {
-  constructor(private readonly service: TeacherAssignmentService) {}
+  constructor(
+    private readonly service: TeacherAssignmentService,
+    private readonly actingService: ActingTeacherService,
+  ) {}
 
   @Post()
   @Roles('principal', 'vice_principal')
@@ -120,5 +125,29 @@ export class TeacherAssignmentController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.service.endAssignment(id, assignmentId, dto, actor);
+  }
+
+  @Post(':assignmentId/acting')
+  @Roles('principal', 'vice_principal')
+  @ApiOperation({
+    summary: 'Set an existing teacher as acting primary (Workflow A)',
+    description:
+      'Marks an active assignment as acting. If acting_starts_at is today, acting_as_primary is set immediately; ' +
+      'if future, a cron job flips it. Only one acting teacher per halaqa at a time.',
+  })
+  @ApiParam({ name: 'id', description: 'Halaqa ID' })
+  @ApiParam({ name: 'assignmentId', description: 'Assignment ID' })
+  @ApiBody({ type: SetActingDto })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400, description: 'acting_starts_at is in the past' })
+  @ApiResponse({ status: 404, description: 'Halaqa or assignment not found' })
+  @ApiResponse({ status: 409, description: 'Assignment ended, already acting, or another acting teacher exists' })
+  setActing(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('assignmentId', ParseIntPipe) assignmentId: number,
+    @Body() dto: SetActingDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.actingService.setActing(id, assignmentId, dto, actor);
   }
 }
