@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ActivityLogController } from './controllers/activity-log.controller';
 import { ActingTeacherController } from './controllers/acting-teacher.controller';
 import { HalaqatController } from './controllers/halaqat.controller';
 import { ReverseLookupController } from './controllers/reverse-lookup.controller';
@@ -35,7 +36,7 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
       HalaqaActivityLog,
     ]),
   ],
-  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController, StudentEnrollmentController, SupervisorAssignmentController, ReverseLookupController],
+  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController, StudentEnrollmentController, SupervisorAssignmentController, ReverseLookupController, ActivityLogController],
   providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService, HalaqaCronService],
   exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService],
 })

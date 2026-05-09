@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { ActivityLogData, ActivityLogItem } from '../dto/halaqa.responses';
+import { ListActivityQuery } from '../dto/list-activity.query';
 import {
   HalaqaActivityAction,
   HalaqaActivityLog,
@@ -24,7 +26,61 @@ export class HalaqaActivityLogService {
   constructor(
     @InjectRepository(HalaqaActivityLog)
     private readonly repo: Repository<HalaqaActivityLog>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
+
+  async listForHalaqa(
+    halaqaId: number,
+    schoolId: number,
+    query: ListActivityQuery,
+  ): Promise<ActivityLogData> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const offset = (page - 1) * limit;
+
+    const conditions: string[] = ['al.halaqa_id = ?', 'al.school_id = ?'];
+    const params: unknown[] = [halaqaId, schoolId];
+
+    if (query.action) {
+      conditions.push('al.action = ?');
+      params.push(query.action);
+    }
+    if (query.from_date) {
+      conditions.push('DATE(al.created_at) >= ?');
+      params.push(query.from_date);
+    }
+    if (query.to_date) {
+      conditions.push('DATE(al.created_at) <= ?');
+      params.push(query.to_date);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const [rows, countRows] = await Promise.all([
+      this.dataSource.manager.query<ActivityLogItem[]>(
+        `SELECT al.id, al.action,
+                al.actor_user_id, actor.name AS actor_name,
+                al.target_user_id, tu.name AS target_user_name,
+                al.target_student_id, s.name AS target_student_name,
+                al.from_halaqa_id, al.to_halaqa_id,
+                al.metadata, al.notes, al.created_at
+         FROM halaqa_activity_logs al
+         LEFT JOIN users actor ON actor.id = al.actor_user_id
+         LEFT JOIN users tu ON tu.id = al.target_user_id
+         LEFT JOIN students s ON s.id = al.target_student_id
+         WHERE ${whereClause}
+         ORDER BY al.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset],
+      ),
+      this.dataSource.manager.query<[{ total: string }]>(
+        `SELECT COUNT(*) AS total FROM halaqa_activity_logs al WHERE ${whereClause}`,
+        params,
+      ),
+    ]);
+
+    return { items: rows, total: Number(countRows[0].total), page, limit };
+  }
 
   async log(params: LogParams, em?: EntityManager): Promise<void> {
     const repo = em ? em.getRepository(HalaqaActivityLog) : this.repo;

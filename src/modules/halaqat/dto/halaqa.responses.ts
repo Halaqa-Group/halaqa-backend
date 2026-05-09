@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { HalaqaActivityAction } from '../entities/halaqa-activity-log.entity';
 import type { HalaqaStatus, HalaqaType } from '../entities/halaqa.entity';
 import type { EndReason, TeacherRole } from '../entities/halaqa-teacher.entity';
 import type { PrayerSlot } from '../entities/halaqa-schedule.entity';
@@ -121,6 +122,31 @@ export class StudentHalaqaItem {
   @ApiProperty({ enum: ['Memorization', 'Tajweed', 'Aqeedah'], example: 'Memorization' }) halaqa_type!: HalaqaType;
   @ApiProperty({ example: '2026-01-01' }) enrollment_date!: string;
   @ApiProperty({ enum: ['active', 'transferred', 'completed', 'archived'], example: 'active' }) enrollment_status!: StudentHalaqaStatus;
+}
+
+// ─── Activity log response shapes ─────────────────────────────────────────────
+
+export class ActivityLogItem {
+  @ApiProperty({ example: '1' }) id!: string;
+  @ApiProperty({ example: 'student_enrolled' }) action!: HalaqaActivityAction;
+  @ApiProperty({ nullable: true, example: 12 }) actor_user_id!: number | null;
+  @ApiProperty({ nullable: true, example: 'أحمد المعلم' }) actor_name!: string | null;
+  @ApiProperty({ nullable: true, example: null }) target_user_id!: number | null;
+  @ApiProperty({ nullable: true, example: null }) target_user_name!: string | null;
+  @ApiProperty({ nullable: true, example: 42 }) target_student_id!: number | null;
+  @ApiProperty({ nullable: true, example: 'محمد علي' }) target_student_name!: string | null;
+  @ApiProperty({ nullable: true, example: null }) from_halaqa_id!: number | null;
+  @ApiProperty({ nullable: true, example: null }) to_halaqa_id!: number | null;
+  @ApiProperty({ nullable: true, type: Object, example: null }) metadata!: Record<string, unknown> | null;
+  @ApiProperty({ nullable: true, example: null }) notes!: string | null;
+  @ApiProperty({ example: '2026-05-09T08:00:00.000Z' }) created_at!: Date;
+}
+
+export class ActivityLogData {
+  @ApiProperty({ type: [ActivityLogItem] }) items!: ActivityLogItem[];
+  @ApiProperty({ example: 42 }) total!: number;
+  @ApiProperty({ example: 1 }) page!: number;
+  @ApiProperty({ example: 20 }) limit!: number;
 }
 
 /** PUT /halaqat/:id/schedule */
