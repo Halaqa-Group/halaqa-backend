@@ -5,8 +5,10 @@ import { AuditLog } from '../modules/audit/audit-log.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
-import { Halaqa } from '../modules/halaqat/entities/halaqa.entity';
+import { HalaqaActivityLog } from '../modules/halaqat/entities/halaqa-activity-log.entity';
+import { HalaqaSchedule } from '../modules/halaqat/entities/halaqa-schedule.entity';
 import { HalaqaTeacher } from '../modules/halaqat/entities/halaqa-teacher.entity';
+import { Halaqa } from '../modules/halaqat/entities/halaqa.entity';
 import { StudentHalaqa } from '../modules/halaqat/entities/student-halaqa.entity';
 import { SupervisorHalaqa } from '../modules/halaqat/entities/supervisor-halaqa.entity';
 import { Role } from '../modules/roles/role.entity';
@@ -45,9 +47,11 @@ export default new DataSource({
     Student,
     StudentGuardian,
     Halaqa,
-    StudentHalaqa,
     HalaqaTeacher,
+    HalaqaSchedule,
+    StudentHalaqa,
     SupervisorHalaqa,
+    HalaqaActivityLog,
   ],
   migrations: ['migrations/*.ts'],
   migrationsTableName: 'typeorm_migrations',
