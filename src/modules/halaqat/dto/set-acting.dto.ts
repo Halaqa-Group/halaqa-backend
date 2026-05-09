@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsAfterField } from '../../../common/validators/is-after-field.decorator';
 
 export class SetActingDto {
   @ApiProperty({
@@ -12,6 +13,7 @@ export class SetActingDto {
 
   @ApiProperty({ format: 'date', example: '2026-05-20', description: '>= acting_starts_at.' })
   @IsDateString()
+  @IsAfterField('acting_starts_at', { message: 'acting_ends_at must be after acting_starts_at' })
   acting_ends_at!: string;
 
   @ApiProperty({ required: false, example: "Covering for sister halaqa during main's absence", maxLength: 255 })

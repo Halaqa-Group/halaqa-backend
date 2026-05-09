@@ -1,14 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsDateString,
   IsEnum,
   IsInt,
   IsObject,
   IsOptional,
   IsPositive,
   IsString,
-  IsTimeZone,
   Matches,
   Max,
   MaxLength,
@@ -16,6 +14,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { IsAfterField } from '../../../common/validators/is-after-field.decorator';
 import type { HalaqaType } from '../entities/halaqa.entity';
 import type { PrayerSlot } from '../entities/halaqa-schedule.entity';
 
@@ -38,12 +37,13 @@ export class ScheduleEntryDto {
 
   @ApiProperty({ required: false, example: '05:00:00', nullable: true, description: 'HH:MM:SS — display only.' })
   @IsOptional()
-  @Matches(/^\d{2}:\d{2}:\d{2}$/, { message: 'start_time must be HH:MM:SS' })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/, { message: 'start_time must be a valid HH:MM:SS (00:00:00–23:59:59)' })
   start_time?: string;
 
   @ApiProperty({ required: false, example: '06:00:00', nullable: true, description: 'HH:MM:SS — display only.' })
   @IsOptional()
-  @Matches(/^\d{2}:\d{2}:\d{2}$/, { message: 'end_time must be HH:MM:SS' })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/, { message: 'end_time must be a valid HH:MM:SS (00:00:00–23:59:59)' })
+  @IsAfterField('start_time', { message: 'end_time must be after start_time' })
   end_time?: string;
 }
 
