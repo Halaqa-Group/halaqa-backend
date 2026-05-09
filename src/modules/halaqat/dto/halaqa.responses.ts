@@ -95,6 +95,34 @@ export class StudentEnrollmentResponse {
   @ApiProperty({ enum: ['active', 'transferred', 'completed', 'archived'], example: 'active' }) status!: StudentHalaqaStatus;
 }
 
+// ─── Reverse-lookup response shapes ───────────────────────────────────────────
+
+export class TeacherHalaqaItem {
+  @ApiProperty({ example: 17 }) halaqa_id!: number;
+  @ApiProperty({ example: 'حلقة الفجر للحفظ' }) halaqa_name!: string;
+  @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' }) halaqa_status!: HalaqaStatus;
+  @ApiProperty({ enum: ['Memorization', 'Tajweed', 'Aqeedah'], example: 'Memorization' }) halaqa_type!: HalaqaType;
+  @ApiProperty({ enum: ['main', 'assistant', 'substitute'], example: 'main' }) role!: TeacherRole;
+  @ApiProperty({ example: '2026-01-01' }) start_date!: string;
+}
+
+export class SupervisorHalaqaItem {
+  @ApiProperty({ example: 17 }) halaqa_id!: number;
+  @ApiProperty({ example: 'حلقة الفجر للحفظ' }) halaqa_name!: string;
+  @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' }) halaqa_status!: HalaqaStatus;
+  @ApiProperty({ enum: ['Memorization', 'Tajweed', 'Aqeedah'], example: 'Memorization' }) halaqa_type!: HalaqaType;
+  @ApiProperty({ example: '2026-01-01T08:00:00.000Z' }) assigned_at!: Date;
+}
+
+export class StudentHalaqaItem {
+  @ApiProperty({ example: 17 }) halaqa_id!: number;
+  @ApiProperty({ example: 'حلقة الفجر للحفظ' }) halaqa_name!: string;
+  @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' }) halaqa_status!: HalaqaStatus;
+  @ApiProperty({ enum: ['Memorization', 'Tajweed', 'Aqeedah'], example: 'Memorization' }) halaqa_type!: HalaqaType;
+  @ApiProperty({ example: '2026-01-01' }) enrollment_date!: string;
+  @ApiProperty({ enum: ['active', 'transferred', 'completed', 'archived'], example: 'active' }) enrollment_status!: StudentHalaqaStatus;
+}
+
 /** PUT /halaqat/:id/schedule */
 export class SetScheduleResponse {
   @ApiProperty({ type: [ScheduleEntryResponse] }) schedule!: ScheduleEntryResponse[];
