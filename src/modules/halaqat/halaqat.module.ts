@@ -6,6 +6,8 @@ import { HalaqaTeacher } from './entities/halaqa-teacher.entity';
 import { Halaqa } from './entities/halaqa.entity';
 import { StudentHalaqa } from './entities/student-halaqa.entity';
 import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
+import { HalaqaActivityLogService } from './services/halaqa-activity-log.service';
+import { ScheduleConflictService } from './services/schedule-conflict.service';
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
       HalaqaActivityLog,
     ]),
   ],
-  exports: [TypeOrmModule],
+  providers: [HalaqaActivityLogService, ScheduleConflictService],
+  exports: [TypeOrmModule, HalaqaActivityLogService, ScheduleConflictService],
 })
 export class HalaqatModule {}
