@@ -20,16 +20,24 @@ export class HalaqaTeachersRestructure1778200000000 implements MigrationInterfac
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Drop both FKs first — the composite PK is the only index supporting
-    //    fk_ht_halaqa (halaqa_id) and fk_ht_teacher (teacher_user_id).
+    //    the FK on halaqa_id and the FK on teacher_user_id.
     //    MySQL refuses DROP PRIMARY KEY while those FKs exist with no other index.
-    //    NOTE: DB_SYNCHRONIZE=true replaced the bootstrap FK names with TypeORM
-    //    auto-generated names; use the actual names found in the DB.
-    await queryRunner.query(
-      `ALTER TABLE \`halaqa_teachers\` DROP FOREIGN KEY \`FK_8022b1fedd0c7110e1324670d47\``,
-    );
-    await queryRunner.query(
-      `ALTER TABLE \`halaqa_teachers\` DROP FOREIGN KEY \`FK_b5aaf59a02103c879f20b22b3e0\``,
-    );
+    //    FK names vary across environments (DB_SYNCHRONIZE generates per-DB
+    //    hashes), so look them up by referenced column instead of hardcoding.
+    const fkRows: Array<{ CONSTRAINT_NAME: string; COLUMN_NAME: string }> =
+      await queryRunner.query(
+        `SELECT CONSTRAINT_NAME, COLUMN_NAME
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'halaqa_teachers'
+           AND COLUMN_NAME IN ('halaqa_id', 'teacher_user_id')
+           AND REFERENCED_TABLE_NAME IS NOT NULL`,
+      );
+    for (const { CONSTRAINT_NAME } of fkRows) {
+      await queryRunner.query(
+        `ALTER TABLE \`halaqa_teachers\` DROP FOREIGN KEY \`${CONSTRAINT_NAME}\``,
+      );
+    }
 
     // 2. Drop composite PK (now safe — no FKs depend on it)
     await queryRunner.query(
