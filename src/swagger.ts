@@ -28,6 +28,22 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       'Link, update, and unlink guardians for a student.',
     )
     .addTag('My Children', 'Parent-only views over their linked students.')
+    .addTag(
+      'Achievements',
+      'Record, approve, unapprove, and delete Quran recitation achievements. ' +
+        'Percentage score is computed automatically. ' +
+        'Parents see a restricted view (no error counts or approval meta).',
+    )
+    .addTag(
+      'Weekly Plans',
+      'Create, approve, and manage weekly recitation plans for students. ' +
+        'Approving a plan locks its items; achieved_verses and status are reconciled automatically when achievements are approved.',
+    )
+    .addTag(
+      'Plan Items',
+      'Add, edit, or remove individual items within a weekly plan. ' +
+        'Editing ranges on an approved plan sets is_manual_override=1 and re-runs reconciliation.',
+    )
     .build();
 
   return SwaggerModule.createDocument(app, config);

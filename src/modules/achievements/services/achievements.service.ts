@@ -53,6 +53,8 @@ export interface ListAchievementsFilter {
   date?: string;
   trackType?: TrackType;
   status?: AchievementStatus;
+  recordedBy?: number;
+  approvedBy?: number;
   page?: number;
   limit?: number;
 }
@@ -321,12 +323,20 @@ export class AchievementsService {
       );
     }
 
+    // Parents cannot filter/sort by fields they cannot see
+    const isParent = actor.roles.some((r) => r.slug === 'parent') && !this.isAdmin(actor);
+    if (isParent && (filter.recordedBy !== undefined || filter.approvedBy !== undefined)) {
+      throw new BadRequestException('Filter not available for this role.');
+    }
+
     // Optional filters
     if (filter.studentId !== undefined) qb.andWhere('a.studentId = :studentId', { studentId: filter.studentId });
     if (filter.halaqaId !== undefined) qb.andWhere('a.halaqaId = :halaqaId', { halaqaId: filter.halaqaId });
     if (filter.date !== undefined) qb.andWhere('a.date = :date', { date: filter.date });
     if (filter.trackType !== undefined) qb.andWhere('a.trackType = :trackType', { trackType: filter.trackType });
     if (filter.status !== undefined) qb.andWhere('a.status = :status', { status: filter.status });
+    if (filter.recordedBy !== undefined) qb.andWhere('a.recordedBy = :recordedBy', { recordedBy: filter.recordedBy });
+    if (filter.approvedBy !== undefined) qb.andWhere('a.approvedBy = :approvedBy', { approvedBy: filter.approvedBy });
 
     qb.orderBy('a.date', 'DESC').addOrderBy('a.id', 'DESC');
     qb.skip((page - 1) * limit).take(limit);
@@ -470,6 +480,19 @@ export class AchievementsService {
     await this.reconciliation.reconcileForAchievement(id);
 
     return achievement;
+  }
+
+  // ─── User name resolution (for mapper) ───────────────────────────────────
+
+  async resolveUserNames(ids: number[], schoolId: number): Promise<Map<number, string>> {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return new Map();
+    const ph = unique.map(() => '?').join(', ');
+    const rows: { id: number; name: string }[] = await this.dataSource.manager.query(
+      `SELECT id, name FROM users WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
+      [...unique, schoolId],
+    );
+    return new Map(rows.map((r) => [r.id, r.name]));
   }
 
   // ─── Unapprove ────────────────────────────────────────────────────────────
