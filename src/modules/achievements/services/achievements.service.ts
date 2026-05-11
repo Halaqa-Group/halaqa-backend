@@ -164,16 +164,50 @@ export class AchievementsService {
 
   /** Load the halaqa's evaluation_settings or throw. */
   private async loadEvalSettings(halaqaId: number, schoolId: number): Promise<EvaluationSettings> {
-    type Row = { evaluation_settings: string | null };
+    type Row = { evaluation_settings: unknown };
     const rows: Row[] = await this.dataSource.manager.query(
       'SELECT evaluation_settings FROM halaqat WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
       [halaqaId, schoolId],
     );
     if (!rows.length) throw new NotFoundException('Halaqa not found.');
-    const raw = rows[0].evaluation_settings;
-    if (!raw) throw new InternalServerErrorException('Halaqa has no evaluation_settings configured.');
-    const settings = (typeof raw === 'string' ? JSON.parse(raw) : raw) as EvaluationSettings;
-    return settings;
+
+    const cell = rows[0].evaluation_settings;
+    if (cell == null) {
+      throw new InternalServerErrorException('Halaqa has no evaluation_settings configured.');
+    }
+
+    // Raw SQL queries bypass TypeORM's JSON column parser — MySQL2 may return a
+    // Buffer, a plain string, or an already-parsed object depending on the driver
+    // version and typeCast configuration.
+    let obj: Record<string, unknown>;
+    if (Buffer.isBuffer(cell)) {
+      obj = JSON.parse((cell as Buffer).toString('utf8')) as Record<string, unknown>;
+    } else if (typeof cell === 'string') {
+      obj = JSON.parse(cell) as Record<string, unknown>;
+    } else {
+      obj = cell as Record<string, unknown>;
+    }
+
+    const base_score = Number(obj['base_score']);
+    const mistake_weight = Number(obj['mistake_weight']);
+    const warning_weight = Number(obj['warning_weight']);
+    const tajweed_weight = Number(obj['tajweed_weight']);
+    const min_score = Number(obj['min_score'] ?? 0);
+
+    if ([base_score, mistake_weight, warning_weight, tajweed_weight].some(isNaN)) {
+      throw new InternalServerErrorException(
+        'Halaqa evaluation_settings is missing required numeric fields: ' +
+          'base_score, mistake_weight, warning_weight, tajweed_weight.',
+      );
+    }
+
+    return {
+      base_score,
+      mistake_weight,
+      warning_weight,
+      tajweed_weight,
+      min_score: isNaN(min_score) ? 0 : min_score,
+    };
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
