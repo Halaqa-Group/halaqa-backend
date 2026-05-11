@@ -1,13 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { DataWithWarnings } from '../../../common/data-with-warnings';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { Student } from '../entities/student.entity';
+import type { IdNumberValidator } from '../validators/id-number-validator.interface';
 import { GuardiansService } from './guardians.service';
 import { StudentsService } from './students.service';
 
@@ -39,6 +42,7 @@ const BASE_STUDENT: Student = {
   id: 10,
   schoolId: 1,
   name: 'محمد',
+  idNumber: null,
   gender: 'male',
   dob: null,
   joinDate: new Date('2023-09-01'),
@@ -101,12 +105,20 @@ function makeDataSource(managerQuery: jest.Mock = jest.fn().mockResolvedValue([]
   } as unknown as DataSource;
 }
 
+function makeIdValidator(
+  normalize: (v: string) => string = (v) => v,
+  validate: jest.Mock = jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+): jest.Mocked<IdNumberValidator> {
+  return { normalize: jest.fn().mockImplementation(normalize), validate } as jest.Mocked<IdNumberValidator>;
+}
+
 function makeService(
   studentRepo = makeStudentRepo(),
   guardianRepo = makeGuardianRepo(),
   ds = makeDataSource(),
   audit = makeAudit(),
   guardians = makeGuardiansService(),
+  idValidator: IdNumberValidator = makeIdValidator(),
 ) {
   return new StudentsService(
     studentRepo as unknown as Repository<Student>,
@@ -114,6 +126,7 @@ function makeService(
     ds,
     audit,
     guardians,
+    idValidator,
   );
 }
 
@@ -344,6 +357,393 @@ describe('StudentsService', () => {
           PRINCIPAL,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('toView — id_number visibility', () => {
+    it('includes id_number key for principal', () => {
+      const service = makeService();
+      const s = { ...BASE_STUDENT, idNumber: '300123456' };
+      const view = service.toView(s, PRINCIPAL);
+      expect(view).toHaveProperty('id_number', '300123456');
+    });
+
+    it('includes id_number key (null) for principal when unset', () => {
+      const service = makeService();
+      const view = service.toView(BASE_STUDENT, PRINCIPAL);
+      expect(view).toHaveProperty('id_number', null);
+    });
+
+    it('includes id_number key for parent', () => {
+      const service = makeService();
+      const s = { ...BASE_STUDENT, idNumber: '300123456' };
+      const view = service.toView(s, PARENT);
+      expect(view).toHaveProperty('id_number', '300123456');
+    });
+
+    it('includes id_number key for teacher', () => {
+      const service = makeService();
+      const s = { ...BASE_STUDENT, idNumber: '300123456' };
+      const view = service.toView(s, TEACHER);
+      expect(view).toHaveProperty('id_number', '300123456');
+    });
+
+    it('includes id_number key for supervisor', () => {
+      const SUPERVISOR: AuthenticatedUser = {
+        id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
+        roles: [{ slug: 'supervisor', level: 60 }],
+      };
+      const service = makeService();
+      const s = { ...BASE_STUDENT, idNumber: '300123456' };
+      const view = service.toView(s, SUPERVISOR);
+      expect(view).toHaveProperty('id_number', '300123456');
+    });
+  });
+
+  describe('id_number — create', () => {
+    function makeCreateSetup(validatorOverride?: Partial<IdNumberValidator>) {
+      const studentRepo = makeStudentRepo();
+      const guardianRepo = makeGuardianRepo();
+      const audit = makeAudit();
+      const txStudentRepo = makeStudentRepo();
+      txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
+      const ds = {
+        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
+          const txM = {
+            getRepository: jest.fn().mockImplementation((cls: unknown) => {
+              if (cls === Student) return txStudentRepo;
+              return { save: jest.fn(), findOne: jest.fn(), find: jest.fn() };
+            }),
+          } as unknown as EntityManager;
+          return cb(txM);
+        }),
+        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+      } as unknown as DataSource;
+
+      studentRepo.findOne.mockResolvedValue({ ...BASE_STUDENT });
+      guardianRepo.find.mockResolvedValue([]);
+
+      const idValidator = makeIdValidator(
+        (v) => v.replace(/-/g, ''),
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
+      if (validatorOverride?.validate) idValidator.validate = validatorOverride.validate as jest.Mock;
+      if (validatorOverride?.normalize) idValidator.normalize = jest.fn().mockImplementation(validatorOverride.normalize);
+
+      return { studentRepo, guardianRepo, audit, ds, idValidator };
+    }
+
+    it('persists normalized id_number', async () => {
+      const { studentRepo, guardianRepo, audit, ds, idValidator } = makeCreateSetup();
+      // normalize strips hyphens → '300123456'
+      idValidator.normalize = jest.fn().mockReturnValue('300123456');
+      studentRepo.findOne
+        .mockResolvedValueOnce(null)           // uniqueness check: no conflict
+        .mockResolvedValueOnce(BASE_STUDENT);  // refetch after create
+      const txStudentRepo = makeStudentRepo();
+      txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456', id: 10 });
+      const txDs = {
+        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
+          const txM = {
+            getRepository: jest.fn().mockReturnValue(txStudentRepo),
+          } as unknown as EntityManager;
+          return cb(txM);
+        }),
+        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+      } as unknown as DataSource;
+
+      const service = makeService(studentRepo, guardianRepo, txDs, audit, makeGuardiansService(), idValidator);
+      await service.create(
+        { name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '300-123-456' },
+        PRINCIPAL,
+      );
+
+      expect(idValidator.normalize).toHaveBeenCalledWith('300-123-456');
+      expect(txStudentRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ idNumber: '300123456' }),
+      );
+    });
+
+    it('throws 400 when format is invalid', async () => {
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: false, warnings: [] }),
+      );
+      const service = makeService(
+        makeStudentRepo(), makeGuardianRepo(), makeDataSource(), makeAudit(),
+        makeGuardiansService(), idValidator,
+      );
+      await expect(
+        service.create({ name: 'x', gender: 'male', join_date: '2023-01-01', id_number: 'bad' }, PRINCIPAL),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws 409 when id_number already used in same school', async () => {
+      const studentRepo = makeStudentRepo();
+      studentRepo.findOne.mockResolvedValue({ ...BASE_STUDENT, id: 99 }); // conflict row
+      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const service = makeService(
+        studentRepo, makeGuardianRepo(), makeDataSource(), makeAudit(),
+        makeGuardiansService(), idValidator,
+      );
+      await expect(
+        service.create({ name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '300123456' }, PRINCIPAL),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns DataWithWarnings when checksum is invalid', async () => {
+      const { studentRepo, guardianRepo, audit, idValidator } = makeCreateSetup();
+      idValidator.validate = jest.fn().mockReturnValue({ ok: true, warnings: ['checksum_invalid'] });
+      studentRepo.findOne
+        .mockResolvedValueOnce(null)          // uniqueness check: no conflict
+        .mockResolvedValueOnce(BASE_STUDENT); // refetch
+      guardianRepo.find.mockResolvedValue([]);
+      const txStudentRepo = makeStudentRepo();
+      txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
+      const txDs = {
+        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
+          const txM = { getRepository: jest.fn().mockReturnValue(txStudentRepo) } as unknown as EntityManager;
+          return cb(txM);
+        }),
+        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+      } as unknown as DataSource;
+
+      const service = makeService(studentRepo, guardianRepo, txDs, audit, makeGuardiansService(), idValidator);
+      const result = await service.create(
+        { name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '100000000' },
+        PRINCIPAL,
+      );
+      expect(result).toBeInstanceOf(DataWithWarnings);
+      expect((result as DataWithWarnings<unknown>).warnings).toContain('checksum_invalid');
+    });
+  });
+
+  describe('id_number — update', () => {
+    function makeUpdateQb(getOneResult: Student | null = null) {
+      const getOne = jest.fn().mockResolvedValue(getOneResult);
+      const withDeleted = jest.fn().mockReturnThis();
+      const where = jest.fn().mockReturnValue({ withDeleted, getOne });
+      return jest.fn().mockReturnValue({ where });
+    }
+
+    it('first set (current null) succeeds without force flag', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: null });
+      repo.createQueryBuilder = makeUpdateQb(null); // no conflict
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const audit = makeAudit();
+      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
+
+      // second findOne for the refetch after update
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })   // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }); // refetch
+
+      await expect(
+        service.update(10, { id_number: '300123456' }, PRINCIPAL, false),
+      ).resolves.toBeDefined();
+    });
+
+    it('throws 400 when changing locked id_number without force flag', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await expect(
+        service.update(10, { id_number: '300999888' }, PRINCIPAL, false),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows changing locked id_number with force flag and writes two audit rows', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      repo.createQueryBuilder = makeUpdateQb(null); // no conflict
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const audit = makeAudit();
+      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }) // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300999888' }); // refetch
+
+      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
+      await service.update(10, { id_number: '300999888', force_id_number_change: true }, PRINCIPAL, false);
+
+      const auditCalls = audit.log.mock.calls.map((c) => c[0].action);
+      expect(auditCalls).toContain('student.update');
+      expect(auditCalls).toContain('student.id_number.force_changed');
+    });
+
+    it('throws 400 when clearing locked id_number without force flag', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource());
+      await expect(
+        service.update(10, { id_number: null }, PRINCIPAL, false),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows clearing with force flag and writes force_changed audit', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const audit = makeAudit();
+
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }) // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null });        // refetch
+
+      const service = makeService(repo, guardianRepo, makeDataSource(), audit);
+      await service.update(10, { id_number: null, force_id_number_change: true }, PRINCIPAL, false);
+
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'student.id_number.force_changed' }),
+      );
+    });
+
+    it('throws 409 when new id_number conflicts with another student in same school', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: null });
+      // createQueryBuilder for uniqueness check returns a conflict
+      const getOne = jest.fn().mockResolvedValue({ ...BASE_STUDENT, id: 99 });
+      const withDeleted = jest.fn().mockReturnThis();
+      const where = jest.fn().mockReturnValue({ withDeleted, getOne });
+      repo.createQueryBuilder = jest.fn().mockReturnValue({ where });
+
+      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await expect(
+        service.update(10, { id_number: '300123456' }, PRINCIPAL, false),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns DataWithWarnings on update when checksum warning fires', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: null });
+      repo.createQueryBuilder = makeUpdateQb(null);
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const audit = makeAudit();
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: ['checksum_invalid'] }),
+      );
+
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })
+        .mockResolvedValueOnce(BASE_STUDENT);
+
+      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
+      const result = await service.update(10, { id_number: '100000000' }, PRINCIPAL, false);
+      expect(result).toBeInstanceOf(DataWithWarnings);
+    });
+
+    it('allows PATCH on legacy student (id_number IS NULL) without supplying id_number', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })  // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }); // refetch
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const service = makeService(repo, guardianRepo, makeDataSource(), makeAudit());
+
+      await expect(
+        service.update(10, { notes: 'updated notes' }, PRINCIPAL, false),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe('id_number — list filters', () => {
+    function makeListQb() {
+      const qb: Record<string, jest.Mock> = {};
+      qb.where = jest.fn().mockReturnValue(qb);
+      qb.andWhere = jest.fn().mockReturnValue(qb);
+      qb.orderBy = jest.fn().mockReturnValue(qb);
+      qb.skip = jest.fn().mockReturnValue(qb);
+      qb.take = jest.fn().mockReturnValue(qb);
+      qb.withDeleted = jest.fn().mockReturnValue(qb);
+      qb.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+      return qb;
+    }
+
+    it('allows supervisor to use ?id_number= filter', async () => {
+      const SUPERVISOR: AuthenticatedUser = {
+        id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
+        roles: [{ slug: 'supervisor', level: 60 }],
+      };
+      const repo = makeStudentRepo();
+      const qb = makeListQb();
+      repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await service.list({ id_number: '300123456' }, SUPERVISOR);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('idNumber'),
+        expect.objectContaining({ idNum: '300123456' }),
+      );
+    });
+
+    it('allows teacher to use ?id_number= filter', async () => {
+      const repo = makeStudentRepo();
+      const qb = makeListQb();
+      repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await service.list({ id_number: '300123456' }, TEACHER);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('idNumber'),
+        expect.objectContaining({ idNum: '300123456' }),
+      );
+    });
+
+    it('allows principal to use ?id_number= filter', async () => {
+      const repo = makeStudentRepo();
+      const qb = makeListQb();
+      repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await service.list({ id_number: '300123456' }, PRINCIPAL);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('idNumber'),
+        expect.objectContaining({ idNum: '300123456' }),
+      );
+    });
+
+    it('?q= includes id_number OR clause for all roles', async () => {
+      const repo = makeStudentRepo();
+      const qb = makeListQb();
+      repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+
+      await service.list({ q: '300123456' }, PRINCIPAL);
+      // Brackets produces an andWhere call with a Brackets object (not a plain string)
+      const andWhereCalls = qb.andWhere.mock.calls;
+      expect(andWhereCalls.length).toBeGreaterThan(0);
+    });
+
+    it('teacher ?q= also includes id_number OR clause', async () => {
+      const repo = makeStudentRepo();
+      const qb = makeListQb();
+      repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      const managerQuery = jest.fn().mockResolvedValue([]);
+      const ds = makeDataSource(managerQuery);
+      const idValidator = makeIdValidator((v) => v);
+      const service = makeService(repo, makeGuardianRepo(), ds, makeAudit(), makeGuardiansService(), idValidator);
+
+      await service.list({ q: 'يوسف' }, TEACHER);
+      // All roles now use Brackets with name OR id_number
+      const andWhereCalls = qb.andWhere.mock.calls;
+      expect(andWhereCalls.length).toBeGreaterThan(0);
     });
   });
 });

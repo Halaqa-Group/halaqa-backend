@@ -1,12 +1,15 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { DataWithWarnings } from '../../../common/data-with-warnings';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { CAPACITY_LIMITS } from '../capacity.config';
@@ -23,6 +26,7 @@ import { UpdateStudentByTeacherDto } from '../dto/update-student-by-teacher.dto'
 import { UpdateStudentDto } from '../dto/update-student.dto';
 import { Student } from '../entities/student.entity';
 import { GuardiansService } from './guardians.service';
+import type { IdNumberValidator } from '../validators/id-number-validator.interface';
 
 @Injectable()
 export class StudentsService {
@@ -34,13 +38,33 @@ export class StudentsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly audit: AuditService,
     private readonly guardians: GuardiansService,
+    @Inject('ID_NUMBER_VALIDATOR') private readonly idValidator: IdNumberValidator,
   ) {}
 
   async create(
     dto: CreateStudentDto,
     actor: AuthenticatedUser,
-  ): Promise<StudentDetailView> {
+  ): Promise<StudentDetailView | DataWithWarnings<StudentDetailView>> {
     this.validateCapacities(dto);
+
+    let normalizedIdNumber: string | undefined;
+    let idNumberWarnings: string[] = [];
+
+    if (dto.id_number !== undefined) {
+      normalizedIdNumber = this.idValidator.normalize(dto.id_number);
+      const vr = this.idValidator.validate(normalizedIdNumber);
+      if (!vr.ok) {
+        throw new BadRequestException('id_number format is invalid.');
+      }
+      idNumberWarnings = vr.warnings;
+      const conflict = await this.students.findOne({
+        where: { idNumber: normalizedIdNumber, schoolId: actor.schoolId },
+        withDeleted: true,
+      });
+      if (conflict) {
+        throw new ConflictException('ID number already in use.');
+      }
+    }
 
     const studentId = await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Student);
@@ -48,6 +72,7 @@ export class StudentsService {
         repo.create({
           schoolId: actor.schoolId,
           name: dto.name,
+          idNumber: normalizedIdNumber ?? null,
           gender: dto.gender,
           dob: dto.dob ? new Date(dto.dob) : null,
           joinDate: new Date(dto.join_date),
@@ -72,10 +97,20 @@ export class StudentsService {
       action: 'student.create',
       entityType: 'student',
       entityId: studentId,
-      newValues: { name: dto.name, gender: dto.gender, status: dto.status ?? 'active' },
+      newValues: {
+        name: dto.name,
+        gender: dto.gender,
+        status: dto.status ?? 'active',
+        ...(normalizedIdNumber !== undefined && { id_number: normalizedIdNumber }),
+        ...(idNumberWarnings.length && { id_number_warnings: idNumberWarnings }),
+      },
     });
 
-    return this.findOne(studentId, actor);
+    const view = await this.findOne(studentId, actor);
+    if (idNumberWarnings.length > 0) {
+      return new DataWithWarnings(view, idNumberWarnings);
+    }
+    return view;
   }
 
   async list(
@@ -140,8 +175,22 @@ export class StudentsService {
     }
 
     if (query.q) {
-      qb.andWhere('s.name LIKE :q', { q: `%${query.q}%` });
+      const qNorm = `%${this.idValidator.normalize(query.q)}%`;
+      qb.andWhere(
+        new Brackets((b) =>
+          b
+            .where('s.name LIKE :q', { q: `%${query.q}%` })
+            .orWhere('s.idNumber LIKE :qNorm', { qNorm }),
+        ),
+      );
     }
+
+    if (query.id_number !== undefined) {
+      qb.andWhere('s.idNumber = :idNum', {
+        idNum: this.idValidator.normalize(query.id_number),
+      });
+    }
+
     if (query.status) {
       qb.andWhere('s.status = :status', { status: query.status });
     }
@@ -156,7 +205,7 @@ export class StudentsService {
     }
 
     const [rows, total] = await qb.getManyAndCount();
-    return { items: rows.map((s) => this.toView(s)), total, page, limit };
+    return { items: rows.map((s) => this.toView(s, actor)), total, page, limit };
   }
 
   async findOne(
@@ -182,7 +231,7 @@ export class StudentsService {
       can_pickup: !!sg.canPickup,
     }));
 
-    return { ...this.toView(student), guardians };
+    return { ...this.toView(student, actor), guardians };
   }
 
   async findInScopeOrFail(
@@ -191,7 +240,7 @@ export class StudentsService {
     manager?: EntityManager,
   ): Promise<Student> {
     const repo = manager?.getRepository(Student) ?? this.students;
-    const student = await repo.findOne({ where: { id }, withDeleted: true });
+    const student = await repo.findOne({ where: { id } });
 
     if (!student || student.schoolId !== actor.schoolId) {
       throw new NotFoundException();
@@ -214,7 +263,7 @@ export class StudentsService {
     dto: UpdateStudentDto,
     actor: AuthenticatedUser,
     isTeacherOnly: boolean,
-  ): Promise<StudentDetailView> {
+  ): Promise<StudentDetailView | DataWithWarnings<StudentDetailView>> {
     const student = await this.findInScopeOrFail(id, actor);
 
     if (isTeacherOnly) {
@@ -252,6 +301,7 @@ export class StudentsService {
       dailyNearPagesCapacity?: number;
       dailyFarPagesCapacity?: number;
       notes?: string | null;
+      idNumber?: string | null;
     } = {};
 
     if (!isTeacherOnly) {
@@ -310,6 +360,59 @@ export class StudentsService {
       patch.notes = dto.notes ?? null;
     }
 
+    let idNumberWarnings: string[] = [];
+    let isForceChange = false;
+
+    if (!isTeacherOnly && dto.id_number !== undefined) {
+      if (dto.id_number === null) {
+        // Clearing the field
+        if (student.idNumber !== null) {
+          if (!dto.force_id_number_change) {
+            throw new BadRequestException(
+              'ID number is locked. Use force_id_number_change: true to override.',
+            );
+          }
+          isForceChange = true;
+        }
+        oldValues.id_number = student.idNumber;
+        newValues.id_number = null;
+        patch.idNumber = null;
+      } else {
+        // Setting or changing
+        const norm = this.idValidator.normalize(dto.id_number);
+        const vr = this.idValidator.validate(norm);
+        if (!vr.ok) {
+          throw new BadRequestException('id_number format is invalid.');
+        }
+        if (student.idNumber !== null && norm !== student.idNumber) {
+          if (!dto.force_id_number_change) {
+            throw new BadRequestException(
+              'ID number is locked. Use force_id_number_change: true to override.',
+            );
+          }
+          isForceChange = true;
+        }
+        // Uniqueness check excluding the current student row
+        const conflict = await this.students
+          .createQueryBuilder('s')
+          .where('s.idNumber = :n AND s.schoolId = :sid AND s.id != :id', {
+            n: norm,
+            sid: actor.schoolId,
+            id,
+          })
+          .withDeleted()
+          .getOne();
+        if (conflict) {
+          throw new ConflictException('ID number already in use.');
+        }
+        idNumberWarnings = vr.warnings;
+        oldValues.id_number = student.idNumber;
+        newValues.id_number = norm;
+        if (vr.warnings.length) newValues.id_number_warnings = vr.warnings;
+        patch.idNumber = norm;
+      }
+    }
+
     if (Object.keys(patch).length > 0) {
       await this.students.update(id, patch as Parameters<typeof this.students.update>[1]);
     }
@@ -323,7 +426,22 @@ export class StudentsService {
       newValues: Object.keys(newValues).length ? newValues : null,
     });
 
-    return this.findOne(id, actor);
+    if (isForceChange) {
+      await this.audit.log({
+        actor,
+        action: 'student.id_number.force_changed',
+        entityType: 'student',
+        entityId: id,
+        oldValues: { id_number: student.idNumber },
+        newValues: { id_number: patch.idNumber ?? null },
+      });
+    }
+
+    const view = await this.findOne(id, actor);
+    if (idNumberWarnings.length > 0) {
+      return new DataWithWarnings(view, idNumberWarnings);
+    }
+    return view;
   }
 
   async softDelete(id: number, actor: AuthenticatedUser): Promise<void> {
@@ -469,13 +587,14 @@ export class StudentsService {
     }
   }
 
-  toView(student: Student): StudentView {
+  toView(student: Student, _actor: AuthenticatedUser): StudentView {
     const formatDate = (d: Date | string | null): string | null => {
       if (!d) return null;
       if (d instanceof Date) return d.toISOString().split('T')[0];
       return String(d).split('T')[0];
     };
-    return {
+
+    const base: StudentView = {
       id: student.id,
       name: student.name,
       gender: student.gender,
@@ -487,6 +606,9 @@ export class StudentsService {
       daily_far_pages_capacity: String(student.dailyFarPagesCapacity),
       notes: student.notes,
       photo_url: student.photoUrl,
+      id_number: student.idNumber,
     };
+
+    return base;
   }
 }
