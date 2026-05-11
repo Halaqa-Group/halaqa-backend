@@ -2,6 +2,7 @@ import 'dotenv/config';
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AuditLog } from '../modules/audit/audit-log.entity';
+import { Achievement } from '../modules/achievements/entities/achievement.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
@@ -52,6 +53,7 @@ export default new DataSource({
     StudentHalaqa,
     SupervisorHalaqa,
     HalaqaActivityLog,
+    Achievement,
   ],
   migrations: ['migrations/*.ts'],
   migrationsTableName: 'typeorm_migrations',
