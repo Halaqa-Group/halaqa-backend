@@ -3404,6 +3404,911 @@
           "My Children"
         ]
       }
+    },
+    "/achievements": {
+      "post": {
+        "description": "Records a Quran recitation achievement for a student. Computes `percentage_score` automatically from error counts and the halaqa's `evaluation_settings`. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
+        "operationId": "AchievementsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error, invalid verse range, or student absent."
+          },
+          "403": {
+            "description": "No halaqa scope, or approve=true without authority."
+          },
+          "404": {
+            "description": "Halaqa not found or evaluation_settings not configured."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Record an achievement",
+        "tags": [
+          "Achievements"
+        ]
+      },
+      "get": {
+        "description": "Returns a paginated list of achievements visible to the caller.\n- **principal / vice_principal**: all achievements in the school.\n- **supervisor**: achievements for halaqat they supervise.\n- **teacher**: achievements for halaqat they are assigned to.\n- **parent**: achievements for their linked students only.   `recorded_by` and `approved_by` filters return 400 for this role.",
+        "operationId": "AchievementsController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 1.",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 20, capped at 100.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "student_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by student.",
+            "schema": {
+              "example": 42,
+              "type": "number"
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by halaqa.",
+            "schema": {
+              "example": 3,
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "Filter by exact date.",
+            "schema": {
+              "format": "date",
+              "example": "2026-05-11",
+              "type": "string"
+            }
+          },
+          {
+            "name": "track_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "Hifz",
+              "type": "string",
+              "enum": [
+                "Hifz",
+                "Near",
+                "Far"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "approved",
+              "type": "string",
+              "enum": [
+                "approved",
+                "unapproved"
+              ]
+            }
+          },
+          {
+            "name": "recorded_by",
+            "required": false,
+            "in": "query",
+            "description": "Filter by recorder user ID. Not available for parent role (400).",
+            "schema": {
+              "example": 7,
+              "type": "number"
+            }
+          },
+          {
+            "name": "approved_by",
+            "required": false,
+            "in": "query",
+            "description": "Filter by approver user ID. Not available for parent role (400).",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementListData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parent using a restricted filter."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List achievements (role-scoped)",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/achievements/{id}": {
+      "get": {
+        "description": "Returns a single achievement. Out-of-scope or cross-school access returns 404 (never 403). Parent role: `mistakes_count`, `warnings_count`, `tajweed_errors_count`, `recorded_by_name`, `approved_by_name`, and `approved_at` are omitted.",
+        "operationId": "AchievementsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Achievement ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get achievement detail",
+        "tags": [
+          "Achievements"
+        ]
+      },
+      "patch": {
+        "description": "Updates mutable fields on an **unapproved** achievement. Returns 400 if the achievement is approved (unapprove it first). If error counts change, `percentage_score` is recomputed. If surah/verse fields change, the range is re-validated.",
+        "operationId": "AchievementsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Achievement ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Achievement is approved, or invalid verse range."
+          },
+          "404": {
+            "description": "Not found or no halaqa scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update an achievement",
+        "tags": [
+          "Achievements"
+        ]
+      },
+      "delete": {
+        "description": "Soft-deletes an achievement.\n- **Unapproved**: any role with halaqa scope can delete.\n- **Approved**: principal only (VP and teachers are rejected with 403).\nIf the deleted achievement was approved, plan item reconciliation runs automatically.",
+        "operationId": "AchievementsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Achievement ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Approved achievement — principal only."
+          },
+          "404": {
+            "description": "Not found or no halaqa scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete (soft-delete) an achievement",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/achievements/{id}/approve": {
+      "post": {
+        "description": "Marks the achievement as approved. Caller must be: principal, VP, supervisor in scope, or primary/acting teacher for the halaqa. Returns 400 if already approved. Triggers plan item reconciliation.",
+        "operationId": "AchievementsController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Achievement ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Already approved."
+          },
+          "403": {
+            "description": "No approval authority for this halaqa."
+          },
+          "404": {
+            "description": "Not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Approve an achievement",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/achievements/{id}/unapprove": {
+      "post": {
+        "description": "Reverts an approved achievement back to unapproved. Principal and vice_principal only. `approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). Returns 400 if not currently approved. Triggers plan item reconciliation.",
+        "operationId": "AchievementsController_unapprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Achievement ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not currently approved."
+          },
+          "403": {
+            "description": "Principal or VP only."
+          },
+          "404": {
+            "description": "Not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unapprove an achievement",
+        "tags": [
+          "Achievements"
+        ]
+      }
+    },
+    "/weekly-plans/generate": {
+      "post": {
+        "description": "Placeholder — returns 501. Auto-generation strategy is undecided. Use `POST /weekly-plans` to create plans manually.",
+        "operationId": "WeeklyPlansController_generate",
+        "parameters": [],
+        "responses": {
+          "501": {
+            "description": "Not implemented."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Auto-generate weekly plans [NOT IMPLEMENTED]",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plans": {
+      "post": {
+        "description": "Creates a draft weekly plan with one or more items. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Regular (non-primary) teachers are rejected with 403. Returns 409 if a plan already exists for the same student/halaqa/week.",
+        "operationId": "WeeklyPlansController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWeeklyPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid verse range."
+          },
+          "403": {
+            "description": "No primary-teacher authority for this halaqa."
+          },
+          "409": {
+            "description": "Plan already exists. Response includes existing_plan_id."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a weekly plan",
+        "tags": [
+          "Weekly Plans"
+        ]
+      },
+      "get": {
+        "description": "Returns a paginated list of weekly plans visible to the caller.\n- **principal / vice_principal**: all plans in the school.\n- **supervisor**: plans for halaqat they supervise.\n- **teacher**: plans for halaqat they are assigned to.\n- **parent**: plans for their linked students only.",
+        "operationId": "WeeklyPlansController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 1.",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 20, capped at 100.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "student_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by student.",
+            "schema": {
+              "example": 42,
+              "type": "number"
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by halaqa.",
+            "schema": {
+              "example": 3,
+              "type": "number"
+            }
+          },
+          {
+            "name": "week_start_date",
+            "required": false,
+            "in": "query",
+            "description": "Filter by week start date.",
+            "schema": {
+              "format": "date",
+              "example": "2026-05-09",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "draft",
+              "type": "string",
+              "enum": [
+                "draft",
+                "approved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanListData"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List weekly plans (role-scoped)",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plans/{id}": {
+      "get": {
+        "description": "Returns the plan with all its items. Out-of-scope or cross-school access returns 404 (never 403).",
+        "operationId": "WeeklyPlansController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get weekly plan detail",
+        "tags": [
+          "Weekly Plans"
+        ]
+      },
+      "delete": {
+        "description": "Soft-deletes the plan. Principal and vice_principal only. Items are not individually deleted; the plan becoming un-listable is sufficient.",
+        "operationId": "WeeklyPlansController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Principal or VP only."
+          },
+          "404": {
+            "description": "Not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete (soft-delete) a weekly plan",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plans/{id}/approve": {
+      "post": {
+        "description": "Locks the plan structure and runs reconciliation for every item. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Returns 400 if already approved.",
+        "operationId": "WeeklyPlansController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Already approved."
+          },
+          "403": {
+            "description": "No approval authority."
+          },
+          "404": {
+            "description": "Not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Approve a weekly plan",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plans/{id}/unapprove": {
+      "post": {
+        "description": "Reverts the plan to draft status. Principal and VP only. `approved_by` is preserved for audit purposes. Returns 400 if not currently approved.",
+        "operationId": "WeeklyPlansController_unapprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not currently approved."
+          },
+          "403": {
+            "description": "Principal or VP only."
+          },
+          "404": {
+            "description": "Not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unapprove a weekly plan",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plans/{planId}/items": {
+      "post": {
+        "description": "Adds a new item to a **draft** plan. Returns 400 if the plan is approved (unapprove it first). Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa.",
+        "operationId": "PlanItemsController_addItem",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWeeklyPlanItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanItemDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Plan is approved, or invalid verse range."
+          },
+          "403": {
+            "description": "No primary-teacher authority."
+          },
+          "404": {
+            "description": "Plan not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Add an item to a weekly plan",
+        "tags": [
+          "Plan Items"
+        ]
+      }
+    },
+    "/weekly-plan-items/{id}": {
+      "delete": {
+        "description": "Hard-deletes a plan item. Returns 400 if the plan is approved (unapprove first). Caller must have primary-teacher authority for the halaqa.",
+        "operationId": "PlanItemsController_deleteItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Plan item ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Plan is approved."
+          },
+          "403": {
+            "description": "No primary-teacher authority."
+          },
+          "404": {
+            "description": "Item not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a plan item",
+        "tags": [
+          "Plan Items"
+        ]
+      },
+      "patch": {
+        "description": "Updates a plan item's range, track type, or day. Range edits are allowed even on **approved** plans (no unapprove required). Changing any range field (`start_surah`, `start_verse`, `end_surah`, `end_verse`) sets `is_manual_override = true` permanently, recomputes `total_verses`, and re-runs reconciliation. Caller must have primary-teacher authority for the halaqa.",
+        "operationId": "PlanItemsController_updateItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Plan item ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWeeklyPlanItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPlanItemDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid verse range."
+          },
+          "403": {
+            "description": "No primary-teacher authority."
+          },
+          "404": {
+            "description": "Item not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Edit a plan item range",
+        "tags": [
+          "Plan Items"
+        ]
+      }
     }
   },
   "info": {
@@ -3432,6 +4337,18 @@
     {
       "name": "My Children",
       "description": "Parent-only views over their linked students."
+    },
+    {
+      "name": "Achievements",
+      "description": "Record, approve, unapprove, and delete Quran recitation achievements. Percentage score is computed automatically. Parents see a restricted view (no error counts or approval meta)."
+    },
+    {
+      "name": "Weekly Plans",
+      "description": "Create, approve, and manage weekly recitation plans for students. Approving a plan locks its items; achieved_verses and status are reconciled automatically when achievements are approved."
+    },
+    {
+      "name": "Plan Items",
+      "description": "Add, edit, or remove individual items within a weekly plan. Editing ranges on an approved plan sets is_manual_override=1 and re-runs reconciliation."
     }
   ],
   "servers": [],
@@ -5434,6 +6351,597 @@
           "can_pickup": {
             "type": "boolean",
             "example": false
+          }
+        }
+      },
+      "CreateAchievementDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42,
+            "description": "Student ID. Must belong to the caller's school."
+          },
+          "halaqa_id": {
+            "type": "number",
+            "example": 3,
+            "description": "Halaqa ID. Caller must have scope on this halaqa."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-05-11"
+          },
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Starting surah (1–114)."
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Ending surah. Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7,
+            "minimum": 1
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "description": "Defaults to 0."
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0,
+            "description": "Defaults to 0."
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "description": "Defaults to 0."
+          },
+          "teacher_notes": {
+            "type": "object",
+            "nullable": true,
+            "example": "Strong on the last 3 verses.",
+            "maxLength": 1000
+          },
+          "approve": {
+            "type": "boolean",
+            "default": false,
+            "description": "Approve in the same request. Caller must have approval authority. Lacks authority → 403 (never silently downgraded to unapproved)."
+          }
+        },
+        "required": [
+          "student_id",
+          "halaqa_id",
+          "date",
+          "track_type",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
+      "AchievementDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "halaqa_id": {
+            "type": "number",
+            "example": 3
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-05-11"
+          },
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7
+          },
+          "mistakes_count": {
+            "type": "object",
+            "example": 2,
+            "nullable": true,
+            "description": "Hidden for parent role."
+          },
+          "warnings_count": {
+            "type": "object",
+            "example": 1,
+            "nullable": true,
+            "description": "Hidden for parent role."
+          },
+          "tajweed_errors_count": {
+            "type": "object",
+            "example": 0,
+            "nullable": true,
+            "description": "Hidden for parent role."
+          },
+          "percentage_score": {
+            "type": "string",
+            "example": "95.50",
+            "description": "Computed percentage score (2 decimal places)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "unapproved"
+            ],
+            "example": "unapproved"
+          },
+          "recorded_by_name": {
+            "type": "object",
+            "nullable": true,
+            "example": "Ahmad Ali",
+            "description": "Hidden for parent role."
+          },
+          "approved_by_name": {
+            "type": "object",
+            "nullable": true,
+            "example": "Ahmad Ali",
+            "description": "Hidden for parent role."
+          },
+          "approved_at": {
+            "type": "object",
+            "nullable": true,
+            "example": "2026-05-11T12:00:00.000Z",
+            "description": "Hidden for parent role."
+          },
+          "teacher_notes": {
+            "type": "object",
+            "nullable": true,
+            "example": "Strong on the last 3 verses."
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-05-11T10:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "halaqa_id",
+          "date",
+          "track_type",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse",
+          "percentage_score",
+          "status",
+          "teacher_notes",
+          "created_at"
+        ]
+      },
+      "AchievementListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "UpdateAchievementDto": {
+        "type": "object",
+        "properties": {
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7,
+            "minimum": 1
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0
+          },
+          "teacher_notes": {
+            "type": "object",
+            "nullable": true,
+            "example": null,
+            "maxLength": 1000
+          }
+        }
+      },
+      "CreateWeeklyPlanItemDto": {
+        "type": "object",
+        "properties": {
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "day_of_week": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0=Saturday … 6=Friday."
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "track_type",
+          "day_of_week",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
+      "CreateWeeklyPlanDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42,
+            "description": "Student ID. Must belong to the caller's school."
+          },
+          "halaqa_id": {
+            "type": "number",
+            "example": 3,
+            "description": "Halaqa ID. Caller must have primary-teacher authority."
+          },
+          "week_start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-05-09",
+            "description": "Saturday that starts the week."
+          },
+          "items": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateWeeklyPlanItemDto"
+            }
+          }
+        },
+        "required": [
+          "student_id",
+          "halaqa_id",
+          "week_start_date",
+          "items"
+        ]
+      },
+      "WeeklyPlanItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "day_of_week": {
+            "type": "number",
+            "example": 2,
+            "description": "0=Saturday … 6=Friday."
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 1
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7
+          },
+          "total_verses": {
+            "type": "number",
+            "example": 7
+          },
+          "achieved_verses": {
+            "type": "number",
+            "example": 4
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "due",
+              "overdue",
+              "partial",
+              "completed"
+            ],
+            "example": "partial"
+          },
+          "is_manual_override": {
+            "type": "boolean",
+            "example": false,
+            "description": "True if range was edited after item creation."
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-05-11T10:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "track_type",
+          "day_of_week",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse",
+          "total_verses",
+          "achieved_verses",
+          "status",
+          "is_manual_override",
+          "created_at"
+        ]
+      },
+      "WeeklyPlanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "halaqa_id": {
+            "type": "number",
+            "example": 3
+          },
+          "week_start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-05-09"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "approved"
+            ],
+            "example": "draft"
+          },
+          "approved_by": {
+            "type": "object",
+            "nullable": true,
+            "example": 7
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeeklyPlanItemDto"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-05-09T10:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "halaqa_id",
+          "week_start_date",
+          "status",
+          "approved_by",
+          "items",
+          "created_at"
+        ]
+      },
+      "WeeklyPlanListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeeklyPlanDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 10
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "UpdateWeeklyPlanItemDto": {
+        "type": "object",
+        "properties": {
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "day_of_week": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0=Saturday … 6=Friday."
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 7,
+            "minimum": 1
           }
         }
       }
