@@ -2,12 +2,9 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
-import { PasswordResetToken } from '../../auth/entities/password-reset-token.entity';
-import type { MailService } from '../../auth/services/mail.service';
 import type { NotificationService } from '../../notifications/notification.service';
 import { User } from '../../users/entities/user.entity';
 import type { UsersService } from '../../users/users.service';
@@ -73,13 +70,6 @@ function makeAudit() {
   return { log: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<AuditService>;
 }
 
-function makeMail() {
-  return {
-    sendParentInvite: jest.fn().mockResolvedValue(undefined),
-    sendResetEmail: jest.fn().mockResolvedValue(undefined),
-  } as jest.Mocked<MailService>;
-}
-
 function makeNotifications() {
   return { notifyRole: jest.fn().mockResolvedValue(undefined) } as jest.Mocked<NotificationService>;
 }
@@ -94,7 +84,6 @@ function makeUsersService(findByEmailResult: User | null = null) {
 interface TxMocks {
   sgRepo: { findOne: jest.Mock; count: jest.Mock; save: jest.Mock; find: jest.Mock; update: jest.Mock; delete: jest.Mock; create: jest.Mock };
   userRepo: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
-  resetRepo: { save: jest.Mock; create: jest.Mock };
   studentRepo: { findOne: jest.Mock };
 }
 
@@ -113,10 +102,6 @@ function makeTxMocks(existingGuardians: StudentGuardian[] = []): TxMocks {
       findOne: jest.fn().mockResolvedValue(GUARDIAN_USER),
       save: jest.fn().mockResolvedValue({ ...GUARDIAN_USER, id: 99 }),
       create: jest.fn().mockImplementation((d: Record<string, unknown>) => ({ ...d, id: 99 })),
-    },
-    resetRepo: {
-      save: jest.fn().mockResolvedValue({}),
-      create: jest.fn().mockImplementation((d: unknown) => d),
     },
     studentRepo: {
       findOne: jest.fn().mockResolvedValue({ id: 10, name: 'محمد' } as Student),
@@ -160,7 +145,7 @@ function makeDataSource(tx: TxMocks): { ds: DataSource; txManager: EntityManager
       if (entity instanceof Object && 'email' in (entity as Record<string, unknown>)) {
         return tx.userRepo.save(entity as User);
       }
-      return tx.resetRepo.save(entity as PasswordResetToken);
+      return Promise.resolve(entity);
     }),
     create: jest.fn().mockImplementation((_cls: unknown, d: unknown) => d),
     find: jest.fn().mockImplementation(() => tx.sgRepo.find()),
@@ -185,25 +170,19 @@ function makeService(
   const tx = txMocks ?? makeTxMocks(sgRows);
   const { ds, txManager } = makeDataSource(tx);
   const sgRepo = makeSgRepo(sgRows);
-  const resetRepo = { findOne: jest.fn(), save: jest.fn(), create: jest.fn().mockImplementation((d: unknown) => d) };
   const audit = makeAudit();
-  const mail = makeMail();
   const notif = notifications ?? makeNotifications();
   const users = usersService ?? makeUsersService();
-  const config = { getOrThrow: jest.fn().mockReturnValue('http://localhost') } as unknown as ConfigService;
 
   const service = new GuardiansService(
     sgRepo as unknown as Repository<StudentGuardian>,
-    resetRepo as unknown as Repository<PasswordResetToken>,
     ds,
     users,
     audit,
-    config,
-    mail,
     notif,
   );
 
-  return { service, audit, mail, notif, users, tx, sgRepo, ds, txManager };
+  return { service, audit, notif, users, tx, sgRepo, ds, txManager };
 }
 
 describe('GuardiansService', () => {
@@ -325,35 +304,20 @@ describe('GuardiansService', () => {
   });
 
   describe('link — by email (new parent)', () => {
-    it('creates new user and sends invite email when email not found', async () => {
+    it('throws 404 when email is not found in school', async () => {
       const tx = makeTxMocks([]);
       const users = makeUsersService(null);
-      const mail = makeMail();
       const { service } = makeService([], tx, users);
 
-      // Patch mail into service
-      (service as unknown as { mail: jest.Mocked<MailService> }).mail = mail;
-
-      tx.sgRepo.count.mockResolvedValue(0);
-      tx.sgRepo.findOne.mockResolvedValue(null);
-      tx.sgRepo.save.mockImplementation((s: StudentGuardian) =>
-        Promise.resolve({ ...s, guardian: { ...GUARDIAN_USER, id: 99 } }),
-      );
-
-      await service.link(10, { email: 'new@parent.com', name: 'والد جديد', relation: 'father' }, ACTOR);
-
-      expect(mail.sendParentInvite).toHaveBeenCalledWith(
-        'new@parent.com',
-        expect.stringContaining('/auth/reset?token='),
-      );
+      await expect(
+        service.link(10, { email: 'unknown@parent.com', relation: 'father' }, ACTOR),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('uses existing user when email is found', async () => {
       const tx = makeTxMocks([]);
       const users = makeUsersService(GUARDIAN_USER);
-      const mail = makeMail();
       const { service } = makeService([], tx, users);
-      (service as unknown as { mail: jest.Mocked<MailService> }).mail = mail;
 
       tx.sgRepo.count.mockResolvedValue(0);
       tx.sgRepo.findOne.mockResolvedValue(null);
@@ -363,7 +327,6 @@ describe('GuardiansService', () => {
 
       await service.link(10, { email: 'father@x.com', relation: 'father' }, ACTOR);
 
-      expect(mail.sendParentInvite).not.toHaveBeenCalled();
       expect(users.ensureRoleBySlug).toHaveBeenCalledWith(GUARDIAN_USER.id, 'parent', ACTOR, undefined);
     });
   });

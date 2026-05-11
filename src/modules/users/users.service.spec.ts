@@ -567,6 +567,7 @@ describe('UsersService', () => {
       expect(result).toBe(ACTIVE_USER_VIEW);
       expect(m.users.findOne).toHaveBeenCalledWith({
         where: { email: 'x@s.com', schoolId: 1 },
+        withDeleted: false,
       });
     });
 
