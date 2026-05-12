@@ -80,6 +80,18 @@ export class CreateAchievementDto {
   @Min(0)
   tajweed_errors_count?: number;
 
+  @ApiProperty({
+    example: 92.5,
+    minimum: 0,
+    maximum: 100,
+    description: 'Computed on the frontend from raw counts and the halaqa evaluation settings. Stored as-is.',
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  percentage_score!: number;
+
   @ApiProperty({ required: false, nullable: true, example: 'Strong on the last 3 verses.', maxLength: 1000 })
   @IsOptional()
   @IsString()

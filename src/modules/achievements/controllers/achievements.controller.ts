@@ -43,7 +43,7 @@ export class AchievementsController {
     summary: 'Record an achievement',
     description:
       'Records a Quran recitation achievement for a student. ' +
-      'Computes `percentage_score` automatically from error counts and the halaqa\'s `evaluation_settings`. ' +
+      '`percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. ' +
       'Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). ' +
       'If the student is absent the request is rejected (400).',
   })
@@ -51,7 +51,7 @@ export class AchievementsController {
   @ApiResponse({ status: 201, type: AchievementDto })
   @ApiResponse({ status: 400, description: 'Validation error, invalid verse range, or student absent.' })
   @ApiResponse({ status: 403, description: 'No halaqa scope, or approve=true without authority.' })
-  @ApiResponse({ status: 404, description: 'Halaqa not found or evaluation_settings not configured.' })
+  @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async create(
     @Body() dto: CreateAchievementDto,
     @CurrentUser() actor: AuthenticatedUser,
@@ -69,6 +69,7 @@ export class AchievementsController {
         mistakesCount: dto.mistakes_count,
         warningsCount: dto.warnings_count,
         tajweedErrorsCount: dto.tajweed_errors_count,
+        percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
         approve: dto.approve,
       },
@@ -163,7 +164,7 @@ export class AchievementsController {
     description:
       'Updates mutable fields on an **unapproved** achievement. ' +
       'Returns 400 if the achievement is approved (unapprove it first). ' +
-      'If error counts change, `percentage_score` is recomputed. ' +
+      '`percentage_score` is updated only when the client sends it (recomputed on the frontend). ' +
       'If surah/verse fields change, the range is re-validated.',
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
@@ -187,6 +188,7 @@ export class AchievementsController {
         mistakesCount: dto.mistakes_count,
         warningsCount: dto.warnings_count,
         tajweedErrorsCount: dto.tajweed_errors_count,
+        percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
       },
       actor,

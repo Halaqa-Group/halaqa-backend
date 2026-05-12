@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -12,8 +11,6 @@ import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
 import type { AchievementStatus, TrackType } from '../entities/achievement.entity';
 import { AttendanceQueryService } from '../stubs/attendance-query.stub';
-import type { EvaluationSettings } from './achievement-score.service';
-import { AchievementScoreService } from './achievement-score.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 
@@ -31,6 +28,7 @@ export interface CreateAchievementInput {
   mistakesCount?: number;
   warningsCount?: number;
   tajweedErrorsCount?: number;
+  percentageScore: number;
   teacherNotes?: string | null;
   approve?: boolean;
 }
@@ -44,6 +42,7 @@ export interface UpdateAchievementInput {
   mistakesCount?: number;
   warningsCount?: number;
   tajweedErrorsCount?: number;
+  percentageScore?: number;
   teacherNotes?: string | null;
 }
 
@@ -72,7 +71,6 @@ export class AchievementsService {
     @InjectRepository(Achievement) private readonly repo: Repository<Achievement>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly attendanceQuery: AttendanceQueryService,
-    private readonly scoreService: AchievementScoreService,
     private readonly auditService: AuditService,
     private readonly reconciliation: PlanReconciliationService,
     private readonly rangeValidator: QuranRangeValidator,
@@ -182,66 +180,10 @@ export class AchievementsService {
     return a;
   }
 
-  /** Load the halaqa's evaluation_settings or throw. */
-  private async loadEvalSettings(halaqaId: number, schoolId: number): Promise<EvaluationSettings> {
-    type Row = { evaluation_settings: unknown };
-    const rows: Row[] = await this.dataSource.manager.query(
-      'SELECT evaluation_settings FROM halaqat WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1',
-      [halaqaId, schoolId],
-    );
-    if (!rows.length) throw new NotFoundException('Halaqa not found.');
-
-    const cell = rows[0].evaluation_settings;
-    if (cell == null) {
-      throw new InternalServerErrorException('Halaqa has no evaluation_settings configured.');
-    }
-
-    // Raw SQL queries bypass TypeORM's JSON column parser — MySQL2 may return a
-    // Buffer, a plain string, or an already-parsed object depending on the driver
-    // version and typeCast configuration.
-    let obj: Record<string, unknown>;
-    if (Buffer.isBuffer(cell)) {
-      obj = JSON.parse((cell as Buffer).toString('utf8')) as Record<string, unknown>;
-    } else if (typeof cell === 'string') {
-      obj = JSON.parse(cell) as Record<string, unknown>;
-    } else {
-      obj = cell as Record<string, unknown>;
-    }
-
-    const base_score = Number(obj['base_score']);
-    const mistake_weight = Number(obj['mistake_weight']);
-    const warning_weight = Number(obj['warning_weight']);
-    const tajweed_weight = Number(obj['tajweed_weight']);
-    const min_score = Number(obj['min_score'] ?? 0);
-
-    if ([base_score, mistake_weight, warning_weight, tajweed_weight].some(isNaN)) {
-      throw new InternalServerErrorException(
-        'Halaqa evaluation_settings is missing required numeric fields: ' +
-          'base_score, mistake_weight, warning_weight, tajweed_weight.',
-      );
-    }
-
-    return {
-      base_score,
-      mistake_weight,
-      warning_weight,
-      tajweed_weight,
-      min_score: isNaN(min_score) ? 0 : min_score,
-    };
-  }
-
   // ─── Create ───────────────────────────────────────────────────────────────
 
   async create(input: CreateAchievementInput, actor: AuthenticatedUser): Promise<Achievement> {
-    // 1. Scope check
-    if (!(await this.hasHalaqaScope(input.halaqaId, actor))) {
-      throw new ForbiddenException('You do not have access to this halaqa.');
-    }
-
-    // 2. Student must be actively enrolled in the selected halaqa
-    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
-
-    // 3. Validate verse range
+    // 1. Validate verse range (cheap, fail fast before any DB hit)
     this.rangeValidator.validate({
       startSurah: input.startSurah,
       startVerse: input.startVerse,
@@ -249,7 +191,15 @@ export class AchievementsService {
       endVerse: input.endVerse,
     });
 
-    // 3. Attendance check
+    // 2. Scope check
+    if (!(await this.hasHalaqaScope(input.halaqaId, actor))) {
+      throw new ForbiddenException('You do not have access to this halaqa.');
+    }
+
+    // 3. Student must be actively enrolled in the selected halaqa
+    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
+
+    // 4. Attendance check
     const attendance = await this.attendanceQuery.findForStudentOnDate(
       input.studentId,
       input.halaqaId,
@@ -264,18 +214,8 @@ export class AchievementsService {
       throw new BadRequestException('Cannot record achievement: student was absent.');
     }
 
-    // 4. Load evaluation settings
-    const settings = await this.loadEvalSettings(input.halaqaId, actor.schoolId);
-
-    // 5. Compute score
-    const percentageScore = this.scoreService.compute(
-      {
-        mistakesCount: input.mistakesCount ?? 0,
-        warningsCount: input.warningsCount ?? 0,
-        tajweedErrorsCount: input.tajweedErrorsCount ?? 0,
-      },
-      settings,
-    );
+    // 5. Score is computed on the frontend and supplied in the request — stored as-is.
+    const percentageScore = Math.round(input.percentageScore * 100) / 100;
 
     // 6. Approve authority check (before persisting)
     const shouldApprove = input.approve === true;
@@ -425,11 +365,6 @@ export class AchievementsService {
       throw new NotFoundException();
     }
 
-    const countsChanged =
-      (input.mistakesCount !== undefined && input.mistakesCount !== achievement.mistakesCount) ||
-      (input.warningsCount !== undefined && input.warningsCount !== achievement.warningsCount) ||
-      (input.tajweedErrorsCount !== undefined && input.tajweedErrorsCount !== achievement.tajweedErrorsCount);
-
     if (input.trackType !== undefined) achievement.trackType = input.trackType;
     if (input.startSurah !== undefined) achievement.startSurah = input.startSurah;
     if (input.startVerse !== undefined) achievement.startVerse = input.startVerse;
@@ -438,6 +373,9 @@ export class AchievementsService {
     if (input.mistakesCount !== undefined) achievement.mistakesCount = input.mistakesCount;
     if (input.warningsCount !== undefined) achievement.warningsCount = input.warningsCount;
     if (input.tajweedErrorsCount !== undefined) achievement.tajweedErrorsCount = input.tajweedErrorsCount;
+    if (input.percentageScore !== undefined) {
+      achievement.percentageScore = Math.round(input.percentageScore * 100) / 100;
+    }
     if ('teacherNotes' in input) achievement.teacherNotes = input.teacherNotes ?? null;
 
     if (input.startSurah !== undefined || input.endSurah !== undefined) {
@@ -447,18 +385,6 @@ export class AchievementsService {
         endSurah: achievement.endSurah,
         endVerse: achievement.endVerse,
       });
-    }
-
-    if (countsChanged) {
-      const settings = await this.loadEvalSettings(achievement.halaqaId, actor.schoolId);
-      achievement.percentageScore = this.scoreService.compute(
-        {
-          mistakesCount: achievement.mistakesCount,
-          warningsCount: achievement.warningsCount,
-          tajweedErrorsCount: achievement.tajweedErrorsCount,
-        },
-        settings,
-      );
     }
 
     await this.repo.save(achievement);

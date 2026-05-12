@@ -69,6 +69,14 @@ export class UpdateAchievementDto {
   @Min(0)
   tajweed_errors_count?: number;
 
+  @ApiProperty({ required: false, example: 92.5, minimum: 0, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  percentage_score?: number;
+
   @ApiProperty({ required: false, nullable: true, example: null, maxLength: 1000 })
   @IsOptional()
   @IsString()

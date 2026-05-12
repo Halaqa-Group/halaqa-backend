@@ -8,7 +8,6 @@ import { WeeklyPlansController } from './controllers/weekly-plans.controller';
 import { Achievement } from './entities/achievement.entity';
 import { WeeklyPlanItem } from './entities/weekly-plan-item.entity';
 import { WeeklyPlan } from './entities/weekly-plan.entity';
-import { AchievementScoreService } from './services/achievement-score.service';
 import { AchievementsService } from './services/achievements.service';
 import { WeeklyPlansOverdueCron } from './services/overdue-cron.service';
 import { PlanItemsService } from './services/plan-items.service';
@@ -24,7 +23,6 @@ import { AttendanceQueryService } from './stubs/attendance-query.stub';
   controllers: [AchievementsController, WeeklyPlansController, PlanItemsController],
   providers: [
     AchievementsService,
-    AchievementScoreService,
     WeeklyPlansService,
     PlanItemsService,
     PlanReconciliationService,

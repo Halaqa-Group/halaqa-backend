@@ -4,8 +4,7 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
 import { AttendanceQueryService } from '../stubs/attendance-query.stub';
-import { AchievementScoreService } from './achievement-score.service';
-import { AchievementsService, CreateAchievementInput, UpdateAchievementInput } from './achievements.service';
+import { AchievementsService, CreateAchievementInput } from './achievements.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 
@@ -75,6 +74,7 @@ const CREATE_INPUT: CreateAchievementInput = {
   startVerse: 1,
   endSurah: 1,
   endVerse: 7,
+  percentageScore: 100,
 };
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -112,7 +112,6 @@ const makeDataSource = (queryResults: unknown[][] = [[{ 1: 1 }], [EVAL_SETTINGS]
 const makeAudit = () => ({ log: jest.fn().mockResolvedValue(undefined) } as unknown as AuditService);
 const makeReconciliation = () => ({ reconcileForAchievement: jest.fn().mockResolvedValue(undefined), reconcileItem: jest.fn().mockResolvedValue(undefined) } as unknown as PlanReconciliationService);
 const makeAttendance = () => ({ findForStudentOnDate: jest.fn().mockResolvedValue({ id: 1, status: 'present' }) } as unknown as AttendanceQueryService);
-const makeScoreService = () => new AchievementScoreService();
 const makeRangeValidator = () => new QuranRangeValidator();
 
 const makeService = (
@@ -134,7 +133,6 @@ const makeService = (
     repo as any,
     ds,
     attendance,
-    makeScoreService(),
     audit,
     recon,
     makeRangeValidator(),
@@ -350,20 +348,16 @@ describe('AchievementsService', () => {
       );
     });
 
-    it('recomputes score when count fields change', async () => {
+    it('stores percentage_score from the request, rounded to 2dp', async () => {
       const repo = makeRepo();
-      const achievement = makeAchievement({ status: 'unapproved', mistakesCount: 0, percentageScore: 100 });
+      const achievement = makeAchievement({ status: 'unapproved', percentageScore: 100 });
       repo.findOne.mockResolvedValue(achievement);
       repo.save.mockResolvedValue(achievement);
-      // scope check returns admin (isAdmin always true for principal, skips ds query)
-      const ds = makeDataSource([[EVAL_SETTINGS]]);
 
-      const service = makeService({ repo, ds });
-      const input: UpdateAchievementInput = { mistakesCount: 5 };
-      await service.update(1, input, makeActor());
+      const service = makeService({ repo });
+      await service.update(1, { percentageScore: 87.456 }, makeActor());
 
-      // 100 - 5*2 = 90
-      expect(achievement.percentageScore).toBe(90);
+      expect(achievement.percentageScore).toBe(87.46);
     });
 
     it('throws NotFoundException when actor has no halaqa scope', async () => {
