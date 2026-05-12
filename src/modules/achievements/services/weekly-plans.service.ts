@@ -127,12 +127,34 @@ export class WeeklyPlansService {
     return plan;
   }
 
+  private async assertStudentEnrolledInHalaqa(
+    studentId: number,
+    halaqaId: number,
+    schoolId: number,
+  ): Promise<void> {
+    const rows: unknown[] = await this.dataSource.manager.query(
+      `SELECT 1 FROM student_halaqa sh
+       JOIN students s ON s.id = sh.student_id
+       WHERE sh.student_id = ? AND sh.halaqa_id = ?
+         AND sh.status = 'active'
+         AND s.school_id = ?
+       LIMIT 1`,
+      [studentId, halaqaId, schoolId],
+    );
+    if (!rows.length) {
+      throw new BadRequestException('Student is not actively enrolled in the selected halaqa.');
+    }
+  }
+
   // ─── Create ───────────────────────────────────────────────────────────────
 
   async create(input: CreateWeeklyPlanInput, actor: AuthenticatedUser): Promise<WeeklyPlan> {
     if (!(await this.hasApprovalAuthority(input.halaqaId, actor))) {
       throw new ForbiddenException('You do not have permission to create plans for this halaqa.');
     }
+
+    // Student must be actively enrolled in the selected halaqa
+    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
 
     // Conflict check — returns existing_plan_id so caller can reference it
     const existing = await this.plans.findOne({

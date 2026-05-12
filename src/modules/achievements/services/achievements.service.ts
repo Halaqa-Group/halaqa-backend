@@ -155,6 +155,26 @@ export class AchievementsService {
     return false;
   }
 
+  /** Verify the student is actively enrolled in the halaqa (within the actor's school). */
+  private async assertStudentEnrolledInHalaqa(
+    studentId: number,
+    halaqaId: number,
+    schoolId: number,
+  ): Promise<void> {
+    const rows: unknown[] = await this.dataSource.manager.query(
+      `SELECT 1 FROM student_halaqa sh
+       JOIN students s ON s.id = sh.student_id
+       WHERE sh.student_id = ? AND sh.halaqa_id = ?
+         AND sh.status = 'active'
+         AND s.school_id = ?
+       LIMIT 1`,
+      [studentId, halaqaId, schoolId],
+    );
+    if (!rows.length) {
+      throw new BadRequestException('Student is not actively enrolled in the selected halaqa.');
+    }
+  }
+
   /** Load achievement by id, enforce school scope, throw 404 on miss or cross-school. */
   private async loadOrFail(id: number, schoolId: number): Promise<Achievement> {
     const a = await this.repo.findOne({ where: { id, schoolId } });
@@ -218,7 +238,10 @@ export class AchievementsService {
       throw new ForbiddenException('You do not have access to this halaqa.');
     }
 
-    // 2. Validate verse range
+    // 2. Student must be actively enrolled in the selected halaqa
+    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
+
+    // 3. Validate verse range
     this.rangeValidator.validate({
       startSurah: input.startSurah,
       startVerse: input.startVerse,
