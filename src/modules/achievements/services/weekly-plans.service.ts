@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
@@ -211,7 +211,17 @@ export class WeeklyPlansService {
       ),
     });
 
-    await this.plans.save(plan);
+    try {
+      await this.plans.save(plan);
+    } catch (err) {
+      if (err instanceof QueryFailedError && (err as any).driverError?.code === 'ER_DUP_ENTRY') {
+        const dup = await this.plans.findOne({
+          where: { schoolId: actor.schoolId, studentId: input.studentId, halaqaId: input.halaqaId, weekStartDate: input.weekStartDate },
+        });
+        throw new ConflictException({ message: 'Plan already exists for this student/halaqa/week.', existing_plan_id: dup?.id ?? null });
+      }
+      throw err;
+    }
 
     await this.auditService.log({
       actor,
