@@ -3407,7 +3407,7 @@
     },
     "/achievements": {
       "post": {
-        "description": "Records a Quran recitation achievement for a student. Computes `percentage_score` automatically from error counts and the halaqa's `evaluation_settings`. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
+        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
         "operationId": "AchievementsController_create",
         "parameters": [],
         "requestBody": {
@@ -3438,7 +3438,7 @@
             "description": "No halaqa scope, or approve=true without authority."
           },
           "404": {
-            "description": "Halaqa not found or evaluation_settings not configured."
+            "description": "Not found or out of scope."
           }
         },
         "security": [
@@ -3624,7 +3624,7 @@
         ]
       },
       "patch": {
-        "description": "Updates mutable fields on an **unapproved** achievement. Returns 400 if the achievement is approved (unapprove it first). If error counts change, `percentage_score` is recomputed. If surah/verse fields change, the range is re-validated.",
+        "description": "Updates mutable fields on an **unapproved** achievement. Returns 400 if the achievement is approved (unapprove it first). `percentage_score` is updated only when the client sends it (recomputed on the frontend). If surah/verse fields change, the range is re-validated.",
         "operationId": "AchievementsController_update",
         "parameters": [
           {
@@ -6423,6 +6423,13 @@
             "minimum": 0,
             "description": "Defaults to 0."
           },
+          "percentage_score": {
+            "type": "number",
+            "example": 92.5,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Computed on the frontend from raw counts and the halaqa evaluation settings. Stored as-is."
+          },
           "teacher_notes": {
             "type": "object",
             "nullable": true,
@@ -6443,7 +6450,8 @@
           "start_surah",
           "start_verse",
           "end_surah",
-          "end_verse"
+          "end_verse",
+          "percentage_score"
         ]
       },
       "AchievementDto": {
@@ -6643,6 +6651,12 @@
             "type": "number",
             "example": 0,
             "minimum": 0
+          },
+          "percentage_score": {
+            "type": "number",
+            "example": 92.5,
+            "minimum": 0,
+            "maximum": 100
           },
           "teacher_notes": {
             "type": "object",
