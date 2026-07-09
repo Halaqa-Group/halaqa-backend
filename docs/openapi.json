@@ -1323,85 +1323,6 @@
         ]
       }
     },
-    "/halaqat/{id}/schedule": {
-      "get": {
-        "description": "Returns the weekly schedule entries for the halaqa, ordered by day_of_week.",
-        "operationId": "HalaqatController_getSchedule",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "Halaqa ID",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "404": {
-            "description": "Not found or out of scope"
-          }
-        },
-        "security": [
-          {
-            "access-token": []
-          }
-        ],
-        "summary": "Get halaqa schedule",
-        "tags": [
-          "Halaqat"
-        ]
-      },
-      "put": {
-        "description": "Atomically replaces the full weekly schedule. Runs BR-HLQ-02 conflict check for existing non-acting teachers and returns warnings (non-blocking). Send an empty array to clear the schedule.",
-        "operationId": "HalaqatController_setSchedule",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "Halaqa ID",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetScheduleDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "schedule + warnings array"
-          },
-          "400": {
-            "description": "Duplicate day_of_week"
-          },
-          "404": {
-            "description": "Not found or out of scope"
-          }
-        },
-        "security": [
-          {
-            "access-token": []
-          }
-        ],
-        "summary": "Replace halaqa schedule",
-        "tags": [
-          "Halaqat"
-        ]
-      }
-    },
     "/halaqat/{id}/teachers": {
       "post": {
         "description": "Creates an active assignment for the teacher. Role must be main or assistant — use the acting-substitute endpoint for substitutes. Runs schedule conflict check (BR-HLQ-02).",
@@ -3405,6 +3326,649 @@
         ]
       }
     },
+    "/attendance/students/sync": {
+      "post": {
+        "description": "Idempotent upload of an offline attendance batch. Each entry is deduped by `client_uuid` (re-syncing the same batch changes nothing), then applied to the student's (student, date) row — a pre-seeded/existing row is corrected, otherwise a new row is created. Entries the caller has no scope over are rejected individually (`forbidden`) without failing the batch. Supervisors and parents cannot record (403).",
+        "operationId": "StudentAttendanceController_sync",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkSyncStudentAttendanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkSyncResultDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role cannot record attendance."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Bulk sync student attendance (offline batch)",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/students": {
+      "get": {
+        "description": "Paginated attendance visible to the caller.\n- **principal / vice_principal**: whole school.\n- **supervisor**: students in supervised halaqat (read-only).\n- **teacher**: students in their halaqat.\n- **parent**: their own children (stripped view — no recorder/modifier fields).",
+        "operationId": "StudentAttendanceController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 1.",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to 20, capped at 100.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "student_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 42,
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-07",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Range start (inclusive).",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Range end (inclusive).",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "absent",
+              "type": "string",
+              "enum": [
+                "present",
+                "absent",
+                "excused",
+                "late"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceListData"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List student attendance (role-scoped)",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/students/{id}": {
+      "patch": {
+        "description": "Changes the status of one attendance row, recording who changed it, why (`modification_reason`), and the value it had before the first correction (`original_status`). Out-of-scope or cross-school rows return 404.",
+        "operationId": "StudentAttendanceController_correct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Attendance row ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectAttendanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Status unchanged."
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Correct a single attendance row",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/teachers/sync": {
+      "post": {
+        "description": "Idempotent upload of a staff attendance batch (teachers + admins). Principal / vice_principal only. Same dedup-by-`client_uuid` and per-row `forbidden` semantics as student sync.",
+        "operationId": "TeacherAttendanceController_sync",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkSyncTeacherAttendanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherBulkSyncResultDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only principal/VP can record staff attendance."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Bulk sync staff attendance (offline batch)",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/teachers": {
+      "get": {
+        "description": "principal / vice_principal see all staff in the school; any other staff role sees only their own rows.",
+        "operationId": "TeacherAttendanceController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-07",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "present",
+                "absent",
+                "excused",
+                "late"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherAttendanceListData"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List staff attendance",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/teachers/{id}": {
+      "patch": {
+        "description": "Principal / vice_principal only. Records who changed it, why, and the original status.",
+        "operationId": "TeacherAttendanceController_correct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Attendance row ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectAttendanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherAttendanceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Status unchanged."
+          },
+          "403": {
+            "description": "Only principal/VP can correct staff attendance."
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Correct a single staff attendance row",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/schedules": {
+      "post": {
+        "description": "Declares that the school operates on `day_of_week` for the given effective window. The seed cron only creates attendance on days covered by an effective row.",
+        "operationId": "SchoolCalendarController_createSchedule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSchoolScheduleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolScheduleResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Add a school schedule row (operating weekday)",
+        "tags": [
+          "Attendance"
+        ]
+      },
+      "get": {
+        "operationId": "SchoolCalendarController_listSchedules",
+        "parameters": [
+          {
+            "name": "on",
+            "required": false,
+            "in": "query",
+            "description": "If given, return only schedule rows effective on this date.",
+            "schema": {
+              "format": "date",
+              "example": "2026-09-15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolScheduleListData"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List school schedule rows",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/schedules/{id}": {
+      "delete": {
+        "operationId": "SchoolCalendarController_deleteSchedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a school schedule row",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/holidays": {
+      "post": {
+        "operationId": "SchoolCalendarController_createHoliday",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHolidayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A holiday already exists on this date."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Add a holiday",
+        "tags": [
+          "Attendance"
+        ]
+      },
+      "get": {
+        "operationId": "SchoolCalendarController_listHolidays",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Range start (inclusive).",
+            "schema": {
+              "format": "date",
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Range end (inclusive).",
+            "schema": {
+              "format": "date",
+              "example": "2027-06-30",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayListData"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List holidays (optionally within a date range)",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
+    "/attendance/holidays/{id}": {
+      "delete": {
+        "operationId": "SchoolCalendarController_deleteHoliday",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiMessage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a holiday",
+        "tags": [
+          "Attendance"
+        ]
+      }
+    },
     "/achievements": {
       "post": {
         "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
@@ -5029,45 +5593,6 @@
           }
         }
       },
-      "ScheduleEntryDto": {
-        "type": "object",
-        "properties": {
-          "day_of_week": {
-            "type": "number",
-            "example": 0,
-            "minimum": 0,
-            "maximum": 6,
-            "description": "0=Saturday … 6=Friday"
-          },
-          "prayer_slot": {
-            "type": "string",
-            "enum": [
-              "fajr",
-              "dhuhr",
-              "asr",
-              "maghrib",
-              "isha"
-            ],
-            "example": "fajr",
-            "nullable": true
-          },
-          "start_time": {
-            "type": "string",
-            "example": "05:00:00",
-            "nullable": true,
-            "description": "HH:MM:SS — display only."
-          },
-          "end_time": {
-            "type": "string",
-            "example": "06:00:00",
-            "nullable": true,
-            "description": "HH:MM:SS — display only."
-          }
-        },
-        "required": [
-          "day_of_week"
-        ]
-      },
       "CreateHalaqaDto": {
         "type": "object",
         "properties": {
@@ -5095,14 +5620,7 @@
           "primary_teacher_user_id": {
             "type": "number",
             "example": 12,
-            "description": "Creates an active main-teacher assignment on creation. Runs schedule-conflict check."
-          },
-          "schedule": {
-            "description": "Initial weekly schedule. Duplicate day_of_week values are rejected.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScheduleEntryDto"
-            }
+            "description": "Creates an active main-teacher assignment on creation."
           }
         },
         "required": [
@@ -5144,21 +5662,6 @@
       "ApiMessage": {
         "type": "object",
         "properties": {}
-      },
-      "SetScheduleDto": {
-        "type": "object",
-        "properties": {
-          "schedule": {
-            "description": "Full weekly schedule — replaces the existing one atomically. Send an empty array to clear the schedule.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScheduleEntryDto"
-            }
-          }
-        },
-        "required": [
-          "schedule"
-        ]
       },
       "AssignTeacherDto": {
         "type": "object",
@@ -6353,6 +6856,651 @@
             "example": false
           }
         }
+      },
+      "SyncAttendanceEntryDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "absent"
+          },
+          "excuse_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "مريض"
+          },
+          "client_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated id used for idempotent re-sync.",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          },
+          "client_recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the record was captured on the device.",
+            "example": "2026-07-07T08:15:00.000Z"
+          },
+          "device_id": {
+            "type": "string",
+            "maxLength": 64,
+            "example": "ipad-lab-3"
+          }
+        },
+        "required": [
+          "student_id",
+          "date",
+          "status"
+        ]
+      },
+      "BulkSyncStudentAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncAttendanceEntryDto"
+            }
+          }
+        },
+        "required": [
+          "records"
+        ]
+      },
+      "SyncResultRowDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "client_uuid": {
+            "type": "object",
+            "nullable": true,
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "updated",
+              "duplicate",
+              "forbidden"
+            ],
+            "example": "updated"
+          },
+          "attendance_id": {
+            "type": "object",
+            "nullable": true,
+            "example": 1001
+          }
+        },
+        "required": [
+          "student_id",
+          "date",
+          "client_uuid",
+          "outcome",
+          "attendance_id"
+        ]
+      },
+      "BulkSyncResultDto": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "number",
+            "example": 3
+          },
+          "updated": {
+            "type": "number",
+            "example": 5
+          },
+          "duplicate": {
+            "type": "number",
+            "example": 2,
+            "description": "Already applied on a previous sync."
+          },
+          "forbidden": {
+            "type": "number",
+            "example": 1,
+            "description": "Actor lacks scope over the student."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncResultRowDto"
+            }
+          }
+        },
+        "required": [
+          "created",
+          "updated",
+          "duplicate",
+          "forbidden",
+          "results"
+        ]
+      },
+      "AttendanceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1001
+          },
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "present"
+          },
+          "excuse_note": {
+            "type": "object",
+            "nullable": true,
+            "example": "مريض"
+          },
+          "recorded_by": {
+            "type": "object",
+            "nullable": true,
+            "example": 7,
+            "description": "NULL = auto-seeded by the system."
+          },
+          "modified_by": {
+            "type": "object",
+            "nullable": true,
+            "example": 7
+          },
+          "modification_reason": {
+            "type": "object",
+            "nullable": true,
+            "example": "Marked present by mistake."
+          },
+          "original_status": {
+            "type": "object",
+            "nullable": true,
+            "example": "present"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "date",
+          "status",
+          "excuse_note",
+          "recorded_by",
+          "modified_by",
+          "modification_reason",
+          "original_status",
+          "created_at"
+        ]
+      },
+      "AttendanceListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttendanceDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "CorrectAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "excused"
+          },
+          "excuse_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "عذر طبي"
+          },
+          "modification_reason": {
+            "type": "string",
+            "example": "Marked present by mistake in the morning."
+          }
+        },
+        "required": [
+          "status",
+          "modification_reason"
+        ]
+      },
+      "SyncTeacherAttendanceEntryDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 7,
+            "description": "Staff user id."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "absent"
+          },
+          "excuse_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "إجازة"
+          },
+          "client_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "client_recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "device_id": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "user_id",
+          "date",
+          "status"
+        ]
+      },
+      "BulkSyncTeacherAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncTeacherAttendanceEntryDto"
+            }
+          }
+        },
+        "required": [
+          "records"
+        ]
+      },
+      "TeacherSyncResultRowDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 7
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "client_uuid": {
+            "type": "object",
+            "nullable": true,
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "updated",
+              "duplicate",
+              "forbidden"
+            ],
+            "example": "updated"
+          },
+          "attendance_id": {
+            "type": "object",
+            "nullable": true,
+            "example": 2001
+          }
+        },
+        "required": [
+          "user_id",
+          "date",
+          "client_uuid",
+          "outcome",
+          "attendance_id"
+        ]
+      },
+      "TeacherBulkSyncResultDto": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "number",
+            "example": 3
+          },
+          "updated": {
+            "type": "number",
+            "example": 5
+          },
+          "duplicate": {
+            "type": "number",
+            "example": 2
+          },
+          "forbidden": {
+            "type": "number",
+            "example": 1
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeacherSyncResultRowDto"
+            }
+          }
+        },
+        "required": [
+          "created",
+          "updated",
+          "duplicate",
+          "forbidden",
+          "results"
+        ]
+      },
+      "TeacherAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 2001
+          },
+          "user_id": {
+            "type": "number",
+            "example": 7
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-07"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "present"
+          },
+          "excuse_note": {
+            "type": "object",
+            "nullable": true,
+            "example": "إجازة"
+          },
+          "recorded_by": {
+            "type": "object",
+            "nullable": true,
+            "example": 1,
+            "description": "NULL = auto-seeded by the system."
+          },
+          "modified_by": {
+            "type": "object",
+            "nullable": true,
+            "example": 1
+          },
+          "modification_reason": {
+            "type": "object",
+            "nullable": true,
+            "example": "Corrected after leave approval."
+          },
+          "original_status": {
+            "type": "object",
+            "nullable": true,
+            "example": "present"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "date",
+          "status",
+          "excuse_note",
+          "recorded_by",
+          "modified_by",
+          "modification_reason",
+          "original_status",
+          "created_at"
+        ]
+      },
+      "TeacherAttendanceListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeacherAttendanceDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "CreateSchoolScheduleDto": {
+        "type": "object",
+        "properties": {
+          "day_of_week": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6,
+            "example": 0,
+            "description": "0=Saturday … 6=Friday."
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01"
+          },
+          "effective_to": {
+            "type": "string",
+            "nullable": true,
+            "format": "date",
+            "example": "2027-06-30",
+            "description": "NULL = open-ended (current period)."
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "example": "دوام صباحي"
+          }
+        },
+        "required": [
+          "day_of_week",
+          "effective_from"
+        ]
+      },
+      "SchoolScheduleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "day_of_week": {
+            "type": "number",
+            "example": 0,
+            "description": "0=Saturday … 6=Friday."
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01"
+          },
+          "effective_to": {
+            "type": "object",
+            "nullable": true,
+            "format": "date",
+            "example": null
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true,
+            "example": "دوام صباحي"
+          }
+        },
+        "required": [
+          "id",
+          "day_of_week",
+          "effective_from",
+          "effective_to",
+          "notes"
+        ]
+      },
+      "SchoolScheduleListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchoolScheduleResponse"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateHolidayDto": {
+        "type": "object",
+        "properties": {
+          "holiday_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-25"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "عطلة رسمية"
+          }
+        },
+        "required": [
+          "holiday_date",
+          "description"
+        ]
+      },
+      "HolidayResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "holiday_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-25"
+          },
+          "description": {
+            "type": "string",
+            "example": "عطلة رسمية"
+          }
+        },
+        "required": [
+          "id",
+          "holiday_date",
+          "description"
+        ]
+      },
+      "HolidayListData": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HolidayResponse"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "CreateAchievementDto": {
         "type": "object",
