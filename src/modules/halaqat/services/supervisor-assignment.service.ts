@@ -22,7 +22,8 @@ type SupervisorRow = {
 @Injectable()
 export class SupervisorAssignmentService {
   constructor(
-    @InjectRepository(SupervisorHalaqa) private readonly repo: Repository<SupervisorHalaqa>,
+    @InjectRepository(SupervisorHalaqa)
+    private readonly repo: Repository<SupervisorHalaqa>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly halaqatService: HalaqatService,
     private readonly activityLog: HalaqaActivityLogService,
@@ -31,10 +32,17 @@ export class SupervisorAssignmentService {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private toResponse(row: SupervisorRow): SupervisorSummaryResponse {
-    return { user_id: row.user_id, name: row.name, assigned_at: row.assigned_at };
+    return {
+      user_id: row.user_id,
+      name: row.name,
+      assigned_at: row.assigned_at,
+    };
   }
 
-  private async loadRow(supervisorUserId: number, halaqaId: number): Promise<SupervisorSummaryResponse> {
+  private async loadRow(
+    supervisorUserId: number,
+    halaqaId: number,
+  ): Promise<SupervisorSummaryResponse> {
     const rows: SupervisorRow[] = await this.dataSource.manager.query(
       `SELECT sh.supervisor_user_id AS user_id, u.name, sh.assigned_at
        FROM supervisor_halaqat sh
@@ -53,14 +61,23 @@ export class SupervisorAssignmentService {
     dto: AssignSupervisorDto,
     actor: AuthenticatedUser,
   ): Promise<SupervisorSummaryResponse> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
-    await this.halaqatService.verifyUserRoleInSchool(dto.supervisor_user_id, halaqa.schoolId, 'supervisor');
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
+    await this.halaqatService.verifyUserRoleInSchool(
+      dto.supervisor_user_id,
+      halaqa.schoolId,
+      'supervisor',
+    );
 
     const existing = await this.repo.findOne({
       where: { halaqaId, supervisorUserId: dto.supervisor_user_id },
     });
     if (existing) {
-      throw new ConflictException('Supervisor is already assigned to this halaqa.');
+      throw new ConflictException(
+        'Supervisor is already assigned to this halaqa.',
+      );
     }
 
     await this.repo.save(
@@ -105,7 +122,8 @@ export class SupervisorAssignmentService {
     const existing = await this.repo.findOne({
       where: { halaqaId, supervisorUserId: supervisorId },
     });
-    if (!existing) throw new NotFoundException('Supervisor is not assigned to this halaqa.');
+    if (!existing)
+      throw new NotFoundException('Supervisor is not assigned to this halaqa.');
 
     await this.repo.delete({ halaqaId, supervisorUserId: supervisorId });
 

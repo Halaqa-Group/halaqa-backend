@@ -10,19 +10,31 @@ const BASE_HALAQA = { id: 17, schoolId: 10, status: 'active' } as Halaqa;
 const ARCHIVED_HALAQA = { id: 17, schoolId: 10, status: 'archived' } as Halaqa;
 
 const PRINCIPAL: AuthenticatedUser = {
-  id: 1, schoolId: 10, status: 'active', tokenVersion: 0,
+  id: 1,
+  schoolId: 10,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'principal', level: 100 }],
 };
 const VICE_PRINCIPAL: AuthenticatedUser = {
-  id: 2, schoolId: 10, status: 'active', tokenVersion: 0,
+  id: 2,
+  schoolId: 10,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'vice_principal', level: 90 }],
 };
 const SUPERVISOR: AuthenticatedUser = {
-  id: 3, schoolId: 10, status: 'active', tokenVersion: 0,
+  id: 3,
+  schoolId: 10,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'supervisor', level: 70 }],
 };
 const TEACHER: AuthenticatedUser = {
-  id: 4, schoolId: 10, status: 'active', tokenVersion: 0,
+  id: 4,
+  schoolId: 10,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'teacher', level: 50 }],
 };
 
@@ -58,34 +70,44 @@ describe('HalaqaAccessGuard', () => {
   it('passes and sets req.halaqa for principal', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(BASE_HALAQA));
-    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(
+      true,
+    );
     expect(ctx.req.halaqa).toBe(BASE_HALAQA);
   });
 
   it('passes and sets req.halaqa for vice_principal', async () => {
     const ctx = makeContext(VICE_PRINCIPAL);
     const guard = makeGuard(makeDataSource(BASE_HALAQA));
-    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(
+      true,
+    );
     expect(ctx.req.halaqa).toBe(BASE_HALAQA);
   });
 
   it('throws 404 when halaqa not found in school', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(null));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('allows reading an archived halaqa (withDeleted: true)', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(ARCHIVED_HALAQA));
-    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(
+      true,
+    );
     expect(ctx.req.halaqa).toBe(ARCHIVED_HALAQA);
   });
 
   it('passes for supervisor with valid assignment', async () => {
     const ctx = makeContext(SUPERVISOR);
     const ds = makeDataSource(BASE_HALAQA, [{ 1: 1 }]);
-    expect(await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(
+      await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext),
+    ).toBe(true);
     expect(ctx.req.halaqa).toBe(BASE_HALAQA);
     expect(ds.manager.query).toHaveBeenCalledWith(
       expect.stringContaining('supervisor_halaqat'),
@@ -96,13 +118,17 @@ describe('HalaqaAccessGuard', () => {
   it('throws 404 (not 403) for supervisor with no assignment — BR-HLQ-01', async () => {
     const ctx = makeContext(SUPERVISOR);
     const guard = makeGuard(makeDataSource(BASE_HALAQA, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('passes for teacher with active assignment', async () => {
     const ctx = makeContext(TEACHER);
     const ds = makeDataSource(BASE_HALAQA, [{ 1: 1 }]);
-    expect(await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(
+      await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext),
+    ).toBe(true);
     expect(ctx.req.halaqa).toBe(BASE_HALAQA);
     expect(ds.manager.query).toHaveBeenCalledWith(
       expect.stringContaining('halaqa_teachers'),
@@ -113,13 +139,17 @@ describe('HalaqaAccessGuard', () => {
   it('throws 404 (not 403) for teacher with no active assignment — BR-HLQ-01', async () => {
     const ctx = makeContext(TEACHER);
     const guard = makeGuard(makeDataSource(BASE_HALAQA, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('skips check and returns true when no :id param', async () => {
     const ctx = makeContext(PRINCIPAL, {});
     const ds = makeDataSource(null);
-    expect(await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(
+      await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext),
+    ).toBe(true);
     expect(ds.manager.findOne).not.toHaveBeenCalled();
   });
 });
@@ -134,44 +164,56 @@ describe('HalaqaEditAccessGuard', () => {
   it('passes for principal on active halaqa', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(BASE_HALAQA));
-    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(await guard.canActivate(ctx as unknown as ExecutionContext)).toBe(
+      true,
+    );
   });
 
   it('throws 404 for archived halaqa (withDeleted: false)', async () => {
     const ctx = makeContext(PRINCIPAL);
     // withDeleted: false → TypeORM returns null for soft-deleted rows
     const guard = makeGuard(makeDataSource(null));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('passes for supervisor with active assignment on active halaqa', async () => {
     const ctx = makeContext(SUPERVISOR);
     const ds = makeDataSource(BASE_HALAQA, [{ 1: 1 }]);
-    expect(await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(
+      await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext),
+    ).toBe(true);
   });
 
   it('throws 404 for supervisor with no assignment', async () => {
     const ctx = makeContext(SUPERVISOR);
     const guard = makeGuard(makeDataSource(BASE_HALAQA, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('passes for teacher with active assignment', async () => {
     const ctx = makeContext(TEACHER);
     const ds = makeDataSource(BASE_HALAQA, [{ 1: 1 }]);
-    expect(await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext)).toBe(true);
+    expect(
+      await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext),
+    ).toBe(true);
   });
 
   it('throws 404 for teacher with no active assignment', async () => {
     const ctx = makeContext(TEACHER);
     const guard = makeGuard(makeDataSource(BASE_HALAQA, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('passes withDeleted:false flag to findOne', async () => {
     const ctx = makeContext(PRINCIPAL);
     const ds = makeDataSource(BASE_HALAQA);
-    await makeGuard(ds).canActivate(ctx as unknown as ExecutionContext);
+    await makeGuard(ds).canActivate(ctx);
     expect(ds.manager.findOne).toHaveBeenCalledWith(
       Halaqa,
       expect.objectContaining({ withDeleted: false }),

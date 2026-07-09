@@ -13,7 +13,11 @@ export class RemoveStudentDto {
   @IsEnum(['completed', 'unenrolled'])
   outcome!: 'completed' | 'unenrolled';
 
-  @ApiProperty({ required: false, example: 'Finished the assigned juz', maxLength: 255 })
+  @ApiProperty({
+    required: false,
+    example: 'Finished the assigned juz',
+    maxLength: 255,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(255)

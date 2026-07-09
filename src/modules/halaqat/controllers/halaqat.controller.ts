@@ -8,7 +8,6 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -27,20 +26,19 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { CreateHalaqaDto } from '../dto/create-halaqa.dto';
 import { ListHalaqatQuery } from '../dto/list-halaqat.query';
-import { SetScheduleDto } from '../dto/set-schedule.dto';
 import { UpdateHalaqaDto } from '../dto/update-halaqa.dto';
-import { HalaqaAccessGuard, HalaqaEditAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  HalaqaEditAccessGuard,
+  RequiresHalaqaPermission,
+} from '../guards/halaqa-scope.guard';
 import { HalaqatService } from '../services/halaqat.service';
-import { ScheduleService } from '../services/schedule.service';
 
 @ApiTags('Halaqat')
 @ApiBearerAuth('access-token')
 @Controller('halaqat')
 export class HalaqatController {
-  constructor(
-    private readonly service: HalaqatService,
-    private readonly scheduleService: ScheduleService,
-  ) {}
+  constructor(private readonly service: HalaqatService) {}
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
@@ -49,16 +47,22 @@ export class HalaqatController {
   @ApiOperation({
     summary: 'Create a halaqa',
     description:
-      'Creates a new halaqa in the caller\'s school. ' +
+      "Creates a new halaqa in the caller's school. " +
       'Optionally assigns a primary (main) teacher and initial weekly schedule in the same transaction. ' +
       'Runs a schedule conflict check (BR-HLQ-02) if both primary_teacher_user_id and schedule slots are provided.',
   })
   @ApiBody({ type: CreateHalaqaDto })
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 400 })
-  @ApiResponse({ status: 404, description: 'primary_teacher_user_id not found in this school' })
+  @ApiResponse({
+    status: 404,
+    description: 'primary_teacher_user_id not found in this school',
+  })
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
-  create(@Body() dto: CreateHalaqaDto, @CurrentUser() actor: AuthenticatedUser) {
+  create(
+    @Body() dto: CreateHalaqaDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.service.create(dto, actor);
   }
 
@@ -75,13 +79,28 @@ export class HalaqatController {
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  @ApiQuery({ name: 'type', required: false, enum: ['Memorization', 'Tajweed', 'Aqeedah'] })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'archived', 'completed'] })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['Memorization', 'Tajweed', 'Aqeedah'],
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'archived', 'completed'],
+  })
   @ApiQuery({ name: 'supervisor_user_id', required: false })
   @ApiQuery({ name: 'teacher_user_id', required: false })
-  @ApiQuery({ name: 'search', required: false, description: 'Substring match on name' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Substring match on name',
+  })
   @ApiResponse({ status: 200 })
-  list(@Query() query: ListHalaqatQuery, @CurrentUser() actor: AuthenticatedUser) {
+  list(
+    @Query() query: ListHalaqatQuery,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.service.findAll(query, actor);
   }
 
@@ -119,9 +138,15 @@ export class HalaqatController {
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: UpdateHalaqaDto })
   @ApiResponse({ status: 200, description: 'Same shape as GET /halaqat/:id' })
-  @ApiResponse({ status: 403, description: 'type field requires principal/vice_principal' })
+  @ApiResponse({
+    status: 403,
+    description: 'type field requires principal/vice_principal',
+  })
   @ApiResponse({ status: 404, description: 'Not found or out of scope' })
-  @ApiResponse({ status: 409, description: 'Type change would violate BR-HLQ-03' })
+  @ApiResponse({
+    status: 409,
+    description: 'Type change would violate BR-HLQ-03',
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateHalaqaDto,
@@ -144,7 +169,10 @@ export class HalaqatController {
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 409, description: 'Has active students, or already archived' })
+  @ApiResponse({
+    status: 409,
+    description: 'Has active students, or already archived',
+  })
   @ApiResponse({ status: 404 })
   archive(
     @Param('id', ParseIntPipe) id: number,
@@ -189,47 +217,5 @@ export class HalaqatController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.service.restore(id, actor);
-  }
-
-  // ─── Schedule ──────────────────────────────────────────────────────────────
-
-  @Get(':id/schedule')
-  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
-  @UseGuards(HalaqaAccessGuard)
-  @RequiresHalaqaPermission('read')
-  @ApiOperation({
-    summary: 'Get halaqa schedule',
-    description: 'Returns the weekly schedule entries for the halaqa, ordered by day_of_week.',
-  })
-  @ApiParam({ name: 'id', description: 'Halaqa ID' })
-  @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 404, description: 'Not found or out of scope' })
-  getSchedule(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.scheduleService.getSchedule(id, actor);
-  }
-
-  @Put(':id/schedule')
-  @Roles('principal', 'vice_principal')
-  @ApiOperation({
-    summary: 'Replace halaqa schedule',
-    description:
-      'Atomically replaces the full weekly schedule. ' +
-      'Runs BR-HLQ-02 conflict check for existing non-acting teachers and returns warnings (non-blocking). ' +
-      'Send an empty array to clear the schedule.',
-  })
-  @ApiParam({ name: 'id', description: 'Halaqa ID' })
-  @ApiBody({ type: SetScheduleDto })
-  @ApiResponse({ status: 200, description: 'schedule + warnings array' })
-  @ApiResponse({ status: 400, description: 'Duplicate day_of_week' })
-  @ApiResponse({ status: 404, description: 'Not found or out of scope' })
-  setSchedule(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SetScheduleDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.scheduleService.setSchedule(id, dto, actor);
   }
 }

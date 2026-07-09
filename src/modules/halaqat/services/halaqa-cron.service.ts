@@ -27,10 +27,12 @@ export class HalaqaCronService {
   private readonly logger = new Logger(HalaqaCronService.name);
 
   constructor(
-    @InjectRepository(HalaqaTeacher) private readonly repo: Repository<HalaqaTeacher>,
+    @InjectRepository(HalaqaTeacher)
+    private readonly repo: Repository<HalaqaTeacher>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly activityLog: HalaqaActivityLogService,
-    @Inject(NOTIFICATION_SERVICE) private readonly notifications: NotificationService,
+    @Inject(NOTIFICATION_SERVICE)
+    private readonly notifications: NotificationService,
   ) {}
 
   // ─── Activate scheduled acting assignments ─────────────────────────────────
@@ -49,7 +51,9 @@ export class HalaqaCronService {
 
     if (rows.length === 0) return;
 
-    this.logger.log(`activateScheduledActing: activating ${rows.length} assignment(s)`);
+    this.logger.log(
+      `activateScheduledActing: activating ${rows.length} assignment(s)`,
+    );
 
     for (const row of rows) {
       await this.repo.update(row.id, { actingAsPrimary: true });
@@ -83,7 +87,9 @@ export class HalaqaCronService {
 
     if (rows.length === 0) return;
 
-    this.logger.log(`notifyNoPrimaryTeacher: ${rows.length} halaqa(t) without a primary teacher`);
+    this.logger.log(
+      `notifyNoPrimaryTeacher: ${rows.length} halaqa(t) without a primary teacher`,
+    );
 
     for (const row of rows) {
       await this.notifications.notifyRole(row.school_id, 'vice_principal', {

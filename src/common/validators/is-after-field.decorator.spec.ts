@@ -1,6 +1,5 @@
 import { IsDateString, IsOptional, Matches, validate } from 'class-validator';
 import { ActingSubstituteDto } from '../../modules/halaqat/dto/acting-substitute.dto';
-import { ScheduleEntryDto } from '../../modules/halaqat/dto/create-halaqa.dto';
 import { SetActingDto } from '../../modules/halaqat/dto/set-acting.dto';
 import { IsAfterField } from './is-after-field.decorator';
 
@@ -130,34 +129,6 @@ describe('@IsAfterField', () => {
   });
 
   // ─── DTO integration ────────────────────────────────────────────────────────
-
-  describe('ScheduleEntryDto integration', () => {
-    function schedule(fields: Record<string, unknown>) {
-      return Object.assign(new ScheduleEntryDto(), { day_of_week: 0, ...fields });
-    }
-
-    it('passes when end_time is after start_time', async () => {
-      const errors = await validate(schedule({ start_time: '05:00:00', end_time: '06:00:00' }));
-      expect(errors).toHaveLength(0);
-    });
-
-    it('fails when end_time is before start_time', async () => {
-      const errors = await validate(schedule({ start_time: '06:00:00', end_time: '05:00:00' }));
-      const err = errors.find((e) => e.property === 'end_time');
-      expect(err?.constraints).toHaveProperty('isAfterField');
-    });
-
-    it('fails when end_time equals start_time', async () => {
-      const errors = await validate(schedule({ start_time: '05:00:00', end_time: '05:00:00' }));
-      const err = errors.find((e) => e.property === 'end_time');
-      expect(err?.constraints).toHaveProperty('isAfterField');
-    });
-
-    it('passes when start_time is absent and end_time is present', async () => {
-      const errors = await validate(schedule({ end_time: '06:00:00' }));
-      expect(errors).toHaveLength(0);
-    });
-  });
 
   describe('SetActingDto integration', () => {
     function acting(fields: Record<string, unknown>) {

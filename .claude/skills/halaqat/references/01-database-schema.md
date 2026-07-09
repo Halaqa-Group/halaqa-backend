@@ -3,10 +3,11 @@
 This file describes the **target** schema this module operates against —
 after the migrations in `00-migrations.md` have been applied.
 
-The module owns 5 existing tables (currently in the DB as minimal
+The module owns 4 existing tables (currently in the DB as minimal
 bootstrap stubs from earlier development) plus 1 new audit table
 (`halaqa_activity_logs`). Run `00-migrations.md` first to bring the
-existing tables up to the structure shown here.
+existing tables up to the structure shown here. (A former
+`halaqa_schedules` table was later dropped — see below.)
 
 ---
 
@@ -117,29 +118,13 @@ A fourth invariant is enforced by a **CHECK constraint** (`chk_substitute_must_a
 **The historical record is sacred:** `end_date` and `end_reason` close
 out an assignment. Never DELETE a row from `halaqa_teachers`.
 
-### `halaqa_schedules` — weekly schedule (MODIFIED)
+### `halaqa_schedules` — weekly schedule (REMOVED)
 
-```sql
-CREATE TABLE `halaqa_schedules` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `halaqa_id` INT NOT NULL,
-  `day_of_week` TINYINT NOT NULL COMMENT '0=Saturday ... 6=Friday',
-  `prayer_slot` ENUM('fajr','dhuhr','asr','maghrib','isha') DEFAULT NULL,
-  `start_time` TIME DEFAULT NULL,
-  `end_time` TIME DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_halaqa_day` (`halaqa_id`, `day_of_week`),
-  CONSTRAINT `fk_hs_halaqa` FOREIGN KEY (`halaqa_id`) REFERENCES `halaqat` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
-**Field notes:**
-- `day_of_week` — numeric day, **0=Saturday through 6=Friday** (Arab calendar order)
-- `prayer_slot` — primary scheduling unit. Conflict detection runs on this.
-- `start_time` / `end_time` — optional precision for display/reports only.
-  Never used for conflict detection.
-- The unique constraint allows only **one schedule entry per (halaqa, day)** —
-  a halaqa cannot meet twice in the same day.
+This table was **DROPPED** by migration `1778800000000-DropHalaqaSchedules`.
+The per-halaqa weekly schedule and teacher schedule-conflict detection were
+removed entirely. Scheduling is now expressed only at the school level in
+the separate attendance module (`school_schedules` / `holidays`); halaqat no
+longer carry meeting times.
 
 ### `student_halaqa` — student enrollment (MODIFIED)
 
@@ -224,7 +209,7 @@ CREATE TABLE `halaqa_activity_logs` (
     'student_transferred_in', 'student_transferred_out', 'student_completed',
     -- Supervisor operations
     'supervisor_assigned', 'supervisor_unassigned',
-    -- Schedule operations
+    -- Schedule operations (retained for history; no longer emitted)
     'schedule_updated'
   ) NOT NULL,
   `actor_user_id` INT DEFAULT NULL,
@@ -279,7 +264,7 @@ explicitly. The application layer cannot rely on database-level isolation
 because the FKs cross schools (e.g. `users.school_id` is checked separately).
 
 For tables that don't have their own `school_id` column
-(`halaqa_teachers`, `halaqa_schedules`, `student_halaqa`, `supervisor_halaqat`),
+(`halaqa_teachers`, `student_halaqa`, `supervisor_halaqat`),
 you reach `school_id` through a `JOIN halaqat h ON h.id = ... WHERE h.school_id = ?`.
 
 This is enforced in every service method — see `references/02-business-rules.md`

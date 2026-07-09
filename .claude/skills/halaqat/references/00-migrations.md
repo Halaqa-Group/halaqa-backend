@@ -48,9 +48,9 @@ CREATE TABLE `student_halaqa` (
 );
 ```
 
-The other halaqat-module tables (`halaqa_schedules`, `supervisor_halaqat`)
-also exist as bootstrap stubs. Inspect them before migrating and adjust
-the statements below if their starting state differs from what's assumed.
+The other halaqat-module table (`supervisor_halaqat`) also exists as a
+bootstrap stub. Inspect it before migrating and adjust the statements
+below if its starting state differs from what's assumed.
 
 ---
 
@@ -221,37 +221,13 @@ acceptable or whether you need to copy-then-drop instead.
 
 ---
 
-## Migration 4 — `halaqa_schedules`
+## Migration 4 — `halaqa_schedules` (removed)
 
-**Goal:** add `prayer_slot` enum (the primary scheduling unit). The
-existing `start_time` / `end_time` (if present in the bootstrap) stay as
-optional precision fields used for display only — schedule conflict
-detection runs on `prayer_slot`.
-
-```sql
-ALTER TABLE `halaqa_schedules`
-  ADD COLUMN `prayer_slot` ENUM('fajr','dhuhr','asr','maghrib','isha')
-    DEFAULT NULL AFTER `day_of_week`;
-```
-
-**Verify before running:** check the bootstrap state of this table.
-If it doesn't have `start_time` / `end_time` yet, the target schema
-expects them as nullable TIME columns — add them in the same ALTER:
-
-```sql
--- Only if start_time / end_time are missing in the bootstrap:
-ALTER TABLE `halaqa_schedules`
-  ADD COLUMN `start_time` TIME DEFAULT NULL AFTER `prayer_slot`,
-  ADD COLUMN `end_time` TIME DEFAULT NULL AFTER `start_time`;
-```
-
-The unique key `(halaqa_id, day_of_week)` should already exist from the
-bootstrap. If not:
-
-```sql
-ALTER TABLE `halaqa_schedules`
-  ADD UNIQUE KEY `idx_halaqa_day` (`halaqa_id`, `day_of_week`);
-```
+The `halaqa_schedules` table was later **DROPPED** by migration
+`1778800000000-DropHalaqaSchedules`. The per-halaqa weekly schedule and
+teacher schedule-conflict detection were removed entirely — scheduling is
+now expressed only at the school level in the separate attendance module
+(`school_schedules` / `holidays`). Halaqat no longer carry meeting times.
 
 ---
 
@@ -294,7 +270,7 @@ CREATE TABLE `halaqa_activity_logs` (
     'student_enrolled','student_re_enrolled','student_unenrolled',
     'student_transferred_in','student_transferred_out','student_completed',
     'supervisor_assigned','supervisor_unassigned',
-    'schedule_updated'
+    'schedule_updated'  -- retained for history; no longer emitted
   ) NOT NULL,
   `actor_user_id` INT DEFAULT NULL,
   `target_user_id` INT DEFAULT NULL,
@@ -334,7 +310,7 @@ CREATE TABLE `halaqa_activity_logs` (
 1. halaqat
 2. halaqa_teachers       ← biggest one; run inside a transaction
 3. student_halaqa
-4. halaqa_schedules
+4. halaqa_schedules      ← later DROPPED (see Migration 4)
 5. supervisor_halaqat    ← usually a no-op, just verify
 6. halaqa_activity_logs  ← create new table
 ```

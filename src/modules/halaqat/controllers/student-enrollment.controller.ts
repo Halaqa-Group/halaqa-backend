@@ -25,7 +25,10 @@ import { EnrollStudentDto } from '../dto/enroll-student.dto';
 import { RemoveStudentDto } from '../dto/remove-student.dto';
 import { StudentEnrollmentResponse } from '../dto/halaqa.responses';
 import { TransferStudentDto } from '../dto/transfer-student.dto';
-import { HalaqaAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  RequiresHalaqaPermission,
+} from '../guards/halaqa-scope.guard';
 import { StudentEnrollmentService } from '../services/student-enrollment.service';
 
 @ApiTags('Student Enrollment')
@@ -46,8 +49,14 @@ export class StudentEnrollmentController {
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: EnrollStudentDto })
   @ApiResponse({ status: 201, type: StudentEnrollmentResponse })
-  @ApiResponse({ status: 404, description: 'Halaqa or student not found in school' })
-  @ApiResponse({ status: 409, description: 'Already enrolled or halaqa not active' })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa or student not found in school',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Already enrolled or halaqa not active',
+  })
   enroll(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: EnrollStudentDto,
@@ -87,7 +96,10 @@ export class StudentEnrollmentController {
   @ApiParam({ name: 'studentId', description: 'Student ID' })
   @ApiBody({ type: RemoveStudentDto })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 404, description: 'Halaqa not found or student not actively enrolled' })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa not found or student not actively enrolled',
+  })
   @ApiResponse({ status: 409, description: 'Halaqa is not active' })
   removeStudent(
     @Param('id', ParseIntPipe) id: number,
@@ -107,12 +119,26 @@ export class StudentEnrollmentController {
       'Atomically marks the source enrollment as transferred and creates an active ' +
       'enrollment in the destination halaqa. Both halaqat must be active and in the same school.',
   })
-  @ApiParam({ name: 'id', description: 'Not used — from_halaqa_id and to_halaqa_id come from the body' })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Not used — from_halaqa_id and to_halaqa_id come from the body',
+  })
   @ApiBody({ type: TransferStudentDto })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 400, description: 'from_halaqa_id equals to_halaqa_id' })
-  @ApiResponse({ status: 404, description: 'Halaqa or student not found or student not enrolled in source' })
-  @ApiResponse({ status: 409, description: 'Halaqa not active or student already in destination' })
+  @ApiResponse({
+    status: 400,
+    description: 'from_halaqa_id equals to_halaqa_id',
+  })
+  @ApiResponse({
+    status: 404,
+    description:
+      'Halaqa or student not found or student not enrolled in source',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Halaqa not active or student already in destination',
+  })
   transferStudent(
     @Body() dto: TransferStudentDto,
     @CurrentUser() actor: AuthenticatedUser,

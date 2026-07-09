@@ -6,7 +6,7 @@ same halaqa, including the daily cron that activates and expires acting
 periods automatically.
 
 Read alongside business rules **BR-HLQ-04**, **BR-HLQ-05**, **BR-HLQ-06**,
-**BR-HLQ-08**, **BR-HLQ-09**.
+**BR-HLQ-09**.
 
 ---
 
@@ -61,7 +61,7 @@ data change (BR-HLQ-09).
 
 For *permission* purposes, the matrix in `04-permissions-matrix.md` is
 even broader: any active teacher (main, assistant, or substitute) can
-edit halaqa name, evaluation_settings, and schedule. So the effective-
+edit halaqa name and evaluation_settings. So the effective-
 primary distinction matters mostly for display.
 
 ---
@@ -103,16 +103,15 @@ Service flow:
   2. Verify R2.role IS NOT 'substitute'. Substitutes are created fresh
      by Workflow B; you can't "activate acting" on an existing substitute
      because they already have it by definition.
-  3. NO schedule conflict check (BR-HLQ-08 — acting bypasses).
-  4. Decide whether to flip acting_as_primary now:
+  3. Decide whether to flip acting_as_primary now:
        - if acting_starts_at <= today: set acting_as_primary = 1 immediately.
        - if acting_starts_at >  today: leave acting_as_primary = 0
          and let the daily cron flip it on its start date.
-  5. UPDATE row R2:
+  4. UPDATE row R2:
        acting_as_primary = (computed above)
        acting_starts_at  = '2026-05-10'
        acting_ends_at    = '2026-05-20'
-  6. Log halaqa_activity_logs:
+  5. Log halaqa_activity_logs:
        action            = 'acting_started'
        halaqa_id         = H
        target_user_id    = B
@@ -153,8 +152,7 @@ Service flow (single transaction):
   1. Verify C exists in this school and has the 'teacher' role.
   2. Verify C does not already have an active assignment to halaqa H
      (otherwise this should be Workflow A, not B).
-  3. NO schedule conflict check (BR-HLQ-08 — acting bypasses).
-  4. INSERT halaqa_teachers:
+  3. INSERT halaqa_teachers:
        halaqa_id         = H
        teacher_user_id   = C
        role              = 'substitute'
@@ -165,7 +163,7 @@ Service flow (single transaction):
        end_date          = NULL
        assigned_by       = current admin
        notes             = "Covering for A's annual leave"
-  5. Log halaqa_activity_logs:
+  4. Log halaqa_activity_logs:
        action            = 'acting_started'
        halaqa_id         = H
        target_user_id    = C
@@ -338,34 +336,6 @@ humans handle the decisions about coverage gaps.
 
 ---
 
-## Activating acting that creates a same-slot overlap
-
-Allowed (BR-HLQ-08), but should produce a warning:
-
-```ts
-async activateActing(...) {
-  // ... validation ...
-
-  const overlaps = await this.findActingOverlaps(teacherId, schoolId, halaqaId);
-
-  // overlaps = list of {halaqa_id, halaqa_name, day_of_week, prayer_slot}
-  // where the same teacher has another active assignment at the same slot
-
-  if (overlaps.length === 0) {
-    return new DataWithWarnings(updatedRow, []);
-  }
-
-  const warnings = overlaps.map(o =>
-    `Acting teacher will simultaneously cover halaqa '${o.halaqa_name}' on ${dayName(o.day_of_week)}/${o.prayer_slot}.`
-  );
-  return new DataWithWarnings(updatedRow, warnings);
-}
-```
-
-`DataWithWarnings` is the `api-envelopes` helper. See `api-envelopes/SKILL.md`.
-
----
-
 ## Sequence diagram — Workflow A (assistant-as-acting)
 
 ```
@@ -431,22 +401,19 @@ Day 17+:
    reject it; the regular endpoint should reject it even earlier with a
    400 message pointing to the acting-substitute endpoint.
 
-3. ❌ Running the conflict check during acting activation. BR-HLQ-08.
-   The whole point is to allow same-slot coverage.
-
-4. ❌ Demoting a substitute to non-acting. The CHECK forbids it.
+3. ❌ Demoting a substitute to non-acting. The CHECK forbids it.
    Either close the substitute (set `end_date`) or convert: close the
    substitute row and create a fresh `role='assistant'` row.
 
-5. ❌ Trying to expire acting by checking `acting_ends_at` on the request
+4. ❌ Trying to expire acting by checking `acting_ends_at` on the request
    side. The cron is the single source of truth for time-based state
    changes — don't replicate the logic in user-facing endpoints.
 
-6. ❌ Treating Phase 2a (assistant) and Phase 2b (substitute) as
+5. ❌ Treating Phase 2a (assistant) and Phase 2b (substitute) as
    interchangeable. They have different post-conditions:
    - Assistant after expiration: still active, just not acting.
    - Substitute after expiration: closed (`end_date` set), no longer active.
 
-7. ❌ Future-dating a substitute. Substitutes must have `acting_as_primary=1`
+6. ❌ Future-dating a substitute. Substitutes must have `acting_as_primary=1`
    from creation, which means `acting_starts_at <= today`. For advance
    planning, use an assistant instead.

@@ -26,7 +26,8 @@ type EnrollmentRow = {
 @Injectable()
 export class StudentEnrollmentService {
   constructor(
-    @InjectRepository(StudentHalaqa) private readonly repo: Repository<StudentHalaqa>,
+    @InjectRepository(StudentHalaqa)
+    private readonly repo: Repository<StudentHalaqa>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly halaqatService: HalaqatService,
     private readonly activityLog: HalaqaActivityLogService,
@@ -47,7 +48,10 @@ export class StudentEnrollmentService {
     };
   }
 
-  private async loadRow(studentId: number, halaqaId: number): Promise<StudentEnrollmentResponse> {
+  private async loadRow(
+    studentId: number,
+    halaqaId: number,
+  ): Promise<StudentEnrollmentResponse> {
     const rows: EnrollmentRow[] = await this.dataSource.manager.query(
       `SELECT sh.student_id, s.name AS student_name, sh.enrollment_date, sh.status
        FROM student_halaqa sh
@@ -59,13 +63,18 @@ export class StudentEnrollmentService {
     return this.toResponse(rows[0]);
   }
 
-  private async verifyStudentInSchool(studentId: number, schoolId: number): Promise<void> {
+  private async verifyStudentInSchool(
+    studentId: number,
+    schoolId: number,
+  ): Promise<void> {
     const rows: unknown[] = await this.dataSource.manager.query(
       `SELECT 1 FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
       [studentId, schoolId],
     );
     if (!rows.length) {
-      throw new NotFoundException(`Student ${studentId} not found in this school.`);
+      throw new NotFoundException(
+        `Student ${studentId} not found in this school.`,
+      );
     }
   }
 
@@ -76,23 +85,37 @@ export class StudentEnrollmentService {
     dto: EnrollStudentDto,
     actor: AuthenticatedUser,
   ): Promise<StudentEnrollmentResponse> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
     if (halaqa.status !== 'active') {
-      throw new ConflictException('Cannot enroll students in an archived or completed halaqa.');
+      throw new ConflictException(
+        'Cannot enroll students in an archived or completed halaqa.',
+      );
     }
 
     await this.verifyStudentInSchool(dto.student_id, actor.schoolId);
 
-    const existing = await this.repo.findOne({ where: { halaqaId, studentId: dto.student_id } });
+    const existing = await this.repo.findOne({
+      where: { halaqaId, studentId: dto.student_id },
+    });
     if (existing?.status === 'active') {
-      throw new ConflictException('Student is already actively enrolled in this halaqa.');
+      throw new ConflictException(
+        'Student is already actively enrolled in this halaqa.',
+      );
     }
 
     const enrollmentDate = dto.enrollment_date ?? this.today();
     const isReEnroll = !!existing;
 
     await this.repo.save(
-      this.repo.create({ studentId: dto.student_id, halaqaId, enrollmentDate, status: 'active' }),
+      this.repo.create({
+        studentId: dto.student_id,
+        halaqaId,
+        enrollmentDate,
+        status: 'active',
+      }),
     );
 
     await this.activityLog.log({
@@ -129,15 +152,23 @@ export class StudentEnrollmentService {
     dto: RemoveStudentDto,
     actor: AuthenticatedUser,
   ): Promise<ApiMessage> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
     if (halaqa.status !== 'active') {
-      throw new ConflictException('Cannot modify enrollment in an archived or completed halaqa.');
+      throw new ConflictException(
+        'Cannot modify enrollment in an archived or completed halaqa.',
+      );
     }
 
     const enrollment = await this.repo.findOne({
       where: { halaqaId, studentId, status: 'active' },
     });
-    if (!enrollment) throw new NotFoundException('Student is not actively enrolled in this halaqa.');
+    if (!enrollment)
+      throw new NotFoundException(
+        'Student is not actively enrolled in this halaqa.',
+      );
 
     enrollment.status = dto.outcome === 'completed' ? 'completed' : 'archived';
     await this.repo.save(enrollment);
@@ -145,13 +176,21 @@ export class StudentEnrollmentService {
     await this.activityLog.log({
       schoolId: actor.schoolId,
       halaqaId,
-      action: dto.outcome === 'completed' ? 'student_completed' : 'student_unenrolled',
+      action:
+        dto.outcome === 'completed'
+          ? 'student_completed'
+          : 'student_unenrolled',
       actorUserId: actor.id,
       targetStudentId: studentId,
       notes: dto.notes ?? null,
     });
 
-    return { message: dto.outcome === 'completed' ? 'Student marked as completed.' : 'Student unenrolled.' };
+    return {
+      message:
+        dto.outcome === 'completed'
+          ? 'Student marked as completed.'
+          : 'Student unenrolled.',
+    };
   }
 
   async transferStudent(
@@ -159,31 +198,51 @@ export class StudentEnrollmentService {
     actor: AuthenticatedUser,
   ): Promise<ApiMessage> {
     if (dto.from_halaqa_id === dto.to_halaqa_id) {
-      throw new BadRequestException('from_halaqa_id and to_halaqa_id must differ.');
+      throw new BadRequestException(
+        'from_halaqa_id and to_halaqa_id must differ.',
+      );
     }
 
-    const fromHalaqa = await this.halaqatService.loadAndCheckAccess(dto.from_halaqa_id, actor);
+    const fromHalaqa = await this.halaqatService.loadAndCheckAccess(
+      dto.from_halaqa_id,
+      actor,
+    );
     if (fromHalaqa.status !== 'active') {
       throw new ConflictException('Source halaqa is not active.');
     }
 
-    const toHalaqa = await this.halaqatService.loadAndCheckAccess(dto.to_halaqa_id, actor);
+    const toHalaqa = await this.halaqatService.loadAndCheckAccess(
+      dto.to_halaqa_id,
+      actor,
+    );
     if (toHalaqa.status !== 'active') {
       throw new ConflictException('Destination halaqa is not active.');
     }
 
     const fromEnrollment = await this.repo.findOne({
-      where: { halaqaId: dto.from_halaqa_id, studentId: dto.student_id, status: 'active' },
+      where: {
+        halaqaId: dto.from_halaqa_id,
+        studentId: dto.student_id,
+        status: 'active',
+      },
     });
     if (!fromEnrollment) {
-      throw new NotFoundException('Student is not actively enrolled in the source halaqa.');
+      throw new NotFoundException(
+        'Student is not actively enrolled in the source halaqa.',
+      );
     }
 
     const toEnrollment = await this.repo.findOne({
-      where: { halaqaId: dto.to_halaqa_id, studentId: dto.student_id, status: 'active' },
+      where: {
+        halaqaId: dto.to_halaqa_id,
+        studentId: dto.student_id,
+        status: 'active',
+      },
     });
     if (toEnrollment) {
-      throw new ConflictException('Student is already actively enrolled in the destination halaqa.');
+      throw new ConflictException(
+        'Student is already actively enrolled in the destination halaqa.',
+      );
     }
 
     const transferDate = dto.transfer_date ?? this.today();

@@ -32,7 +32,8 @@ type AssignmentRow = {
 @Injectable()
 export class ActingTeacherService {
   constructor(
-    @InjectRepository(HalaqaTeacher) private readonly repo: Repository<HalaqaTeacher>,
+    @InjectRepository(HalaqaTeacher)
+    private readonly repo: Repository<HalaqaTeacher>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly halaqatService: HalaqatService,
     private readonly activityLog: HalaqaActivityLogService,
@@ -59,7 +60,10 @@ export class ActingTeacherService {
     };
   }
 
-  private async loadRow(assignmentId: number, halaqaId: number): Promise<AssignmentRow> {
+  private async loadRow(
+    assignmentId: number,
+    halaqaId: number,
+  ): Promise<AssignmentRow> {
     const rows: AssignmentRow[] = await this.dataSource.manager.query(
       `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
               ht.role, ht.acting_as_primary,
@@ -74,7 +78,9 @@ export class ActingTeacherService {
     return rows[0];
   }
 
-  private async findCurrentActing(halaqaId: number): Promise<HalaqaTeacher | null> {
+  private async findCurrentActing(
+    halaqaId: number,
+  ): Promise<HalaqaTeacher | null> {
     return this.repo.findOne({
       where: { halaqaId, actingAsPrimary: true, endDate: IsNull() },
     });
@@ -88,9 +94,14 @@ export class ActingTeacherService {
     dto: SetActingDto,
     actor: AuthenticatedUser,
   ): Promise<TeacherAssignmentResponse> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
 
-    const assignment = await this.repo.findOne({ where: { id: assignmentId, halaqaId } });
+    const assignment = await this.repo.findOne({
+      where: { id: assignmentId, halaqaId },
+    });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     if (assignment.endDate !== null) {
       throw new ConflictException('Cannot set acting on an ended assignment.');
@@ -106,7 +117,9 @@ export class ActingTeacherService {
 
     const other = await this.findCurrentActing(halaqaId);
     if (other) {
-      throw new ConflictException('Another teacher is already acting as primary in this halaqa.');
+      throw new ConflictException(
+        'Another teacher is already acting as primary in this halaqa.',
+      );
     }
 
     assignment.actingStartsAt = dto.acting_starts_at;
@@ -134,24 +147,41 @@ export class ActingTeacherService {
     dto: ActingSubstituteDto,
     actor: AuthenticatedUser,
   ): Promise<TeacherAssignmentResponse> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
-    await this.halaqatService.verifyUserRoleInSchool(dto.teacher_user_id, halaqa.schoolId, 'teacher');
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
+    await this.halaqatService.verifyUserRoleInSchool(
+      dto.teacher_user_id,
+      halaqa.schoolId,
+      'teacher',
+    );
 
     const today = this.today();
     if (dto.acting_starts_at > today) {
-      throw new BadRequestException('Substitute acting_starts_at cannot be in the future.');
+      throw new BadRequestException(
+        'Substitute acting_starts_at cannot be in the future.',
+      );
     }
 
     const existing = await this.repo.findOne({
-      where: { halaqaId, teacherUserId: dto.teacher_user_id, endDate: IsNull() },
+      where: {
+        halaqaId,
+        teacherUserId: dto.teacher_user_id,
+        endDate: IsNull(),
+      },
     });
     if (existing) {
-      throw new ConflictException('Teacher already has an active assignment in this halaqa.');
+      throw new ConflictException(
+        'Teacher already has an active assignment in this halaqa.',
+      );
     }
 
     const other = await this.findCurrentActing(halaqaId);
     if (other) {
-      throw new ConflictException('Another teacher is already acting as primary in this halaqa.');
+      throw new ConflictException(
+        'Another teacher is already acting as primary in this halaqa.',
+      );
     }
 
     // BR-HLQ-08: substitute bypasses schedule conflict check
@@ -185,13 +215,22 @@ export class ActingTeacherService {
     dto: ExtendActingDto,
     actor: AuthenticatedUser,
   ): Promise<TeacherAssignmentResponse> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
 
     const acting = await this.findCurrentActing(halaqaId);
-    if (!acting) throw new NotFoundException('No active acting teacher in this halaqa.');
+    if (!acting)
+      throw new NotFoundException('No active acting teacher in this halaqa.');
 
-    if (acting.actingEndsAt !== null && dto.acting_ends_at <= acting.actingEndsAt) {
-      throw new BadRequestException('New acting_ends_at must be after the current acting_ends_at.');
+    if (
+      acting.actingEndsAt !== null &&
+      dto.acting_ends_at <= acting.actingEndsAt
+    ) {
+      throw new BadRequestException(
+        'New acting_ends_at must be after the current acting_ends_at.',
+      );
     }
 
     acting.actingEndsAt = dto.acting_ends_at;
@@ -208,11 +247,18 @@ export class ActingTeacherService {
     return this.toResponse(await this.loadRow(acting.id, halaqaId));
   }
 
-  async endActing(halaqaId: number, actor: AuthenticatedUser): Promise<ApiMessage> {
-    const halaqa = await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
+  async endActing(
+    halaqaId: number,
+    actor: AuthenticatedUser,
+  ): Promise<ApiMessage> {
+    const halaqa = await this.halaqatService.loadAndCheckAccess(
+      halaqaId,
+      actor,
+    );
 
     const acting = await this.findCurrentActing(halaqaId);
-    if (!acting) throw new NotFoundException('No active acting teacher in this halaqa.');
+    if (!acting)
+      throw new NotFoundException('No active acting teacher in this halaqa.');
 
     acting.actingAsPrimary = false;
     acting.actingStartsAt = null;

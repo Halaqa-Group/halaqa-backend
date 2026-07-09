@@ -1,13 +1,18 @@
 import { Repository } from 'typeorm';
 import { ListActivityQuery } from '../dto/list-activity.query';
 import { HalaqaActivityLog } from '../entities/halaqa-activity-log.entity';
-import { HalaqaActivityLogService, LogParams } from './halaqa-activity-log.service';
+import {
+  HalaqaActivityLogService,
+  LogParams,
+} from './halaqa-activity-log.service';
 
 // ─── Factory helpers ───────────────────────────────────────────────────────────
 
 function makeRepo() {
   return {
-    create: jest.fn().mockImplementation((d: unknown) => ({ ...d as object })),
+    create: jest
+      .fn()
+      .mockImplementation((d: unknown) => ({ ...(d as object) })),
     save: jest.fn().mockResolvedValue(undefined),
   };
 }
@@ -22,7 +27,8 @@ function makeEm(repo = makeRepo()) {
 function makeDataSource(rows: unknown[] = [], total = 0) {
   return {
     manager: {
-      query: jest.fn()
+      query: jest
+        .fn()
         .mockResolvedValueOnce(rows)
         .mockResolvedValueOnce([{ total: String(total) }]),
     },
@@ -36,7 +42,7 @@ function makeService(
   return {
     service: new HalaqaActivityLogService(
       repo as unknown as Repository<HalaqaActivityLog>,
-      ds as never,
+      ds,
     ),
     repo,
     ds,
@@ -54,12 +60,19 @@ const BASE_PARAMS: LogParams = {
 };
 
 const LOG_ROW = {
-  id: '1', action: 'student_enrolled',
-  actor_user_id: 12, actor_name: 'أحمد المعلم',
-  target_user_id: null, target_user_name: null,
-  target_student_id: 42, target_student_name: 'محمد علي',
-  from_halaqa_id: null, to_halaqa_id: null,
-  metadata: null, notes: null, created_at: new Date('2026-05-09T08:00:00Z'),
+  id: '1',
+  action: 'student_enrolled',
+  actor_user_id: 12,
+  actor_name: 'أحمد المعلم',
+  target_user_id: null,
+  target_user_name: null,
+  target_student_id: 42,
+  target_student_name: 'محمد علي',
+  from_halaqa_id: null,
+  to_halaqa_id: null,
+  metadata: null,
+  notes: null,
+  created_at: new Date('2026-05-09T08:00:00Z'),
 };
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
@@ -115,7 +128,11 @@ describe('HalaqaActivityLogService', () => {
 
     it('calls save() with the entity returned by create()', async () => {
       const repo = makeRepo();
-      const fakeEntity = { schoolId: 1, action: 'halaqa_created', _tag: 'entity' };
+      const fakeEntity = {
+        schoolId: 1,
+        action: 'halaqa_created',
+        _tag: 'entity',
+      };
       repo.create.mockReturnValue(fakeEntity);
       const { service } = makeService(repo);
 
@@ -150,10 +167,19 @@ describe('HalaqaActivityLogService', () => {
     it('passes explicitly-null optional fields through as null (not undefined)', async () => {
       const { service, repo } = makeService();
 
-      await service.log({ ...BASE_PARAMS, halaqaId: null, metadata: null, notes: null });
+      await service.log({
+        ...BASE_PARAMS,
+        halaqaId: null,
+        metadata: null,
+        notes: null,
+      });
 
       expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ halaqaId: null, metadata: null, notes: null }),
+        expect.objectContaining({
+          halaqaId: null,
+          metadata: null,
+          notes: null,
+        }),
       );
     });
   });
@@ -180,9 +206,12 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, {});
-      const [, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
-      expect(params[params.length - 2]).toBe(20);  // limit
-      expect(params[params.length - 1]).toBe(0);   // offset
+      const [, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
+      expect(params[params.length - 2]).toBe(20); // limit
+      expect(params[params.length - 1]).toBe(0); // offset
     });
 
     it('computes correct LIMIT and OFFSET for page 3, limit 10', async () => {
@@ -190,16 +219,22 @@ describe('HalaqaActivityLogService', () => {
       const { service } = makeService(makeRepo(), ds);
       const query: ListActivityQuery = { page: 3, limit: 10 };
       await service.listForHalaqa(17, 10, query);
-      const [, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
-      expect(params[params.length - 2]).toBe(10);  // limit
-      expect(params[params.length - 1]).toBe(20);  // offset = (3-1)*10
+      const [, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
+      expect(params[params.length - 2]).toBe(10); // limit
+      expect(params[params.length - 1]).toBe(20); // offset = (3-1)*10
     });
 
     it('scopes query to halaqaId and schoolId', async () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, {});
-      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
+      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
       expect(sql).toContain('al.halaqa_id = ?');
       expect(sql).toContain('al.school_id = ?');
       expect(params).toContain(17);
@@ -210,7 +245,10 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, { action: 'student_enrolled' });
-      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
+      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
       expect(sql).toContain('al.action = ?');
       expect(params).toContain('student_enrolled');
     });
@@ -219,7 +257,8 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, {});
-      const sql: string = (ds.manager.query as jest.Mock).mock.calls[0][0] as string;
+      const sql: string = (ds.manager.query as jest.Mock).mock
+        .calls[0][0] as string;
       expect(sql).not.toContain('al.action = ?');
     });
 
@@ -227,7 +266,10 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, { from_date: '2026-05-01' });
-      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
+      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
       expect(sql).toContain('DATE(al.created_at) >=');
       expect(params).toContain('2026-05-01');
     });
@@ -236,7 +278,10 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, { to_date: '2026-05-31' });
-      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [string, unknown[]];
+      const [sql, params] = (ds.manager.query as jest.Mock).mock.calls[0] as [
+        string,
+        unknown[],
+      ];
       expect(sql).toContain('DATE(al.created_at) <=');
       expect(params).toContain('2026-05-31');
     });
@@ -244,8 +289,12 @@ describe('HalaqaActivityLogService', () => {
     it('applies both date filters together', async () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
-      await service.listForHalaqa(17, 10, { from_date: '2026-05-01', to_date: '2026-05-31' });
-      const sql: string = (ds.manager.query as jest.Mock).mock.calls[0][0] as string;
+      await service.listForHalaqa(17, 10, {
+        from_date: '2026-05-01',
+        to_date: '2026-05-31',
+      });
+      const sql: string = (ds.manager.query as jest.Mock).mock
+        .calls[0][0] as string;
       expect(sql).toContain('DATE(al.created_at) >=');
       expect(sql).toContain('DATE(al.created_at) <=');
     });
@@ -254,7 +303,8 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, {});
-      const sql: string = (ds.manager.query as jest.Mock).mock.calls[0][0] as string;
+      const sql: string = (ds.manager.query as jest.Mock).mock
+        .calls[0][0] as string;
       expect(sql).toContain('LEFT JOIN users actor');
       expect(sql).toContain('LEFT JOIN students');
     });
@@ -263,7 +313,8 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, {});
-      const sql: string = (ds.manager.query as jest.Mock).mock.calls[0][0] as string;
+      const sql: string = (ds.manager.query as jest.Mock).mock
+        .calls[0][0] as string;
       expect(sql).toContain('ORDER BY al.created_at DESC');
     });
 
@@ -271,7 +322,8 @@ describe('HalaqaActivityLogService', () => {
       const ds = makeDataSource([], 0);
       const { service } = makeService(makeRepo(), ds);
       await service.listForHalaqa(17, 10, { action: 'acting_started' });
-      const [countSql, countParams] = (ds.manager.query as jest.Mock).mock.calls[1] as [string, unknown[]];
+      const [countSql, countParams] = (ds.manager.query as jest.Mock).mock
+        .calls[1] as [string, unknown[]];
       expect(countSql).toContain('COUNT(*)');
       expect(countSql).toContain('al.action = ?');
       expect(countParams).toContain('acting_started');
@@ -280,7 +332,8 @@ describe('HalaqaActivityLogService', () => {
     it('parses total as a number (MySQL returns COUNT as string)', async () => {
       const ds = {
         manager: {
-          query: jest.fn()
+          query: jest
+            .fn()
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([{ total: '7' }]),
         },

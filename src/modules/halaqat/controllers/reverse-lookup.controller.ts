@@ -64,7 +64,8 @@ export class ReverseLookupController {
   @ApiTags('Reverse Lookup')
   @ApiOperation({
     summary: "List a student's halaqa enrollments",
-    description: 'Returns all enrollment records (all statuses) for the student, newest first.',
+    description:
+      'Returns all enrollment records (all statuses) for the student, newest first.',
   })
   @ApiParam({ name: 'studentId', description: 'Student ID' })
   @ApiResponse({ status: 200, type: [StudentHalaqaItem] })

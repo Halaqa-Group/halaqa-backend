@@ -51,7 +51,12 @@ export class Halaqa {
 
   // Used only for archived halaqat. @DeleteDateColumn enables TypeORM's softDelete().
   // Queries requiring archived rows must pass { withDeleted: true }.
-  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', precision: 6, nullable: true })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
   deletedAt!: Date | null;
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
