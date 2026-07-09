@@ -10,7 +10,7 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
 import type { AchievementStatus, TrackType } from '../entities/achievement.entity';
-import { AttendanceQueryService } from '../stubs/attendance-query.stub';
+import { AttendanceQueryService } from '../../attendance/services/attendance-query.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 

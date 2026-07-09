@@ -10,6 +10,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DevSeederModule } from './modules/dev/dev-seeder.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { HalaqatModule } from './modules/halaqat/halaqat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './modules/users/users.module';
     NotificationsModule,
     HalaqatModule,
     StudentsModule,
+    AttendanceModule,
     AchievementsModule,
     DevSeederModule,
   ],

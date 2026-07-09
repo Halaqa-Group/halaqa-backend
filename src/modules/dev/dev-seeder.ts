@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { In, Repository } from 'typeorm';
+import { SchoolSchedule } from '../attendance/entities/school-schedule.entity';
 import { Role, RoleSlug } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
 import { School } from '../tenant/school.entity';
@@ -22,6 +23,12 @@ const USER_SEEDS: UserSeed[] = [
     name: 'أحمد المدير',
     email: 'principal@school.com',
     password: 'Passw0rd!',
+    roles: ['principal'],
+  },
+  {
+    name: 'محمد المدير',
+    email: 'principal2@school.com',
+    password: 'Password',
     roles: ['principal'],
   },
   {
@@ -71,12 +78,15 @@ export class DevSeeder implements OnApplicationBootstrap {
     private readonly users: Repository<User>,
     @InjectRepository(UserRole)
     private readonly userRoles: Repository<UserRole>,
+    @InjectRepository(SchoolSchedule)
+    private readonly schedules: Repository<SchoolSchedule>,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     if (this.config.get<string>('NODE_ENV') === 'production') return;
 
     const schoolId = await this.ensureSchool();
+    await this.ensureSchoolSchedule(schoolId);
     const rolesBySlug = await this.loadRoles();
     if (rolesBySlug.size === 0) {
       this.logger.warn('No roles found — skipping dev user seed');
@@ -86,6 +96,29 @@ export class DevSeeder implements OnApplicationBootstrap {
     for (const seed of USER_SEEDS) {
       await this.ensureUser(seed, schoolId, rolesBySlug);
     }
+  }
+
+  /**
+   * Default weekly timetable so the attendance seed cron has operating days to
+   * work with: Saturday–Thursday (day_of_week 0–5), Friday off. Idempotent.
+   */
+  private async ensureSchoolSchedule(schoolId: number): Promise<void> {
+    const existing = await this.schedules.count({ where: { schoolId } });
+    if (existing > 0) return;
+
+    const rows = [0, 1, 2, 3, 4, 5].map((day) =>
+      this.schedules.create({
+        schoolId,
+        dayOfWeek: day,
+        effectiveFrom: '2020-01-01',
+        effectiveTo: null,
+        notes: 'Default dev timetable (Sat–Thu)',
+      }),
+    );
+    await this.schedules.save(rows);
+    this.logger.log(
+      `Seeded default school schedule (Sat–Thu) for school ${schoolId}`,
+    );
   }
 
   private async ensureSchool(): Promise<number> {

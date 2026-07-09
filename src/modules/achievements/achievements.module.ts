@@ -13,12 +13,13 @@ import { WeeklyPlansOverdueCron } from './services/overdue-cron.service';
 import { PlanItemsService } from './services/plan-items.service';
 import { PlanReconciliationService } from './services/plan-reconciliation.service';
 import { WeeklyPlansService } from './services/weekly-plans.service';
-import { AttendanceQueryService } from './stubs/attendance-query.stub';
+import { AttendanceModule } from '../attendance/attendance.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Achievement, WeeklyPlan, WeeklyPlanItem]),
     AuditModule,
+    AttendanceModule,
   ],
   controllers: [AchievementsController, WeeklyPlansController, PlanItemsController],
   providers: [
@@ -28,7 +29,6 @@ import { AttendanceQueryService } from './stubs/attendance-query.stub';
     PlanReconciliationService,
     WeeklyPlansOverdueCron,
     QuranRangeValidator,
-    AttendanceQueryService,
   ],
   exports: [AchievementsService, WeeklyPlansService],
 })
