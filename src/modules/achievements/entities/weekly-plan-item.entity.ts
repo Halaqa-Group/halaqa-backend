@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 import type { TrackType } from './achievement.entity';
@@ -68,5 +69,5 @@ export class WeeklyPlanItem {
 
   @ManyToOne(() => WeeklyPlan, (plan) => plan.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'weekly_plan_id' })
-  weeklyPlan!: WeeklyPlan;
+  weeklyPlan!: Relation<WeeklyPlan>;
 }

@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
 import { School } from '../../tenant/school.entity';
 import { Student } from '../../students/entities/student.entity';
@@ -103,9 +104,9 @@ export class StudentAttendance {
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
-  school!: School;
+  school!: Relation<School>;
 
   @ManyToOne(() => Student, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'student_id' })
-  student!: Student;
+  student!: Relation<Student>;
 }

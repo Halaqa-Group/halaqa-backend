@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
+  type Relation,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Halaqa } from './halaqa.entity';
@@ -23,9 +24,9 @@ export class SupervisorHalaqa {
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'supervisor_user_id' })
-  supervisor!: User;
+  supervisor!: Relation<User>;
 
   @ManyToOne(() => Halaqa, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'halaqa_id' })
-  halaqa!: Halaqa;
+  halaqa!: Relation<Halaqa>;
 }

@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
 import { Student } from '../../students/entities/student.entity';
 import { User } from '../../users/entities/user.entity';
@@ -101,25 +102,25 @@ export class HalaqaActivityLog {
 
   @ManyToOne(() => Halaqa, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'halaqa_id' })
-  halaqa!: Halaqa | null;
+  halaqa!: Relation<Halaqa> | null;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'actor_user_id' })
-  actor!: User | null;
+  actor!: Relation<User> | null;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'target_user_id' })
-  targetUser!: User | null;
+  targetUser!: Relation<User> | null;
 
   @ManyToOne(() => Student, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'target_student_id' })
-  targetStudent!: Student | null;
+  targetStudent!: Relation<Student> | null;
 
   @ManyToOne(() => Halaqa, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'from_halaqa_id' })
-  fromHalaqa!: Halaqa | null;
+  fromHalaqa!: Relation<Halaqa> | null;
 
   @ManyToOne(() => Halaqa, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'to_halaqa_id' })
-  toHalaqa!: Halaqa | null;
+  toHalaqa!: Relation<Halaqa> | null;
 }

@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -112,13 +113,13 @@ export class RefreshToken {
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user!: User;
+  user!: Relation<User>;
 
   @ManyToOne(() => RefreshToken, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'parent_id' })
-  parent!: RefreshToken | null;
+  parent!: Relation<RefreshToken> | null;
 
   @ManyToOne(() => RefreshToken, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'replaced_by_id' })
-  replacedBy!: RefreshToken | null;
+  replacedBy!: Relation<RefreshToken> | null;
 }

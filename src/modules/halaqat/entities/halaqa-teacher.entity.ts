@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -80,13 +81,13 @@ export class HalaqaTeacher {
 
   @ManyToOne(() => Halaqa, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'halaqa_id' })
-  halaqa!: Halaqa;
+  halaqa!: Relation<Halaqa>;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'teacher_user_id' })
-  teacher!: User;
+  teacher!: Relation<User>;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'assigned_by' })
-  assigner!: User | null;
+  assigner!: Relation<User> | null;
 }
