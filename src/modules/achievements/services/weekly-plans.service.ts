@@ -351,21 +351,25 @@ export class WeeklyPlansService {
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
-  async softDelete(id: number, actor: AuthenticatedUser): Promise<void> {
+  async hardDelete(id: number, actor: AuthenticatedUser): Promise<void> {
     const plan = await this.loadOrFail(id, actor.schoolId);
 
     if (!this.isAdmin(actor)) {
       throw new ForbiddenException('Only principal or vice_principal can delete plans.');
     }
 
-    await this.plans.softRemove(plan);
+    const wasApproved = plan.status === 'approved';
+
+    // Hard delete: the row is permanently removed. weekly_plan_items cascade-delete
+    // via their ON DELETE CASCADE foreign key.
+    await this.plans.remove(plan);
 
     await this.auditService.log({
       actor,
       action: 'weekly_plan.delete',
       entityType: 'weekly_plan',
       entityId: id,
-      newValues: { was_approved: plan.status === 'approved' },
+      newValues: { was_approved: wasApproved },
     });
   }
 }
