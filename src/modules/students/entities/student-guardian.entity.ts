@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
+  type Relation,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Student } from './student.entity';
@@ -55,9 +56,9 @@ export class StudentGuardian {
 
   @ManyToOne(() => Student, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'student_id' })
-  student!: Student;
+  student!: Relation<Student>;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'guardian_user_id' })
-  guardian!: User;
+  guardian!: Relation<User>;
 }

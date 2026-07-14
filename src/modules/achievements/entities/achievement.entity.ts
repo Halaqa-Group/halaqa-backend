@@ -7,6 +7,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 import { School } from '../../tenant/school.entity';
@@ -93,5 +94,5 @@ export class Achievement {
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
-  school!: School;
+  school!: Relation<School>;
 }

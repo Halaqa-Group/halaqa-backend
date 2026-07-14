@@ -27,11 +27,7 @@ Create a new halaqa.
   "name": "حلقة الفجر للحفظ",
   "type": "Memorization",
   "evaluation_settings": null,
-  "primary_teacher_user_id": 12,
-  "schedule": [
-    { "day_of_week": 0, "prayer_slot": "fajr", "start_time": "05:00:00", "end_time": "06:00:00" },
-    { "day_of_week": 2, "prayer_slot": "asr" }
-  ]
+  "primary_teacher_user_id": 12
 }
 ```
 
@@ -40,12 +36,7 @@ Create a new halaqa.
 - `type` (enum, required: `Memorization` | `Tajweed` | `Aqeedah`)
 - `evaluation_settings` (json, optional, nullable)
 - `primary_teacher_user_id` (int, optional) — if provided, creates an
-  active assignment with `role='main'`, and runs the
-  schedule conflict check (BR-HLQ-02). Per BR-HLQ-07, this is optional.
-- `schedule` (array, optional) — initial schedule rows. Each row:
-  - `day_of_week` (0–6, required)
-  - `prayer_slot` (enum, optional)
-  - `start_time` / `end_time` (TIME, optional, display only)
+  active assignment with `role='main'`. Per BR-HLQ-07, this is optional.
 
 **Response (201):**
 ```json
@@ -64,8 +55,7 @@ Create a new halaqa.
 ```
 
 **Errors:**
-- `409` — schedule conflict on the primary teacher (BR-HLQ-02)
-- `400` — invalid `day_of_week`, malformed `evaluation_settings`, etc.
+- `400` — malformed `evaluation_settings`, etc.
 - `404` — `primary_teacher_user_id` not found in this school or not a teacher
 
 ---
@@ -146,9 +136,6 @@ Get a single halaqa with detailed info.
     "type": "Memorization",
     "evaluation_settings": null,
     "status": "active",
-    "schedule": [
-      { "id": 33, "day_of_week": 0, "prayer_slot": "fajr", "start_time": "05:00:00", "end_time": "06:00:00" }
-    ],
     "teachers": [
       {
         "id": 55,
@@ -270,71 +257,7 @@ must re-assign explicitly. Logs `action='halaqa_restored'`.
 
 ---
 
-## 2. Schedule
-
-### `PUT /api/v1/halaqat/:id/schedule`
-Replace the full weekly schedule (bulk operation, idempotent).
-
-**Permission:** `principal`, `vice_principal`, supervisor of halaqa,
-active teacher of halaqa.
-
-**Request body:**
-```json
-{
-  "schedule": [
-    { "day_of_week": 0, "prayer_slot": "fajr", "start_time": "05:00:00", "end_time": "06:00:00" },
-    { "day_of_week": 2, "prayer_slot": "asr" },
-    { "day_of_week": 4, "prayer_slot": "maghrib" }
-  ]
-}
-```
-
-**Behavior:** transactionally deletes all existing rows in
-`halaqa_schedules` for this halaqa and inserts the new ones. After
-inserting, runs the conflict check for every active non-acting teacher
-assigned to this halaqa (BR-HLQ-02) — if any would now conflict, abort
-and roll back.
-
-**Response (200):**
-```json
-{
-  "code": 200,
-  "data": {
-    "schedule": [
-      { "id": 88, "day_of_week": 0, "prayer_slot": "fajr", "start_time": "05:00:00", "end_time": "06:00:00" },
-      { "id": 89, "day_of_week": 2, "prayer_slot": "asr", "start_time": null, "end_time": null }
-    ]
-  }
-}
-```
-
-**Errors:**
-- `409` — the new schedule would create a conflict for an existing
-  teacher. Response details which teacher and which slot.
-- `400` — duplicate `day_of_week` in the request body, invalid times.
-
----
-
-### `GET /api/v1/halaqat/:id/schedule`
-Get the schedule (read-only convenience; same data as in `GET /halaqat/:id`).
-
-**Permission:** any user with access to the halaqa.
-
-**Response (200):**
-```json
-{
-  "code": 200,
-  "data": {
-    "schedule": [
-      { "id": 88, "day_of_week": 0, "prayer_slot": "fajr", "start_time": "05:00:00", "end_time": "06:00:00" }
-    ]
-  }
-}
-```
-
----
-
-## 3. Teacher Assignments
+## 2. Teacher Assignments
 
 ### `POST /api/v1/halaqat/:id/teachers`
 Assign a teacher to a halaqa.
@@ -364,12 +287,10 @@ Assign a teacher to a halaqa.
 **Behavior:**
 1. Verify teacher exists in the school and has `teacher` role.
 2. Reject if `role='substitute'` (must go through the acting endpoint).
-3. Run schedule conflict check (BR-HLQ-02). NOT bypassed here — bypass
-   only applies to acting (BR-HLQ-08).
-4. Insert the row. The DB-level unique constraints enforce BR-HLQ-04
+3. Insert the row. The DB-level unique constraints enforce BR-HLQ-04
    (one active main per halaqa) and BR-HLQ-05 / no duplicate active
    assignment.
-5. Log `action='teacher_assigned'`.
+4. Log `action='teacher_assigned'`.
 
 **Response (201):**
 ```json
@@ -391,8 +312,6 @@ Assign a teacher to a halaqa.
 - `404` — teacher not found in this school.
 - `400` — teacher does not have the `teacher` role.
 - `400` — `role='substitute'` (use acting endpoint).
-- `409` — schedule conflict (BR-HLQ-02): include the conflicting halaqa
-  name and slot in the message.
 - `409` — DB-level: would create a second active main, or duplicate
   active assignment.
 
@@ -497,7 +416,7 @@ no further updates are allowed. Logs `action='teacher_unassigned'`.
 
 ---
 
-## 4. Acting Primary
+## 3. Acting Primary
 
 See `06-acting-teacher-flow.md` for the full workflow. There are two
 ways to put a halaqa under acting coverage:
@@ -535,12 +454,9 @@ Activate acting on an existing assignment (Workflow A).
 - Reject if the assignment row's `role` is `'substitute'` — substitutes
   cannot be re-activated; they are created with acting from day one and
   closed when their acting ends. Use a new acting-substitute call instead.
-- Schedule conflict check is **bypassed** (BR-HLQ-08).
 - Original main's `role='main'` row stays untouched (BR-HLQ-09).
 - DB unique constraint `acting_lock` ensures only one active acting per
   halaqa (BR-HLQ-05).
-- If acting takes effect today, returns warning if it overlaps with the
-  acting teacher's other halaqat — using `DataWithWarnings`.
 
 **Response (201):**
 ```json
@@ -551,10 +467,7 @@ Activate acting on an existing assignment (Workflow A).
     "acting_as_primary": true,
     "acting_starts_at": "2026-05-10",
     "acting_ends_at": "2026-05-20"
-  },
-  "warnings": [
-    "Acting teacher will simultaneously cover their main halaqa 'حلقة فجر-2' on Saturday/fajr."
-  ]
+  }
 }
 ```
 
@@ -593,7 +506,6 @@ Create a substitute teacher row with acting activated atomically (Workflow B).
 - Verify teacher exists in this school and has the `teacher` role.
 - Verify teacher is not already actively assigned to this halaqa
   (otherwise this should go through Workflow A).
-- Schedule conflict check is **bypassed** (BR-HLQ-08).
 - INSERT halaqa_teachers row:
   `role='substitute'`, `acting_as_primary=1`,
   `acting_starts_at`, `acting_ends_at`, `start_date=today`,
@@ -601,8 +513,6 @@ Create a substitute teacher row with acting activated atomically (Workflow B).
 - DB CHECK `chk_substitute_must_act` is satisfied (acting_as_primary=1).
 - DB unique constraint `acting_lock` ensures only one active acting per
   halaqa (BR-HLQ-05).
-- Returns warning via `DataWithWarnings` if the substitute would overlap
-  with their other halaqat.
 
 **Response (201):**
 ```json
@@ -662,7 +572,7 @@ unchanged. Logs `action='acting_ended'`.
 
 ---
 
-## 5. Supervisors
+## 4. Supervisors
 
 ### `POST /api/v1/halaqat/:id/supervisors`
 Assign a supervisor to a halaqa.
@@ -712,7 +622,7 @@ the activity log preserves the record.) Logs
 
 ---
 
-## 6. Student Enrollment
+## 5. Student Enrollment
 
 See `07-student-transfer-flow.md` for the full transfer flow.
 
@@ -883,7 +793,7 @@ In one transaction:
 
 ---
 
-## 7. Helpers / Reverse-lookup queries
+## 6. Helpers / Reverse-lookup queries
 
 ### `GET /api/v1/teachers/:user_id/halaqat`
 List halaqat where this user has assignments (active by default).
@@ -918,78 +828,6 @@ the usual scoping).
   }
 }
 ```
-
----
-
-### `GET /api/v1/teachers/:user_id/schedule`
-Aggregated weekly schedule across all halaqat the teacher is currently
-active in.
-
-**Permission:** same as above.
-
-**Response (200):**
-```json
-{
-  "code": 200,
-  "data": {
-    "schedule": [
-      {
-        "day_of_week": 0,
-        "prayer_slot": "fajr",
-        "halaqa_id": 17,
-        "halaqa_name": "حلقة الفجر للحفظ",
-        "is_acting": false,
-        "start_time": "05:00:00",
-        "end_time": "06:00:00"
-      },
-      {
-        "day_of_week": 0,
-        "prayer_slot": "fajr",
-        "halaqa_id": 19,
-        "halaqa_name": "حلقة الفجر-2",
-        "is_acting": true,
-        "start_time": null,
-        "end_time": null
-      }
-    ]
-  }
-}
-```
-
-When the teacher is acting on another halaqa with the same slot, both rows
-appear (the acting one with `is_acting: true`). Frontend can highlight
-the overlap visually.
-
----
-
-### `GET /api/v1/teachers/:user_id/conflicts`
-Pre-flight check before assigning this teacher to a target halaqa.
-
-**Permission:** `principal`, `vice_principal`
-
-**Query params:**
-- `target_halaqa_id` (int, required)
-
-**Response (200):**
-```json
-{
-  "code": 200,
-  "data": {
-    "has_conflict": true,
-    "conflicts": [
-      {
-        "day_of_week": 0,
-        "prayer_slot": "fajr",
-        "conflicting_halaqa_id": 19,
-        "conflicting_halaqa_name": "حلقة الفجر-2"
-      }
-    ]
-  }
-}
-```
-
-When `has_conflict: false`, `conflicts` is `[]`. This is read-only —
-calling it does not create any state.
 
 ---
 
@@ -1054,7 +892,7 @@ List halaqat this user supervises.
 
 ---
 
-## 8. Activity log
+## 7. Activity log
 
 ### `GET /api/v1/halaqat/:id/activity`
 Domain-specific audit trail for this halaqa.
@@ -1107,28 +945,24 @@ Domain-specific audit trail for this halaqa.
 | 5 | POST | `/halaqat/:id/archive` | principal, vice |
 | 6 | POST | `/halaqat/:id/complete` | principal, vice |
 | 7 | POST | `/halaqat/:id/restore` | principal, vice |
-| 8 | PUT | `/halaqat/:id/schedule` | principal, vice, supervisor, active teacher |
-| 9 | GET | `/halaqat/:id/schedule` | scoped |
-| 10 | POST | `/halaqat/:id/teachers` | principal, vice |
-| 11 | GET | `/halaqat/:id/teachers` | scoped |
-| 12 | PATCH | `/halaqat/:id/teachers/:aid` | principal, vice |
-| 13 | DELETE | `/halaqat/:id/teachers/:aid` | principal, vice |
-| 14 | POST | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
-| 15 | POST | `/halaqat/:id/teachers/acting-substitute` | principal, vice, supervisor |
-| 16 | PATCH | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
-| 17 | DELETE | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
-| 18 | POST | `/halaqat/:id/supervisors` | principal, vice |
-| 19 | DELETE | `/halaqat/:id/supervisors/:uid` | principal, vice |
-| 20 | POST | `/halaqat/:id/students` | principal, vice, supervisor |
-| 21 | GET | `/halaqat/:id/students` | scoped |
-| 22 | DELETE | `/halaqat/:id/students/:sid` | principal, vice, supervisor |
-| 23 | POST | `/halaqat/students/transfer` | principal, vice, supervisor (of either side) |
-| 24 | GET | `/teachers/:uid/halaqat` | scoped |
-| 25 | GET | `/teachers/:uid/schedule` | scoped |
-| 26 | GET | `/teachers/:uid/conflicts` | principal, vice |
-| 27 | GET | `/students/:sid/halaqat` | scoped |
-| 28 | GET | `/supervisors/:uid/halaqat` | scoped |
-| 29 | GET | `/halaqat/:id/activity` | principal, vice, supervisor |
+| 8 | POST | `/halaqat/:id/teachers` | principal, vice |
+| 9 | GET | `/halaqat/:id/teachers` | scoped |
+| 10 | PATCH | `/halaqat/:id/teachers/:aid` | principal, vice |
+| 11 | DELETE | `/halaqat/:id/teachers/:aid` | principal, vice |
+| 12 | POST | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
+| 13 | POST | `/halaqat/:id/teachers/acting-substitute` | principal, vice, supervisor |
+| 14 | PATCH | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
+| 15 | DELETE | `/halaqat/:id/teachers/:aid/acting` | principal, vice, supervisor |
+| 16 | POST | `/halaqat/:id/supervisors` | principal, vice |
+| 17 | DELETE | `/halaqat/:id/supervisors/:uid` | principal, vice |
+| 18 | POST | `/halaqat/:id/students` | principal, vice, supervisor |
+| 19 | GET | `/halaqat/:id/students` | scoped |
+| 20 | DELETE | `/halaqat/:id/students/:sid` | principal, vice, supervisor |
+| 21 | POST | `/halaqat/students/transfer` | principal, vice, supervisor (of either side) |
+| 22 | GET | `/teachers/:uid/halaqat` | scoped |
+| 23 | GET | `/students/:sid/halaqat` | scoped |
+| 24 | GET | `/supervisors/:uid/halaqat` | scoped |
+| 25 | GET | `/halaqat/:id/activity` | principal, vice, supervisor |
 
-29 endpoints across 4 controllers (the activity-log endpoint can live on
+25 endpoints across 4 controllers (the activity-log endpoint can live on
 the main `halaqat.controller.ts`).

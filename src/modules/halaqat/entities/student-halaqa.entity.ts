@@ -1,8 +1,20 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+  type Relation,
+} from 'typeorm';
 import { Student } from '../../students/entities/student.entity';
 import { Halaqa } from './halaqa.entity';
 
-export type StudentHalaqaStatus = 'active' | 'transferred' | 'completed' | 'archived';
+export type StudentHalaqaStatus =
+  | 'active'
+  | 'transferred'
+  | 'completed'
+  | 'archived';
 
 @Entity('student_halaqa')
 @Index('idx_sh2_halaqa', ['halaqaId'])
@@ -26,9 +38,9 @@ export class StudentHalaqa {
 
   @ManyToOne(() => Student, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'student_id' })
-  student!: Student;
+  student!: Relation<Student>;
 
   @ManyToOne(() => Halaqa, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'halaqa_id' })
-  halaqa!: Halaqa;
+  halaqa!: Relation<Halaqa>;
 }

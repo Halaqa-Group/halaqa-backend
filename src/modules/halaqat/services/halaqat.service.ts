@@ -14,28 +14,24 @@ import type {
   HalaqaDetailResponse,
   HalaqaListData,
   PrimaryTeacherSummary,
-  ScheduleEntryResponse,
   SupervisorSummaryResponse,
   TeacherAssignmentResponse,
 } from '../dto/halaqa.responses';
 import { ListHalaqatQuery } from '../dto/list-halaqat.query';
 import { UpdateHalaqaDto } from '../dto/update-halaqa.dto';
-import { HalaqaSchedule } from '../entities/halaqa-schedule.entity';
 import { HalaqaTeacher } from '../entities/halaqa-teacher.entity';
 import { Halaqa } from '../entities/halaqa.entity';
 import { SupervisorHalaqa } from '../entities/supervisor-halaqa.entity';
 import { HalaqaActivityLogService } from './halaqa-activity-log.service';
-import { ScheduleConflictService } from './schedule-conflict.service';
 
 @Injectable()
 export class HalaqatService {
   constructor(
     @InjectRepository(Halaqa) private readonly halaqat: Repository<Halaqa>,
-    @InjectRepository(HalaqaSchedule) private readonly scheduleRepo: Repository<HalaqaSchedule>,
-    @InjectRepository(SupervisorHalaqa) private readonly supervisorRepo: Repository<SupervisorHalaqa>,
+    @InjectRepository(SupervisorHalaqa)
+    private readonly supervisorRepo: Repository<SupervisorHalaqa>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly activityLog: HalaqaActivityLogService,
-    private readonly conflictChecker: ScheduleConflictService,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -45,7 +41,9 @@ export class HalaqatService {
   }
 
   private isAdmin(actor: AuthenticatedUser): boolean {
-    return actor.roles.some((r) => r.slug === 'principal' || r.slug === 'vice_principal');
+    return actor.roles.some(
+      (r) => r.slug === 'principal' || r.slug === 'vice_principal',
+    );
   }
 
   /** Verify that userId exists in the school and holds the given role slug. */
@@ -73,7 +71,10 @@ export class HalaqatService {
    * Load a halaqa by id+school and verify the actor has any read relationship with it.
    * Throws NotFoundException (never ForbiddenException) per BR-HLQ-01.
    */
-  async loadAndCheckAccess(id: number, actor: AuthenticatedUser): Promise<Halaqa> {
+  async loadAndCheckAccess(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<Halaqa> {
     const halaqa = await this.halaqat.findOne({
       where: { id, schoolId: actor.schoolId },
       withDeleted: true,
@@ -106,7 +107,12 @@ export class HalaqatService {
   ): Promise<Map<number, PrimaryTeacherSummary>> {
     if (!halaqaIds.length) return new Map();
     const ph = halaqaIds.map(() => '?').join(', ');
-    type Row = { halaqa_id: number; teacher_user_id: number; teacher_name: string; is_acting: number };
+    type Row = {
+      halaqa_id: number;
+      teacher_user_id: number;
+      teacher_name: string;
+      is_acting: number;
+    };
     const rows: Row[] = await this.dataSource.manager.query(
       `SELECT ht.halaqa_id, ht.teacher_user_id, u.name AS teacher_name,
               ht.acting_as_primary AS is_acting
@@ -132,7 +138,9 @@ export class HalaqatService {
     return map;
   }
 
-  private async batchLoadStudentCounts(halaqaIds: number[]): Promise<Map<number, number>> {
+  private async batchLoadStudentCounts(
+    halaqaIds: number[],
+  ): Promise<Map<number, number>> {
     if (!halaqaIds.length) return new Map();
     const ph = halaqaIds.map(() => '?').join(', ');
     type Row = { halaqa_id: number; cnt: string };
@@ -148,28 +156,28 @@ export class HalaqatService {
     return map;
   }
 
-  /** Load detail data (schedule, teachers, supervisors, students_count) for one halaqa. */
+  /** Load detail data (teachers, supervisors, students_count) for one halaqa. */
   private async loadDetailData(
     halaqaId: number,
     em?: EntityManager,
   ): Promise<{
-    schedule: ScheduleEntryResponse[];
     teachers: TeacherAssignmentResponse[];
     supervisors: SupervisorSummaryResponse[];
     studentsCount: number;
   }> {
     const runner = em ?? this.dataSource.manager;
 
-    const scheduleRows = await (em
-      ? em.getRepository(HalaqaSchedule)
-      : this.scheduleRepo
-    ).find({ where: { halaqaId }, order: { dayOfWeek: 'ASC' } });
-
     type TeacherRow = {
-      id: number; teacher_user_id: number; teacher_name: string;
-      role: string; acting_as_primary: number;
-      acting_starts_at: string | null; acting_ends_at: string | null;
-      start_date: string; end_date: string | null; end_reason: string | null;
+      id: number;
+      teacher_user_id: number;
+      teacher_name: string;
+      role: string;
+      acting_as_primary: number;
+      acting_starts_at: string | null;
+      acting_ends_at: string | null;
+      start_date: string;
+      end_date: string | null;
+      end_reason: string | null;
     };
     const teacherRows: TeacherRow[] = await runner.query(
       `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
@@ -197,13 +205,6 @@ export class HalaqatService {
     );
 
     return {
-      schedule: scheduleRows.map((s) => ({
-        id: s.id,
-        day_of_week: s.dayOfWeek,
-        prayer_slot: s.prayerSlot,
-        start_time: s.startTime,
-        end_time: s.endTime,
-      })),
       teachers: teacherRows.map((t) => ({
         id: t.id,
         teacher_user_id: t.teacher_user_id,
@@ -225,7 +226,10 @@ export class HalaqatService {
     };
   }
 
-  private toDetailResponse(halaqa: Halaqa, detail: Awaited<ReturnType<HalaqatService['loadDetailData']>>): HalaqaDetailResponse {
+  private toDetailResponse(
+    halaqa: Halaqa,
+    detail: Awaited<ReturnType<HalaqatService['loadDetailData']>>,
+  ): HalaqaDetailResponse {
     return {
       id: halaqa.id,
       school_id: halaqa.schoolId,
@@ -233,7 +237,6 @@ export class HalaqatService {
       type: halaqa.type,
       evaluation_settings: halaqa.evaluationSettings,
       status: halaqa.status,
-      schedule: detail.schedule,
       teachers: detail.teachers,
       supervisors: detail.supervisors,
       students_count: detail.studentsCount,
@@ -244,9 +247,16 @@ export class HalaqatService {
 
   // ─── Public service methods ────────────────────────────────────────────────
 
-  async create(dto: CreateHalaqaDto, actor: AuthenticatedUser): Promise<HalaqaCreatedResponse> {
+  async create(
+    dto: CreateHalaqaDto,
+    actor: AuthenticatedUser,
+  ): Promise<HalaqaCreatedResponse> {
     if (dto.primary_teacher_user_id !== undefined) {
-      await this.verifyUserRoleInSchool(dto.primary_teacher_user_id, actor.schoolId, 'teacher');
+      await this.verifyUserRoleInSchool(
+        dto.primary_teacher_user_id,
+        actor.schoolId,
+        'teacher',
+      );
     }
 
     return this.dataSource.transaction(async (em) => {
@@ -260,40 +270,7 @@ export class HalaqatService {
         }),
       );
 
-      if (dto.schedule?.length) {
-        // Validate no duplicate day_of_week
-        const days = dto.schedule.map((s) => s.day_of_week);
-        if (new Set(days).size !== days.length) {
-          throw new ConflictException('Duplicate day_of_week values in schedule.');
-        }
-        for (const s of dto.schedule) {
-          await em.getRepository(HalaqaSchedule).save(
-            em.getRepository(HalaqaSchedule).create({
-              halaqaId: halaqa.id,
-              dayOfWeek: s.day_of_week,
-              prayerSlot: s.prayer_slot ?? null,
-              startTime: s.start_time ?? null,
-              endTime: s.end_time ?? null,
-            }),
-          );
-        }
-      }
-
       if (dto.primary_teacher_user_id !== undefined) {
-        if (dto.schedule?.some((s) => s.prayer_slot)) {
-          const conflicts = await this.conflictChecker.checkForTeacher(
-            dto.primary_teacher_user_id,
-            halaqa.id,
-            actor.schoolId,
-            em,
-          );
-          if (conflicts.length > 0) {
-            const c = conflicts[0];
-            throw new ConflictException(
-              `Teacher has a schedule conflict with halaqa '${c.conflicting_halaqa_name}' on day ${c.day_of_week} ${c.prayer_slot}.`,
-            );
-          }
-        }
         await em.getRepository(HalaqaTeacher).save(
           em.getRepository(HalaqaTeacher).create({
             halaqaId: halaqa.id,
@@ -307,7 +284,12 @@ export class HalaqatService {
       }
 
       await this.activityLog.log(
-        { schoolId: actor.schoolId, halaqaId: halaqa.id, action: 'halaqa_created', actorUserId: actor.id },
+        {
+          schoolId: actor.schoolId,
+          halaqaId: halaqa.id,
+          action: 'halaqa_created',
+          actorUserId: actor.id,
+        },
         em,
       );
 
@@ -323,7 +305,10 @@ export class HalaqatService {
     });
   }
 
-  async findAll(query: ListHalaqatQuery, actor: AuthenticatedUser): Promise<HalaqaListData> {
+  async findAll(
+    query: ListHalaqatQuery,
+    actor: AuthenticatedUser,
+  ): Promise<HalaqaListData> {
     const isSupervisor = actor.roles.some((r) => r.slug === 'supervisor');
     const isTeacher = actor.roles.some((r) => r.slug === 'teacher');
 
@@ -357,8 +342,10 @@ export class HalaqatService {
     }
 
     if (query.type) qb.andWhere('h.type = :type', { type: query.type });
-    if (query.status) qb.andWhere('h.status = :status', { status: query.status });
-    if (query.search) qb.andWhere('h.name LIKE :search', { search: `%${query.search}%` });
+    if (query.status)
+      qb.andWhere('h.status = :status', { status: query.status });
+    if (query.search)
+      qb.andWhere('h.name LIKE :search', { search: `%${query.search}%` });
 
     if (query.supervisor_user_id) {
       qb.andWhere(
@@ -402,18 +389,27 @@ export class HalaqatService {
     };
   }
 
-  async findOne(id: number, actor: AuthenticatedUser): Promise<HalaqaDetailResponse> {
+  async findOne(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<HalaqaDetailResponse> {
     const halaqa = await this.loadAndCheckAccess(id, actor);
     const detail = await this.loadDetailData(halaqa.id);
     return this.toDetailResponse(halaqa, detail);
   }
 
-  async update(id: number, dto: UpdateHalaqaDto, actor: AuthenticatedUser): Promise<HalaqaDetailResponse> {
+  async update(
+    id: number,
+    dto: UpdateHalaqaDto,
+    actor: AuthenticatedUser,
+  ): Promise<HalaqaDetailResponse> {
     const halaqa = await this.loadAndCheckAccess(id, actor);
 
     // type change requires admin
     if ('type' in dto && !this.isAdmin(actor)) {
-      throw new ForbiddenException('Only principal or vice_principal can change the halaqa type.');
+      throw new ForbiddenException(
+        'Only principal or vice_principal can change the halaqa type.',
+      );
     }
 
     if (dto.type && dto.type !== halaqa.type) {
@@ -440,28 +436,36 @@ export class HalaqatService {
     const changes: Record<string, unknown> = {};
     if (dto.name !== undefined) changes['name'] = dto.name;
     if (dto.type !== undefined) changes['type'] = dto.type;
-    if ('evaluation_settings' in dto) changes['evaluationSettings'] = dto.evaluation_settings ?? null;
+    if ('evaluation_settings' in dto)
+      changes['evaluationSettings'] = dto.evaluation_settings ?? null;
 
     if (Object.keys(changes).length > 0) {
-      await this.halaqat.update(id, changes as Parameters<typeof this.halaqat.update>[1]);
+      await this.halaqat.update(id, changes);
       await this.activityLog.log({
         schoolId: actor.schoolId,
         halaqaId: id,
         action: 'halaqa_updated',
         actorUserId: actor.id,
-        metadata: changes as Record<string, unknown>,
+        metadata: changes,
       });
     }
 
-    const updated = await this.halaqat.findOneOrFail({ where: { id }, withDeleted: true });
+    const updated = await this.halaqat.findOneOrFail({
+      where: { id },
+      withDeleted: true,
+    });
     const detail = await this.loadDetailData(id);
     return this.toDetailResponse(updated, detail);
   }
 
   async archive(id: number, actor: AuthenticatedUser): Promise<ApiMessage> {
-    const halaqa = await this.halaqat.findOne({ where: { id, schoolId: actor.schoolId }, withDeleted: true });
+    const halaqa = await this.halaqat.findOne({
+      where: { id, schoolId: actor.schoolId },
+      withDeleted: true,
+    });
     if (!halaqa) throw new NotFoundException();
-    if (halaqa.status === 'archived') throw new ConflictException('Halaqa is already archived.');
+    if (halaqa.status === 'archived')
+      throw new ConflictException('Halaqa is already archived.');
 
     // BR-HLQ-10: cannot archive with active students
     const countRow: { cnt: string }[] = await this.dataSource.manager.query(
@@ -495,7 +499,12 @@ export class HalaqatService {
         [id],
       );
       await this.activityLog.log(
-        { schoolId: actor.schoolId, halaqaId: id, action: 'halaqa_archived', actorUserId: actor.id },
+        {
+          schoolId: actor.schoolId,
+          halaqaId: id,
+          action: 'halaqa_archived',
+          actorUserId: actor.id,
+        },
         em,
       );
     });
@@ -504,17 +513,23 @@ export class HalaqatService {
   }
 
   async complete(id: number, actor: AuthenticatedUser): Promise<ApiMessage> {
-    const halaqa = await this.halaqat.findOne({ where: { id, schoolId: actor.schoolId } });
+    const halaqa = await this.halaqat.findOne({
+      where: { id, schoolId: actor.schoolId },
+    });
     if (!halaqa) throw new NotFoundException();
     if (halaqa.status !== 'active') {
-      throw new ConflictException(`Cannot complete a halaqa with status '${halaqa.status}'.`);
+      throw new ConflictException(
+        `Cannot complete a halaqa with status '${halaqa.status}'.`,
+      );
     }
 
     const today = this.today();
     const completeNote = `Halaqa completed on ${today}`;
 
     await this.dataSource.transaction(async (em) => {
-      await em.query(`UPDATE halaqat SET status = 'completed' WHERE id = ?`, [id]);
+      await em.query(`UPDATE halaqat SET status = 'completed' WHERE id = ?`, [
+        id,
+      ]);
       await em.query(
         `UPDATE halaqa_teachers
          SET end_date = ?, end_reason = 'other',
@@ -527,7 +542,12 @@ export class HalaqatService {
         [id],
       );
       await this.activityLog.log(
-        { schoolId: actor.schoolId, halaqaId: id, action: 'halaqa_completed', actorUserId: actor.id },
+        {
+          schoolId: actor.schoolId,
+          halaqaId: id,
+          action: 'halaqa_completed',
+          actorUserId: actor.id,
+        },
         em,
       );
     });
@@ -540,7 +560,8 @@ export class HalaqatService {
       where: { id, schoolId: actor.schoolId, status: 'archived' },
       withDeleted: true,
     });
-    if (!halaqa) throw new NotFoundException('Halaqa not found or is not archived.');
+    if (!halaqa)
+      throw new NotFoundException('Halaqa not found or is not archived.');
 
     await this.dataSource.transaction(async (em) => {
       await em.query(
@@ -548,7 +569,12 @@ export class HalaqatService {
         [id],
       );
       await this.activityLog.log(
-        { schoolId: actor.schoolId, halaqaId: id, action: 'halaqa_restored', actorUserId: actor.id },
+        {
+          schoolId: actor.schoolId,
+          halaqaId: id,
+          action: 'halaqa_restored',
+          actorUserId: actor.id,
+        },
         em,
       );
     });

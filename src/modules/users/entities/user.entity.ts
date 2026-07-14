@@ -9,6 +9,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  type Relation,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
@@ -86,7 +87,7 @@ export class User {
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
-  school!: School;
+  school!: Relation<School>;
 
   @OneToMany(() => UserRole, (ur) => ur.user)
   userRoles!: UserRole[];

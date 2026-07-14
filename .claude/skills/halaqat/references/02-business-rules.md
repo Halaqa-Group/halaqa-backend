@@ -27,23 +27,12 @@ must get 404 — not 403, not 200.
 
 ---
 
-## BR-HLQ-02 — Teacher schedule conflict prevention
+## BR-HLQ-02 — (removed)
 
-**Rule:** A teacher cannot be assigned to a halaqa whose schedule
-collides with their other active assignments.
-
-**Definition of collision:** two schedule entries share the same
-`(day_of_week, prayer_slot)` and `prayer_slot IS NOT NULL`.
-
-**Scope:** check across all halaqat in the same school where the teacher
-has `end_date IS NULL`. Excludes the halaqa being assigned to (in case of
-re-assignment to the same halaqa).
-
-**Exception:** see BR-HLQ-08 — acting assignments bypass this check.
-
-**Implementation:** see `references/05-conflict-detection.md`.
-
-**Error:** `ConflictException("Teacher has a schedule conflict with halaqa '<name>' on <day> <slot>.")`
+Teacher schedule conflict prevention was removed along with the
+per-halaqa schedule concept. Scheduling now lives only at the school
+level in the attendance module; halaqat no longer carry meeting times,
+and there is no teacher time-conflict detection.
 
 ---
 
@@ -148,22 +137,11 @@ effective primary for too long.
 
 ---
 
-## BR-HLQ-08 — Acting bypasses schedule conflict check
+## BR-HLQ-08 — (removed)
 
-**Rule:** When activating `acting_as_primary` for a teacher on a halaqa,
-do NOT check schedule conflicts against the teacher's other halaqat.
-
-**Why:** acting is precisely the case where one teacher covers two halaqat
-at the same prayer slot — that's the whole point. The acting teacher
-"runs both halaqat as if they were one."
-
-**Implication:** the regular teacher-assignment endpoint runs the conflict
-check (BR-HLQ-02). The acting endpoint does not.
-
-**Best practice:** when activating acting that creates a same-slot overlap,
-include a non-fatal warning in the response (using `DataWithWarnings`)
-so the admin sees that the acting teacher is doubled up — but proceed
-with the operation.
+The "acting bypasses schedule conflict check" rule was removed along with
+schedule conflict detection. There is no per-halaqa schedule and no
+teacher time-conflict check, so nothing needs to be bypassed.
 
 ---
 
@@ -317,7 +295,6 @@ commonly-checked rules:
 | Update halaqa `name` / `evaluation_settings` | Principal, Vice, Supervisor of halaqa, Active teacher of halaqa |
 | Update halaqa `type` | Principal, Vice |
 | Update halaqa `status` (archive/complete) | Principal, Vice |
-| Update halaqa schedule | Principal, Vice, Supervisor of halaqa, Active teacher of halaqa |
 | Assign / remove teachers | Principal, Vice |
 | Activate / end acting | Principal, Vice, Supervisor of halaqa |
 | Enroll / transfer / remove students | Principal, Vice, Supervisor of halaqa |

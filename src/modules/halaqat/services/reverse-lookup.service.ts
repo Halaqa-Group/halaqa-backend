@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
@@ -13,10 +17,15 @@ export class ReverseLookupService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   private isAdmin(actor: AuthenticatedUser): boolean {
-    return actor.roles.some((r) => r.slug === 'principal' || r.slug === 'vice_principal');
+    return actor.roles.some(
+      (r) => r.slug === 'principal' || r.slug === 'vice_principal',
+    );
   }
 
-  private assertSelfOrAdmin(targetUserId: number, actor: AuthenticatedUser): void {
+  private assertSelfOrAdmin(
+    targetUserId: number,
+    actor: AuthenticatedUser,
+  ): void {
     if (!this.isAdmin(actor) && actor.id !== targetUserId) {
       throw new ForbiddenException('You can only look up your own halaqat.');
     }
@@ -126,25 +135,36 @@ export class ReverseLookupService {
       halaqa_status: r.halaqa_status as StudentHalaqaItem['halaqa_status'],
       halaqa_type: r.halaqa_type as StudentHalaqaItem['halaqa_type'],
       enrollment_date: r.enrollment_date,
-      enrollment_status: r.enrollment_status as StudentHalaqaItem['enrollment_status'],
+      enrollment_status:
+        r.enrollment_status as StudentHalaqaItem['enrollment_status'],
     }));
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  private async verifyUserInSchool(userId: number, schoolId: number): Promise<void> {
+  private async verifyUserInSchool(
+    userId: number,
+    schoolId: number,
+  ): Promise<void> {
     const rows: unknown[] = await this.dataSource.manager.query(
       `SELECT 1 FROM users WHERE id = ? AND school_id = ? LIMIT 1`,
       [userId, schoolId],
     );
-    if (!rows.length) throw new NotFoundException(`User ${userId} not found in this school.`);
+    if (!rows.length)
+      throw new NotFoundException(`User ${userId} not found in this school.`);
   }
 
-  private async verifyStudentInSchool(studentId: number, schoolId: number): Promise<void> {
+  private async verifyStudentInSchool(
+    studentId: number,
+    schoolId: number,
+  ): Promise<void> {
     const rows: unknown[] = await this.dataSource.manager.query(
       `SELECT 1 FROM students WHERE id = ? AND school_id = ? AND deleted_at IS NULL LIMIT 1`,
       [studentId, schoolId],
     );
-    if (!rows.length) throw new NotFoundException(`Student ${studentId} not found in this school.`);
+    if (!rows.length)
+      throw new NotFoundException(
+        `Student ${studentId} not found in this school.`,
+      );
   }
 }

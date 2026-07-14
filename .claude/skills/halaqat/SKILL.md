@@ -5,12 +5,12 @@ description: |
   for the Quran Schools Management System (NestJS + TypeORM + MySQL).
   Use whenever the user asks to add, fix, or change anything related to:
   halaqat CRUD, teacher assignments, primary/acting teacher logic,
-  student enrollment in halaqat, schedule management (prayer slots),
-  supervisor assignments, schedule conflict detection, or student transfers.
+  student enrollment in halaqat,
+  supervisor assignments, or student transfers.
   Trigger keywords: halaqa, halaqat, حلقة, حلقات, teacher assignment,
   تعيين معلم, primary teacher, محفظ رئيسي, acting teacher, نائب بالوكالة,
-  acting_as_primary, halaqa_teachers, supervisor_halaqat, halaqa_schedules,
-  student_halaqa, prayer_slot, schedule conflict, تعارض جدول, نقل طالب,
+  acting_as_primary, halaqa_teachers, supervisor_halaqat,
+  student_halaqa, نقل طالب,
   student transfer, enroll student, halaqa archive.
 ---
 
@@ -18,7 +18,7 @@ description: |
 
 This skill builds and maintains **Module 4** of the Quran Schools Management
 System: halaqat (study circles), teacher assignments with primary/acting
-roles, supervisor assignments, schedule management, and student enrollment.
+roles, supervisor assignments, and student enrollment.
 
 ## When to use this skill
 
@@ -26,13 +26,11 @@ Use this skill when the request touches any of these tables or concepts:
 
 - `halaqat` — the study circles themselves (CRUD, archive, complete)
 - `halaqa_teachers` — teacher assignments with `role` (main/assistant/substitute) and `acting_as_primary` flag
-- `halaqa_schedules` — weekly schedule using `prayer_slot`
 - `student_halaqa` — student enrollment in halaqat
 - `supervisor_halaqat` — supervisor-to-halaqa relationships
 - `halaqa_activity_logs` — domain-specific audit log for sensitive operations
 
 Also trigger when the user asks about:
-- Schedule conflict detection (teacher assigned to multiple halaqat)
 - Student transfers between halaqat
 - Acting teacher activation when primary is absent
 - The daily cron jobs (`expire_acting_primary`, `notify_no_primary`)
@@ -47,7 +45,7 @@ Before writing or modifying any code in this module, read these files in order:
    **Run these first** before writing any service code.
 2. **`references/01-database-schema.md`** — the target table structures.
    This is what the entities mirror, after migrations run.
-3. **`references/02-business-rules.md`** — the 12 BR-HLQ rules. Every service
+3. **`references/02-business-rules.md`** — the BR-HLQ rules. Every service
    method should reference the rule it enforces.
 4. **`references/04-permissions-matrix.md`** — who can do what. Critical for
    guards and controller decorators.
@@ -55,7 +53,6 @@ Before writing or modifying any code in this module, read these files in order:
 
 Then for specific tasks:
 
-- Schedule conflict logic → `references/05-conflict-detection.md`
 - Acting teacher work → `references/06-acting-teacher-flow.md`
 - Student transfer / re-enrollment → `references/07-student-transfer-flow.md`
 - Halaqa archival → `references/08-halaqa-archival-flow.md`
@@ -84,7 +81,7 @@ This module lives inside a NestJS backend with established conventions.
 These are the rules most easily broken. Read them every time:
 
 1. ⚠️ **Schema bootstrap → target.** The tables `halaqat`, `halaqa_teachers`,
-   `student_halaqa`, `halaqa_schedules`, `supervisor_halaqat` exist in the
+   `student_halaqa`, `supervisor_halaqat` exist in the
    DB **as minimal bootstrap stubs** so earlier modules could compile and
    insert data. They do NOT yet match what this module needs. The first
    step is running `references/00-migrations.md` to bring them up.
@@ -96,24 +93,20 @@ These are the rules most easily broken. Read them every time:
    service. When a substitute's acting period ends, the row is closed
    (`end_date` set), never demoted to non-acting. See BR-HLQ-06.
 
-3. ⚠️ **Acting bypasses schedule conflict check.** When activating
-   `acting_as_primary`, do NOT check schedule conflicts — by design, the
-   acting teacher covers two halaqat at the same prayer slot.
-
-4. ⚠️ **The original main teacher's `role='main'` stays during absence.**
+3. ⚠️ **The original main teacher's `role='main'` stays during absence.**
    Acting is added on top via `acting_as_primary` on a different row;
    the main is never demoted.
 
-5. ⚠️ **Student re-enrollment uses UPDATE, not INSERT.** The composite PK
+4. ⚠️ **Student re-enrollment uses UPDATE, not INSERT.** The composite PK
    `(student_id, halaqa_id)` means a student returning to a halaqa updates
    the existing row's status back to `'active'`. The history goes into
    `halaqa_activity_logs`, not into `student_halaqa`.
 
-6. ⚠️ **Cannot delete a halaqa with active students.** Throw
+5. ⚠️ **Cannot delete a halaqa with active students.** Throw
    `ConflictException` — do not soft-delete cascade silently.
 
-7. ⚠️ **Permission scope: any active teacher and supervisor** can edit halaqa
-   `name`, `evaluation_settings`, and `schedule` — but never `type` or
+6. ⚠️ **Permission scope: any active teacher and supervisor** can edit halaqa
+   `name` and `evaluation_settings` — but never `type` or
    `status`. "Active teacher" means any row in `halaqa_teachers` for this
    user with `end_date IS NULL` (main, assistant, or substitute-with-acting
    all qualify). See `04-permissions-matrix.md`.
@@ -129,7 +122,6 @@ src/modules/halaqat/
 ├── entities/
 │   ├── halaqa.entity.ts
 │   ├── halaqa-teacher.entity.ts
-│   ├── halaqa-schedule.entity.ts
 │   ├── student-halaqa.entity.ts
 │   ├── supervisor-halaqa.entity.ts
 │   └── halaqa-activity-log.entity.ts
@@ -137,7 +129,6 @@ src/modules/halaqat/
 │   ├── create-halaqa.dto.ts
 │   ├── update-halaqa.dto.ts
 │   ├── list-halaqat.query.ts
-│   ├── set-schedule.dto.ts
 │   ├── assign-teacher.dto.ts
 │   ├── set-acting.dto.ts
 │   ├── enroll-student.dto.ts
@@ -152,7 +143,6 @@ src/modules/halaqat/
 │   ├── teacher-assignment.service.ts
 │   ├── student-enrollment.service.ts
 │   ├── supervisor-assignment.service.ts
-│   ├── schedule-conflict.service.ts
 │   └── halaqa-activity-log.service.ts
 ├── guards/
 │   └── halaqa-edit-access.guard.ts

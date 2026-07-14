@@ -24,7 +24,10 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AssignSupervisorDto } from '../dto/assign-supervisor.dto';
 import { SupervisorSummaryResponse } from '../dto/halaqa.responses';
-import { HalaqaAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  RequiresHalaqaPermission,
+} from '../guards/halaqa-scope.guard';
 import { SupervisorAssignmentService } from '../services/supervisor-assignment.service';
 
 @ApiTags('Supervisor Assignments')
@@ -37,12 +40,16 @@ export class SupervisorAssignmentController {
   @Roles('principal', 'vice_principal')
   @ApiOperation({
     summary: 'Assign a supervisor to a halaqa',
-    description: 'User must hold the supervisor role in this school. Duplicate assignments are rejected.',
+    description:
+      'User must hold the supervisor role in this school. Duplicate assignments are rejected.',
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: AssignSupervisorDto })
   @ApiResponse({ status: 201, type: SupervisorSummaryResponse })
-  @ApiResponse({ status: 404, description: 'Halaqa or supervisor not found in school' })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa or supervisor not found in school',
+  })
   @ApiResponse({ status: 409, description: 'Supervisor already assigned' })
   assign(
     @Param('id', ParseIntPipe) id: number,

@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
-export class CreateWeeklyPlansTable1747101700000 implements MigrationInterface {
-  name = 'CreateWeeklyPlansTable1747101700000';
+export class CreateWeeklyPlansTable1778800000000 implements MigrationInterface {
+  name = 'CreateWeeklyPlansTable1778800000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(

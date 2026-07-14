@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
 import { School } from '../../tenant/school.entity';
 import { User } from '../../users/entities/user.entity';
@@ -79,13 +80,13 @@ export class LoginAttempt {
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user!: User | null;
+  user!: Relation<User> | null;
 
   @ManyToOne(() => School, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'school_id' })
-  school!: School | null;
+  school!: Relation<School> | null;
 
   @ManyToOne(() => RefreshToken, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'refresh_token_id' })
-  refreshToken!: RefreshToken | null;
+  refreshToken!: Relation<RefreshToken> | null;
 }

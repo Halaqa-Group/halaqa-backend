@@ -7,6 +7,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 import { School } from '../../tenant/school.entity';
@@ -51,10 +52,15 @@ export class Halaqa {
 
   // Used only for archived halaqat. @DeleteDateColumn enables TypeORM's softDelete().
   // Queries requiring archived rows must pass { withDeleted: true }.
-  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', precision: 6, nullable: true })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
   deletedAt!: Date | null;
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
-  school!: School;
+  school!: Relation<School>;
 }

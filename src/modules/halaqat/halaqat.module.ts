@@ -8,17 +8,17 @@ import { StudentEnrollmentController } from './controllers/student-enrollment.co
 import { SupervisorAssignmentController } from './controllers/supervisor-assignment.controller';
 import { TeacherAssignmentController } from './controllers/teacher-assignment.controller';
 import { HalaqaActivityLog } from './entities/halaqa-activity-log.entity';
-import { HalaqaSchedule } from './entities/halaqa-schedule.entity';
 import { HalaqaTeacher } from './entities/halaqa-teacher.entity';
 import { Halaqa } from './entities/halaqa.entity';
 import { StudentHalaqa } from './entities/student-halaqa.entity';
 import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
-import { HalaqaAccessGuard, HalaqaEditAccessGuard } from './guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  HalaqaEditAccessGuard,
+} from './guards/halaqa-scope.guard';
 import { ActingTeacherService } from './services/acting-teacher.service';
 import { HalaqaActivityLogService } from './services/halaqa-activity-log.service';
 import { HalaqatService } from './services/halaqat.service';
-import { ScheduleConflictService } from './services/schedule-conflict.service';
-import { ScheduleService } from './services/schedule.service';
 import { HalaqaCronService } from './services/halaqa-cron.service';
 import { ReverseLookupService } from './services/reverse-lookup.service';
 import { StudentEnrollmentService } from './services/student-enrollment.service';
@@ -30,14 +30,43 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
     TypeOrmModule.forFeature([
       Halaqa,
       HalaqaTeacher,
-      HalaqaSchedule,
       StudentHalaqa,
       SupervisorHalaqa,
       HalaqaActivityLog,
     ]),
   ],
-  controllers: [HalaqatController, TeacherAssignmentController, ActingTeacherController, StudentEnrollmentController, SupervisorAssignmentController, ReverseLookupController, ActivityLogController],
-  providers: [HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService, HalaqaCronService],
-  exports: [TypeOrmModule, HalaqatService, HalaqaActivityLogService, ScheduleConflictService, ScheduleService, HalaqaAccessGuard, HalaqaEditAccessGuard, TeacherAssignmentService, ActingTeacherService, StudentEnrollmentService, SupervisorAssignmentService, ReverseLookupService],
+  controllers: [
+    HalaqatController,
+    TeacherAssignmentController,
+    ActingTeacherController,
+    StudentEnrollmentController,
+    SupervisorAssignmentController,
+    ReverseLookupController,
+    ActivityLogController,
+  ],
+  providers: [
+    HalaqatService,
+    HalaqaActivityLogService,
+    HalaqaAccessGuard,
+    HalaqaEditAccessGuard,
+    TeacherAssignmentService,
+    ActingTeacherService,
+    StudentEnrollmentService,
+    SupervisorAssignmentService,
+    ReverseLookupService,
+    HalaqaCronService,
+  ],
+  exports: [
+    TypeOrmModule,
+    HalaqatService,
+    HalaqaActivityLogService,
+    HalaqaAccessGuard,
+    HalaqaEditAccessGuard,
+    TeacherAssignmentService,
+    ActingTeacherService,
+    StudentEnrollmentService,
+    SupervisorAssignmentService,
+    ReverseLookupService,
+  ],
 })
 export class HalaqatModule {}

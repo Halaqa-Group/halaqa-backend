@@ -26,7 +26,10 @@ import { AssignTeacherDto } from '../dto/assign-teacher.dto';
 import { EndAssignmentDto } from '../dto/end-assignment.dto';
 import { SetActingDto } from '../dto/set-acting.dto';
 import { UpdateTeacherAssignmentDto } from '../dto/update-teacher-assignment.dto';
-import { HalaqaAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  RequiresHalaqaPermission,
+} from '../guards/halaqa-scope.guard';
 import { ActingTeacherService } from '../services/acting-teacher.service';
 import { TeacherAssignmentService } from '../services/teacher-assignment.service';
 
@@ -51,8 +54,14 @@ export class TeacherAssignmentController {
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: AssignTeacherDto })
   @ApiResponse({ status: 201 })
-  @ApiResponse({ status: 404, description: 'Halaqa or teacher not found in school' })
-  @ApiResponse({ status: 409, description: 'Already assigned or schedule conflict' })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa or teacher not found in school',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Already assigned or schedule conflict',
+  })
   assign(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignTeacherDto,
@@ -67,7 +76,8 @@ export class TeacherAssignmentController {
   @RequiresHalaqaPermission('read')
   @ApiOperation({
     summary: 'List active teacher assignments',
-    description: 'Returns all active (end_date IS NULL) assignments for the halaqa, acting teacher first.',
+    description:
+      'Returns all active (end_date IS NULL) assignments for the halaqa, acting teacher first.',
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiResponse({ status: 200 })
@@ -92,7 +102,10 @@ export class TeacherAssignmentController {
   @ApiBody({ type: UpdateTeacherAssignmentDto })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'Halaqa or assignment not found' })
-  @ApiResponse({ status: 409, description: 'Assignment already ended or role is substitute' })
+  @ApiResponse({
+    status: 409,
+    description: 'Assignment already ended or role is substitute',
+  })
   updateAssignment(
     @Param('id', ParseIntPipe) id: number,
     @Param('assignmentId', ParseIntPipe) assignmentId: number,
@@ -141,7 +154,11 @@ export class TeacherAssignmentController {
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 400, description: 'acting_starts_at is in the past' })
   @ApiResponse({ status: 404, description: 'Halaqa or assignment not found' })
-  @ApiResponse({ status: 409, description: 'Assignment ended, already acting, or another acting teacher exists' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Assignment ended, already acting, or another acting teacher exists',
+  })
   setActing(
     @Param('id', ParseIntPipe) id: number,
     @Param('assignmentId', ParseIntPipe) assignmentId: number,

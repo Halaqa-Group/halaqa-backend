@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -11,7 +18,10 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { ListActivityQuery } from '../dto/list-activity.query';
 import { ActivityLogData } from '../dto/halaqa.responses';
-import { HalaqaAccessGuard, RequiresHalaqaPermission } from '../guards/halaqa-scope.guard';
+import {
+  HalaqaAccessGuard,
+  RequiresHalaqaPermission,
+} from '../guards/halaqa-scope.guard';
 import { HalaqaActivityLogService } from '../services/halaqa-activity-log.service';
 
 @ApiTags('Activity Log')
@@ -26,7 +36,8 @@ export class ActivityLogController {
   @RequiresHalaqaPermission('read')
   @ApiOperation({
     summary: 'List activity log entries for a halaqa',
-    description: 'Returns a paginated, newest-first log of all events on this halaqa. Supports filtering by action type and date range.',
+    description:
+      'Returns a paginated, newest-first log of all events on this halaqa. Supports filtering by action type and date range.',
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiResponse({ status: 200, type: ActivityLogData })

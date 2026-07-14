@@ -15,7 +15,6 @@ import { UpdateTeacherAssignmentDto } from '../dto/update-teacher-assignment.dto
 import { HalaqaTeacher } from '../entities/halaqa-teacher.entity';
 import { HalaqaActivityLogService } from './halaqa-activity-log.service';
 import { HalaqatService } from './halaqat.service';
-import { ScheduleConflictService } from './schedule-conflict.service';
 
 type AssignmentRow = {
   id: number;
@@ -33,10 +32,10 @@ type AssignmentRow = {
 @Injectable()
 export class TeacherAssignmentService {
   constructor(
-    @InjectRepository(HalaqaTeacher) private readonly repo: Repository<HalaqaTeacher>,
+    @InjectRepository(HalaqaTeacher)
+    private readonly repo: Repository<HalaqaTeacher>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly halaqatService: HalaqatService,
-    private readonly conflictChecker: ScheduleConflictService,
     private readonly activityLog: HalaqaActivityLogService,
   ) {}
 
@@ -57,7 +56,10 @@ export class TeacherAssignmentService {
     };
   }
 
-  private async loadRow(assignmentId: number, halaqaId: number): Promise<AssignmentRow> {
+  private async loadRow(
+    assignmentId: number,
+    halaqaId: number,
+  ): Promise<AssignmentRow> {
     const rows: AssignmentRow[] = await this.dataSource.manager.query(
       `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
               ht.role, ht.acting_as_primary,
@@ -80,24 +82,22 @@ export class TeacherAssignmentService {
     actor: AuthenticatedUser,
   ): Promise<TeacherAssignmentResponse> {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
-    await this.halaqatService.verifyUserRoleInSchool(dto.teacher_user_id, actor.schoolId, 'teacher');
+    await this.halaqatService.verifyUserRoleInSchool(
+      dto.teacher_user_id,
+      actor.schoolId,
+      'teacher',
+    );
 
     const existing = await this.repo.findOne({
-      where: { halaqaId, teacherUserId: dto.teacher_user_id, endDate: IsNull() },
+      where: {
+        halaqaId,
+        teacherUserId: dto.teacher_user_id,
+        endDate: IsNull(),
+      },
     });
     if (existing) {
-      throw new ConflictException('Teacher already has an active assignment in this halaqa.');
-    }
-
-    const conflicts = await this.conflictChecker.checkForTeacher(
-      dto.teacher_user_id,
-      halaqaId,
-      actor.schoolId,
-    );
-    if (conflicts.length > 0) {
-      const c = conflicts[0];
       throw new ConflictException(
-        `Schedule conflict with halaqa '${c.conflicting_halaqa_name}' on day ${c.day_of_week} (${c.prayer_slot}).`,
+        'Teacher already has an active assignment in this halaqa.',
       );
     }
 
@@ -124,7 +124,10 @@ export class TeacherAssignmentService {
     return this.toResponse(await this.loadRow(saved.id, halaqaId));
   }
 
-  async findAll(halaqaId: number, actor: AuthenticatedUser): Promise<TeacherAssignmentResponse[]> {
+  async findAll(
+    halaqaId: number,
+    actor: AuthenticatedUser,
+  ): Promise<TeacherAssignmentResponse[]> {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
     const rows: AssignmentRow[] = await this.dataSource.manager.query(
       `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
@@ -148,14 +151,16 @@ export class TeacherAssignmentService {
   ): Promise<TeacherAssignmentResponse> {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
 
-    const assignment = await this.repo.findOne({ where: { id: assignmentId, halaqaId } });
+    const assignment = await this.repo.findOne({
+      where: { id: assignmentId, halaqaId },
+    });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     if (assignment.endDate !== null) {
       throw new ConflictException('Cannot update an ended assignment.');
     }
     if (assignment.role === 'substitute') {
       throw new ConflictException(
-        "Cannot change the role of a substitute — use the acting-substitute lifecycle instead.",
+        'Cannot change the role of a substitute — use the acting-substitute lifecycle instead.',
       );
     }
 
@@ -186,13 +191,17 @@ export class TeacherAssignmentService {
   ): Promise<ApiMessage> {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
 
-    const assignment = await this.repo.findOne({ where: { id: assignmentId, halaqaId } });
+    const assignment = await this.repo.findOne({
+      where: { id: assignmentId, halaqaId },
+    });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     if (assignment.endDate !== null) {
       throw new ConflictException('Assignment is already ended.');
     }
     if (dto.end_date < assignment.startDate) {
-      throw new BadRequestException('end_date cannot be before the assignment start_date.');
+      throw new BadRequestException(
+        'end_date cannot be before the assignment start_date.',
+      );
     }
 
     assignment.endDate = dto.end_date;

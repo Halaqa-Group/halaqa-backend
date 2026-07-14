@@ -10,7 +10,12 @@ import {
 import type { HalaqaType } from '../entities/halaqa.entity';
 
 export class UpdateHalaqaDto {
-  @ApiProperty({ required: false, example: 'حلقة الفجر للحفظ - متقدم', minLength: 1, maxLength: 100 })
+  @ApiProperty({
+    required: false,
+    example: 'حلقة الفجر للحفظ - متقدم',
+    minLength: 1,
+    maxLength: 100,
+  })
   @IsOptional()
   @IsString()
   @MinLength(1)

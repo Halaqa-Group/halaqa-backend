@@ -153,10 +153,10 @@ export class WeeklyPlansController {
   @Roles('principal', 'vice_principal')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Delete (soft-delete) a weekly plan',
+    summary: 'Delete (permanently) a weekly plan',
     description:
-      'Soft-deletes the plan. Principal and vice_principal only. ' +
-      'Items are not individually deleted; the plan becoming un-listable is sufficient.',
+      'Permanently deletes the plan and its items. Principal and vice_principal only. ' +
+      'This is a hard delete — the plan and its items are removed from the database and cannot be restored.',
   })
   @ApiParam({ name: 'id', description: 'Weekly plan ID' })
   @ApiResponse({ status: 200, type: ApiMessage })
@@ -166,7 +166,7 @@ export class WeeklyPlansController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<ApiMessage> {
-    await this.service.softDelete(id, actor);
+    await this.service.hardDelete(id, actor);
     return new ApiMessage('Weekly plan deleted.');
   }
 

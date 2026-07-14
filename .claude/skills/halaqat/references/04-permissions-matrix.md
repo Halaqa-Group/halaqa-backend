@@ -35,7 +35,7 @@ LIMIT 1;
 
 This intentionally includes `main`, `assistant`, and `substitute` rows
 (the latter only exists when `acting_as_primary = 1` — see BR-HLQ-06).
-All three have the same edit rights: name, evaluation_settings, schedule.
+All three have the same edit rights: name, evaluation_settings.
 The distinction between roles matters for **display** and **dashboards**
 ("who's running this halaqa right now") but not for permission checks
 in this module.
@@ -74,9 +74,6 @@ is associated with via `supervisor_halaqat` or active assignments.
 | Archive halaqa | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Complete halaqa | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Restore halaqa | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Schedule** | | | | | | |
-| Update schedule | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| View schedule | All | All | His | His | His | ❌ |
 | **Teachers** | | | | | | |
 | Assign teacher | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | View assignments | All | All | His | His | His | ❌ |
@@ -97,8 +94,6 @@ is associated with via `supervisor_halaqat` or active assignments.
 | Transfer student | ✅ | ✅ | ✅ either side | ❌ | ❌ | ❌ |
 | **Lookups** | | | | | | |
 | Teacher's halaqat | All | All | scoped | own | own | ❌ |
-| Teacher's schedule | All | All | scoped | own | own | ❌ |
-| Teacher conflicts check | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Student's halaqat | All | All | scoped | scoped | scoped | own children |
 | Supervisor's halaqat | All | All | own | ❌ | ❌ | ❌ |
 | **Activity log** | | | | | | |
@@ -115,7 +110,7 @@ Three guards cover the matrix above:
 ### 1. `@Roles(...slugs)` — basic role check
 
 Already exists in the auth module. Used for endpoints with no per-halaqa
-scoping (e.g. create halaqa, conflict check).
+scoping (e.g. create halaqa).
 
 ```ts
 @Post()
@@ -142,7 +137,7 @@ matrix:
 ```ts
 canEdit:           true if principal/vice
 canEditMeta:       true if principal/vice/supervisor-of-halaqa/active-teacher-of-halaqa
-                   (used for: name, evaluation_settings, schedule)
+                   (used for: name, evaluation_settings)
 canManageStudents: true if principal/vice/supervisor-of-halaqa
 canManageActing:   true if principal/vice/supervisor-of-halaqa
 ```

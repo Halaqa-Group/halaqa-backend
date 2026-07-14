@@ -5,11 +5,14 @@ import { AuditLog } from '../modules/audit/audit-log.entity';
 import { Achievement } from '../modules/achievements/entities/achievement.entity';
 import { WeeklyPlan } from '../modules/achievements/entities/weekly-plan.entity';
 import { WeeklyPlanItem } from '../modules/achievements/entities/weekly-plan-item.entity';
+import { Holiday } from '../modules/attendance/entities/holiday.entity';
+import { SchoolSchedule } from '../modules/attendance/entities/school-schedule.entity';
+import { StudentAttendance } from '../modules/attendance/entities/student-attendance.entity';
+import { TeacherAttendance } from '../modules/attendance/entities/teacher-attendance.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { HalaqaActivityLog } from '../modules/halaqat/entities/halaqa-activity-log.entity';
-import { HalaqaSchedule } from '../modules/halaqat/entities/halaqa-schedule.entity';
 import { HalaqaTeacher } from '../modules/halaqat/entities/halaqa-teacher.entity';
 import { Halaqa } from '../modules/halaqat/entities/halaqa.entity';
 import { StudentHalaqa } from '../modules/halaqat/entities/student-halaqa.entity';
@@ -51,13 +54,16 @@ export default new DataSource({
     StudentGuardian,
     Halaqa,
     HalaqaTeacher,
-    HalaqaSchedule,
     StudentHalaqa,
     SupervisorHalaqa,
     HalaqaActivityLog,
     Achievement,
     WeeklyPlan,
     WeeklyPlanItem,
+    StudentAttendance,
+    TeacherAttendance,
+    SchoolSchedule,
+    Holiday,
   ],
   migrations: ['migrations/*.ts'],
   migrationsTableName: 'typeorm_migrations',

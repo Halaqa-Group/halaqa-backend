@@ -41,9 +41,18 @@ export class ActingTeacherController {
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: ActingSubstituteDto })
   @ApiResponse({ status: 201 })
-  @ApiResponse({ status: 400, description: 'acting_starts_at is in the future' })
-  @ApiResponse({ status: 404, description: 'Halaqa or teacher not found in school' })
-  @ApiResponse({ status: 409, description: 'Teacher already assigned or another acting teacher exists' })
+  @ApiResponse({
+    status: 400,
+    description: 'acting_starts_at is in the future',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa or teacher not found in school',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Teacher already assigned or another acting teacher exists',
+  })
   substitute(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActingSubstituteDto,
@@ -56,13 +65,20 @@ export class ActingTeacherController {
   @Roles('principal', 'vice_principal')
   @ApiOperation({
     summary: 'Extend the acting end date',
-    description: 'Pushes acting_ends_at to a later date. New date must be after the current acting_ends_at.',
+    description:
+      'Pushes acting_ends_at to a later date. New date must be after the current acting_ends_at.',
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiBody({ type: ExtendActingDto })
   @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 400, description: 'New date is not after current acting_ends_at' })
-  @ApiResponse({ status: 404, description: 'Halaqa not found or no active acting teacher' })
+  @ApiResponse({
+    status: 400,
+    description: 'New date is not after current acting_ends_at',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa not found or no active acting teacher',
+  })
   extend(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ExtendActingDto,
@@ -82,7 +98,10 @@ export class ActingTeacherController {
   })
   @ApiParam({ name: 'id', description: 'Halaqa ID' })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 404, description: 'Halaqa not found or no active acting teacher' })
+  @ApiResponse({
+    status: 404,
+    description: 'Halaqa not found or no active acting teacher',
+  })
   endActing(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
