@@ -510,7 +510,7 @@
     },
     "/auth/login": {
       "post": {
-        "description": "On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
+        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
         "operationId": "AuthController_login",
         "parameters": [],
         "requestBody": {
@@ -545,7 +545,7 @@
             }
           }
         },
-        "summary": "Log in with email and password",
+        "summary": "Log in with email or national ID, plus password",
         "tags": [
           "Auth"
         ]
@@ -3210,6 +3210,120 @@
         ]
       }
     },
+    "/students/{id}/memorization": {
+      "get": {
+        "description": "Returns the memorized-ayat count and the base64 bitmap (780 bytes, one bit per ayah in mushaf order). Out-of-scope or cross-school access returns 404.",
+        "operationId": "StudentMemorizationController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemorizationEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a student's memorized-ayat bitmap",
+        "tags": [
+          "Students"
+        ]
+      },
+      "put": {
+        "description": "Applies `set` (mark memorized) then `clear` (unmark) ranges onto the current bitmap. **Note:** a later recompute (any Hifz achievement approve/unapprove/delete) rebuilds the bitmap from approved achievements and overwrites manual edits.",
+        "operationId": "StudentMemorizationController_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMemorizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemorizationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No ranges provided, or invalid verse range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Manually edit a student's memorized-ayat bitmap",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
     "/me/children": {
       "get": {
         "description": "Returns all students for which the authenticated parent has a `student_guardians` entry. **Cross-school exception**: this is the only endpoint in the system that returns students from multiple schools. A parent's children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. Soft-deleted students are excluded. No pagination — returns all children in one response. Does NOT write an audit log.",
@@ -4579,7 +4693,7 @@
         ]
       },
       "delete": {
-        "description": "Soft-deletes the plan. Principal and vice_principal only. Items are not individually deleted; the plan becoming un-listable is sufficient.",
+        "description": "Permanently deletes the plan and its items. Principal and vice_principal only. This is a hard delete — the plan and its items are removed from the database and cannot be restored.",
         "operationId": "WeeklyPlansController_remove",
         "parameters": [
           {
@@ -4615,7 +4729,7 @@
             "access-token": []
           }
         ],
-        "summary": "Delete (soft-delete) a weekly plan",
+        "summary": "Delete (permanently) a weekly plan",
         "tags": [
           "Weekly Plans"
         ]
@@ -4938,6 +5052,12 @@
             "example": "أحمد المدير",
             "maxLength": 100
           },
+          "id_number": {
+            "type": "string",
+            "example": "400000006",
+            "maxLength": 20,
+            "description": "National ID number (Palestinian: 9 digits). Normalized and unique per school; also usable as a login identifier. A bad checksum is stored with a warning, not rejected."
+          },
           "email": {
             "type": "string",
             "example": "admin@school.com",
@@ -4977,6 +5097,7 @@
         },
         "required": [
           "name",
+          "id_number",
           "email",
           "password"
         ]
@@ -4991,6 +5112,11 @@
           "name": {
             "type": "string",
             "example": "أحمد المدير"
+          },
+          "idNumber": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number."
           },
           "email": {
             "type": "string",
@@ -5041,6 +5167,7 @@
         "required": [
           "id",
           "name",
+          "idNumber",
           "email",
           "phone",
           "photoUrl",
@@ -5272,7 +5399,13 @@
           "email": {
             "type": "string",
             "example": "admin@school.com",
-            "format": "email"
+            "format": "email",
+            "description": "Required when `id_number` is not provided."
+          },
+          "id_number": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number. Required when `email` is not provided."
           },
           "password": {
             "type": "string",
@@ -5286,7 +5419,6 @@
           }
         },
         "required": [
-          "email",
           "password"
         ]
       },
@@ -5410,6 +5542,11 @@
             "type": "string",
             "example": "أحمد المدير"
           },
+          "idNumber": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number."
+          },
           "email": {
             "type": "string",
             "example": "admin@school.com",
@@ -5438,6 +5575,7 @@
         "required": [
           "id",
           "name",
+          "idNumber",
           "email",
           "phone",
           "photoUrl",
@@ -5593,6 +5731,39 @@
           }
         }
       },
+      "EvaluationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mistake_weight": {
+            "type": "number",
+            "example": 4,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per mistake. Default 4."
+          },
+          "warning_weight": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per warning. Default 2."
+          },
+          "tajweed_weight": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per tajweed error. Default 1."
+          },
+          "harakat_weight": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per harakat error. Default 2."
+          }
+        }
+      },
       "CreateHalaqaDto": {
         "type": "object",
         "properties": {
@@ -5612,10 +5783,14 @@
             "example": "Memorization"
           },
           "evaluation_settings": {
-            "type": "object",
             "nullable": true,
-            "example": null,
-            "description": "Free-form JSON for evaluation weights and thresholds."
+            "description": "Per-error-type score deductions used by the frontend to compute percentage_score. Any omitted weight falls back to its default (mistake 4, warning 2, tajweed 1, harakat 2).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSettingsDto"
+              }
+            ]
           },
           "primary_teacher_user_id": {
             "type": "number",
@@ -5648,14 +5823,14 @@
             "description": "Only principal / vice_principal may change the type."
           },
           "evaluation_settings": {
-            "type": "object",
             "nullable": true,
-            "example": {
-              "weights": {
-                "mistake": 1
+            "description": "Per-error-type score deductions. Replaces the stored object wholesale — send every weight you want to keep. Omitted weights fall back to their defaults; pass null to reset to defaults.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSettingsDto"
               }
-            },
-            "description": "Free-form JSON. Pass null to clear."
+            ]
           }
         }
       },
@@ -6857,6 +7032,94 @@
           }
         }
       },
+      "MemorizationResponse": {
+        "type": "object",
+        "properties": {
+          "memorized_ayah_count": {
+            "type": "number",
+            "example": 240,
+            "description": "Number of memorized ayat (set bits)."
+          },
+          "bitmap_base64": {
+            "type": "string",
+            "example": "AAAA…",
+            "description": "Base64 of the 780-byte bitmap. Bit i (MSB-first per byte) = the i-th ayah in mushaf order, starting at Al-Fatihah:1 (index 0)."
+          }
+        },
+        "required": [
+          "memorized_ayah_count",
+          "bitmap_base64"
+        ]
+      },
+      "MemorizationEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/MemorizationResponse"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "MemorizationRangeDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
+      "EditMemorizationDto": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "Ranges to mark memorized.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemorizationRangeDto"
+            }
+          },
+          "clear": {
+            "description": "Ranges to unmark.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemorizationRangeDto"
+            }
+          }
+        }
+      },
       "SyncAttendanceEntryDto": {
         "type": "object",
         "properties": {
@@ -7502,6 +7765,106 @@
           "items"
         ]
       },
+      "PositionErrorDto": {
+        "type": "object",
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "enum": [
+              "mistake",
+              "warning",
+              "tajweed",
+              "harakat"
+            ],
+            "example": "mistake"
+          },
+          "start_word_id": {
+            "type": "number",
+            "example": 152,
+            "minimum": 1,
+            "description": "QUL word id (sequential in mushaf order)."
+          },
+          "end_word_id": {
+            "type": "number",
+            "example": 154,
+            "minimum": 1,
+            "description": "Must be >= start_word_id."
+          },
+          "surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          },
+          "juz": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 30
+          },
+          "hizb": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 60
+          }
+        },
+        "required": [
+          "error_type",
+          "start_word_id",
+          "end_word_id",
+          "surah",
+          "ayah",
+          "juz",
+          "hizb"
+        ]
+      },
+      "AchievementTestPositionDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          },
+          "errors": {
+            "description": "Errors made at this position. Each must fall within the position range. Omit or send [] for a clean position. The per-type counts are derived from this list.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
       "CreateAchievementDto": {
         "type": "object",
         "properties": {
@@ -7529,6 +7892,31 @@
             ],
             "example": "Hifz"
           },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ],
+            "default": "quick",
+            "description": "How the achievement was entered. Defaults to `quick`."
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "default": "full",
+            "description": "How it was recited. `full` auto-creates one position spanning the whole range. `test` requires `test_positions` (each within the achievement range). Defaults to `full`."
+          },
+          "test_positions": {
+            "description": "Required (>=1) when `recitation_method = test`. Rejected for `full`. Each position must fall within the achievement range and carries its own error counts; the achievement-level counts are their sum.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementTestPositionDto"
+            }
+          },
           "start_surah": {
             "type": "number",
             "example": 1,
@@ -7553,23 +7941,12 @@
             "example": 7,
             "minimum": 1
           },
-          "mistakes_count": {
-            "type": "number",
-            "example": 2,
-            "minimum": 0,
-            "description": "Defaults to 0."
-          },
-          "warnings_count": {
-            "type": "number",
-            "example": 1,
-            "minimum": 0,
-            "description": "Defaults to 0."
-          },
-          "tajweed_errors_count": {
-            "type": "number",
-            "example": 0,
-            "minimum": 0,
-            "description": "Defaults to 0."
+          "errors": {
+            "description": "Errors for `recitation_method = full` only — they attach to the single auto-created position. Rejected for `test` (send errors inside each `test_positions` entry). Each error must fall within the achievement range. The per-type counts are derived from this list.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
           },
           "percentage_score": {
             "type": "number",
@@ -7602,6 +7979,108 @@
           "percentage_score"
         ]
       },
+      "PositionErrorDtoOut": {
+        "type": "object",
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "enum": [
+              "mistake",
+              "warning",
+              "tajweed",
+              "harakat"
+            ],
+            "example": "mistake"
+          },
+          "start_word_id": {
+            "type": "number",
+            "example": 152
+          },
+          "end_word_id": {
+            "type": "number",
+            "example": 154
+          },
+          "surah": {
+            "type": "number",
+            "example": 2
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5
+          },
+          "juz": {
+            "type": "number",
+            "example": 1
+          },
+          "hizb": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "error_type",
+          "start_word_id",
+          "end_word_id",
+          "surah",
+          "ayah",
+          "juz",
+          "hizb"
+        ]
+      },
+      "RecitationPositionDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 2
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 1,
+            "description": "Derived from `errors`. Hidden for parent role."
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1,
+            "description": "Derived from `errors`. Hidden for parent role."
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0,
+            "description": "Derived from `errors`. Hidden for parent role."
+          },
+          "harakat_errors_count": {
+            "type": "number",
+            "example": 2,
+            "description": "Harakat (حركات) errors, derived from `errors`. Hidden for parent role."
+          },
+          "errors": {
+            "description": "Itemized errors at this position. Hidden for parent role.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDtoOut"
+            }
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
       "AchievementDto": {
         "type": "object",
         "properties": {
@@ -7630,6 +8109,29 @@
               "Far"
             ],
             "example": "Hifz"
+          },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ],
+            "example": "quick"
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "example": "full"
+          },
+          "recitation_positions": {
+            "description": "Recited/tested positions. One full-range row for `full`; one per tested position for `test`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecitationPositionDto"
+            }
           },
           "start_surah": {
             "type": "number",
@@ -7664,6 +8166,12 @@
             "example": 0,
             "nullable": true,
             "description": "Hidden for parent role."
+          },
+          "harakat_errors_count": {
+            "type": "object",
+            "example": 3,
+            "nullable": true,
+            "description": "Total harakat (حركات) errors across all positions. Hidden for parent role."
           },
           "percentage_score": {
             "type": "string",
@@ -7712,6 +8220,9 @@
           "halaqa_id",
           "date",
           "track_type",
+          "completion_method",
+          "recitation_method",
+          "recitation_positions",
           "start_surah",
           "start_verse",
           "end_surah",
@@ -7763,6 +8274,28 @@
             ],
             "example": "Hifz"
           },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ]
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "description": "Changing to `full` replaces positions with one full-range row. Changing to `test` requires `test_positions`."
+          },
+          "test_positions": {
+            "description": "Replaces the achievement's positions. Required when setting `recitation_method = test`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementTestPositionDto"
+            }
+          },
           "start_surah": {
             "type": "number",
             "example": 1,
@@ -7785,20 +8318,12 @@
             "example": 7,
             "minimum": 1
           },
-          "mistakes_count": {
-            "type": "number",
-            "example": 2,
-            "minimum": 0
-          },
-          "warnings_count": {
-            "type": "number",
-            "example": 1,
-            "minimum": 0
-          },
-          "tajweed_errors_count": {
-            "type": "number",
-            "example": 0,
-            "minimum": 0
+          "errors": {
+            "description": "Errors for `recitation_method = full` only — replaces the single position's errors and the derived totals. Rejected for `test` (resend `test_positions` with their errors instead).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
           },
           "percentage_score": {
             "type": "number",
@@ -7832,6 +8357,13 @@
             "minimum": 0,
             "maximum": 6,
             "description": "0=Saturday … 6=Friday."
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "default": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first). Defaults to 0."
           },
           "start_surah": {
             "type": "number",
@@ -7921,6 +8453,11 @@
             "example": 2,
             "description": "0=Saturday … 6=Friday."
           },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first)."
+          },
           "start_surah": {
             "type": "number",
             "example": 1
@@ -7969,6 +8506,7 @@
           "id",
           "track_type",
           "day_of_week",
+          "order",
           "start_surah",
           "start_verse",
           "end_surah",
@@ -8082,6 +8620,12 @@
             "minimum": 0,
             "maximum": 6,
             "description": "0=Saturday … 6=Friday."
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first)."
           },
           "start_surah": {
             "type": "number",
