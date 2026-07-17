@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
 import { AttendanceQueryService } from '../../attendance/services/attendance-query.service';
+import { MemorizationService } from '../../students/services/memorization.service';
 import { AchievementsService, CreateAchievementInput } from './achievements.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
@@ -96,6 +97,20 @@ const makeRepo = () => ({
   }),
 });
 
+let positionIdSeq = 1;
+const makePositionsRepo = () => ({
+  delete: jest.fn().mockResolvedValue(undefined),
+  create: jest.fn().mockImplementation((x) => x),
+  // save returns the row with an id so replacePositions can attach error rows.
+  save: jest.fn().mockImplementation((x) => Promise.resolve({ id: positionIdSeq++, ...x })),
+  find: jest.fn().mockResolvedValue([]),
+});
+
+const makePositionErrorsRepo = () => ({
+  create: jest.fn().mockImplementation((x) => x),
+  save: jest.fn().mockResolvedValue(undefined),
+});
+
 const makeDataSource = (queryResults: unknown[][] = [[{ 1: 1 }], [EVAL_SETTINGS]]) => {
   let callIndex = 0;
   return {
@@ -113,10 +128,14 @@ const makeAudit = () => ({ log: jest.fn().mockResolvedValue(undefined) } as unkn
 const makeReconciliation = () => ({ reconcileForAchievement: jest.fn().mockResolvedValue(undefined), reconcileItem: jest.fn().mockResolvedValue(undefined) } as unknown as PlanReconciliationService);
 const makeAttendance = () => ({ findForStudentOnDate: jest.fn().mockResolvedValue({ id: 1, status: 'present' }) } as unknown as AttendanceQueryService);
 const makeRangeValidator = () => new QuranRangeValidator();
+const makeMemorization = () =>
+  ({ enqueueRecompute: jest.fn().mockResolvedValue(undefined) } as unknown as MemorizationService);
 
 const makeService = (
   overrides: {
     repo?: ReturnType<typeof makeRepo>;
+    positions?: ReturnType<typeof makePositionsRepo>;
+    positionErrors?: ReturnType<typeof makePositionErrorsRepo>;
     ds?: DataSource;
     audit?: AuditService;
     recon?: PlanReconciliationService;
@@ -124,6 +143,8 @@ const makeService = (
   } = {},
 ) => {
   const repo = overrides.repo ?? makeRepo();
+  const positions = overrides.positions ?? makePositionsRepo();
+  const positionErrors = overrides.positionErrors ?? makePositionErrorsRepo();
   const ds = overrides.ds ?? makeDataSource();
   const audit = overrides.audit ?? makeAudit();
   const recon = overrides.recon ?? makeReconciliation();
@@ -131,11 +152,14 @@ const makeService = (
 
   return new AchievementsService(
     repo as any,
+    positions as any,
+    positionErrors as any,
     ds,
     attendance,
     audit,
     recon,
     makeRangeValidator(),
+    makeMemorization(),
   );
 };
 
@@ -343,7 +367,7 @@ describe('AchievementsService', () => {
 
       const service = makeService({ repo });
 
-      await expect(service.update(1, { mistakesCount: 2 }, makeActor())).rejects.toThrow(
+      await expect(service.update(1, { percentageScore: 90 }, makeActor())).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -368,6 +392,148 @@ describe('AchievementsService', () => {
       const service = makeService({ repo, ds });
 
       await expect(service.update(1, {}, makeTeacherActor())).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── error counts & positions ─────────────────────────────────────────────
+
+  describe('error counts (derived from itemized errors)', () => {
+    const err = (
+      errorType: 'mistake' | 'warning' | 'tajweed' | 'harakat',
+      surah: number,
+      ayah: number,
+    ) => ({ errorType, startWordId: 1, endWordId: 1, surah, ayah, juz: 1, hizb: 1 });
+
+    it('full: top-level errors attach to the single position with derived counts', async () => {
+      const repo = makeRepo();
+      const positions = makePositionsRepo();
+      const positionErrors = makePositionErrorsRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) => Promise.resolve(Object.assign(x, { id: 9 })));
+
+      const service = makeService({ repo, positions, positionErrors, ds: makeDataSource([[EVAL_SETTINGS]]) });
+      await service.create(
+        {
+          ...CREATE_INPUT,
+          recitationMethod: 'full',
+          errors: [err('mistake', 1, 1), err('mistake', 1, 2), err('harakat', 1, 3)],
+        },
+        makeActor(),
+      );
+
+      // Position row gets counts derived from its errors.
+      expect(positions.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startSurah: 1,
+          endVerse: 7,
+          mistakesCount: 2,
+          warningsCount: 0,
+          tajweedErrorsCount: 0,
+          harakatErrorsCount: 1,
+        }),
+      );
+      // Three error rows persisted, denormalized with student/school/date.
+      const savedErrors = positionErrors.save.mock.calls[0][0];
+      expect(savedErrors).toHaveLength(3);
+      expect(savedErrors[0]).toMatchObject({ studentId: 5, date: '2026-05-11', positionId: expect.any(Number) });
+    });
+
+    it('test: achievement counts are the sum across positions', async () => {
+      const repo = makeRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) => Promise.resolve(Object.assign(x, { id: 9 })));
+
+      const service = makeService({ repo, ds: makeDataSource([[EVAL_SETTINGS]]) });
+      await service.create(
+        {
+          ...CREATE_INPUT,
+          recitationMethod: 'test',
+          testPositions: [
+            { startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3, errors: [err('mistake', 1, 1), err('harakat', 1, 2), err('harakat', 1, 3)] },
+            { startSurah: 1, startVerse: 5, endSurah: 1, endVerse: 7, errors: [err('mistake', 1, 5), err('mistake', 1, 6), err('warning', 1, 5), err('warning', 1, 6), err('warning', 1, 7), err('warning', 1, 7), err('harakat', 1, 5)] },
+          ],
+        },
+        makeActor(),
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mistakesCount: 3,
+          warningsCount: 4,
+          tajweedErrorsCount: 0,
+          harakatErrorsCount: 3,
+        }),
+      );
+    });
+
+    it('test: rejects top-level errors (they belong on the positions)', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create(
+          {
+            ...CREATE_INPUT,
+            recitationMethod: 'test',
+            testPositions: [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 }],
+            errors: [err('mistake', 1, 1)],
+          },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('full: rejects test_positions', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create(
+          {
+            ...CREATE_INPUT,
+            recitationMethod: 'full',
+            testPositions: [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 }],
+          },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects an error whose ayah falls outside its position range', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create(
+          {
+            ...CREATE_INPUT,
+            startSurah: 1,
+            startVerse: 1,
+            endSurah: 1,
+            endVerse: 7,
+            recitationMethod: 'full',
+            errors: [err('mistake', 2, 1)], // surah 2 is outside the achievement's surah-1 range
+          },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('update full: sending errors replaces the position and derives totals', async () => {
+      const repo = makeRepo();
+      const positions = makePositionsRepo();
+      const achievement = makeAchievement({ status: 'unapproved', recitationMethod: 'full' });
+      repo.findOne.mockResolvedValue(achievement);
+      repo.save.mockResolvedValue(achievement);
+
+      const service = makeService({ repo, positions });
+      await service.update(
+        1,
+        { errors: [err('warning', 1, 1), err('warning', 1, 2), err('tajweed', 1, 3)] },
+        makeActor(),
+      );
+
+      expect(achievement.mistakesCount).toBe(0);
+      expect(achievement.warningsCount).toBe(2);
+      expect(achievement.tajweedErrorsCount).toBe(1);
+      expect(achievement.harakatErrorsCount).toBe(0);
     });
   });
 

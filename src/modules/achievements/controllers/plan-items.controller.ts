@@ -58,6 +58,7 @@ export class PlanItemsController {
       {
         trackType: dto.track_type,
         dayOfWeek: dto.day_of_week,
+        order: dto.order,
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,
@@ -121,6 +122,7 @@ export class PlanItemsController {
       {
         trackType: dto.track_type,
         dayOfWeek: dto.day_of_week,
+        order: dto.order,
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,

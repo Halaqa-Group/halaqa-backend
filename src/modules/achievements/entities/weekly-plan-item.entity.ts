@@ -32,6 +32,11 @@ export class WeeklyPlanItem {
   @Column({ name: 'day_of_week', type: 'tinyint', unsigned: true })
   dayOfWeek!: number;
 
+  // Reconciliation priority tie-breaker within the same day_of_week + track_type.
+  // Lower value = higher priority (claims shared verses first). Defaults to 0.
+  @Column({ name: 'order', type: 'int', unsigned: true, default: 0 })
+  order!: number;
+
   @Column({ name: 'start_surah', type: 'smallint', unsigned: true })
   startSurah!: number;
 

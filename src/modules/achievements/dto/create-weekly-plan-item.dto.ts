@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import type { TrackType } from '../entities/achievement.entity';
 
 export class CreateWeeklyPlanItemDto {
@@ -14,6 +14,19 @@ export class CreateWeeklyPlanItemDto {
   @Min(0)
   @Max(6)
   day_of_week!: number;
+
+  @ApiProperty({
+    required: false,
+    example: 0,
+    minimum: 0,
+    default: 0,
+    description: 'Reconciliation priority within the same day + track (lower = first). Defaults to 0.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  order?: number;
 
   @ApiProperty({ example: 1, minimum: 1, maximum: 114 })
   @Type(() => Number)

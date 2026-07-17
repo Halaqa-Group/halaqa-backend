@@ -78,6 +78,7 @@ export class WeeklyPlansController {
         items: dto.items.map((item) => ({
           trackType: item.track_type,
           dayOfWeek: item.day_of_week,
+          order: item.order,
           startSurah: item.start_surah,
           startVerse: item.start_verse,
           endSurah: item.end_surah,

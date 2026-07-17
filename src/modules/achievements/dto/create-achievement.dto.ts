@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -11,8 +13,11 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import type { TrackType } from '../entities/achievement.entity';
+import type { CompletionMethod, RecitationMethod, TrackType } from '../entities/achievement.entity';
+import { AchievementTestPositionDto } from './achievement-test-position.dto';
+import { PositionErrorDto } from './position-error.dto';
 
 export class CreateAchievementDto {
   @ApiProperty({ example: 42, description: "Student ID. Must belong to the caller's school." })
@@ -32,6 +37,43 @@ export class CreateAchievementDto {
   @ApiProperty({ enum: ['Hifz', 'Near', 'Far'], example: 'Hifz' })
   @IsEnum(['Hifz', 'Near', 'Far'])
   track_type!: TrackType;
+
+  @ApiProperty({
+    required: false,
+    enum: ['quick', 'mushaf'],
+    default: 'quick',
+    description: 'How the achievement was entered. Defaults to `quick`.',
+  })
+  @IsOptional()
+  @IsEnum(['quick', 'mushaf'])
+  completion_method?: CompletionMethod;
+
+  @ApiProperty({
+    required: false,
+    enum: ['full', 'test'],
+    default: 'full',
+    description:
+      "How it was recited. `full` auto-creates one position spanning the whole range. " +
+      "`test` requires `test_positions` (each within the achievement range). Defaults to `full`.",
+  })
+  @IsOptional()
+  @IsEnum(['full', 'test'])
+  recitation_method?: RecitationMethod;
+
+  @ApiProperty({
+    required: false,
+    type: [AchievementTestPositionDto],
+    description:
+      'Required (>=1) when `recitation_method = test`. Rejected for `full`. Each position must fall ' +
+      'within the achievement range and carries its own error counts; the achievement-level counts ' +
+      'are their sum.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => AchievementTestPositionDto)
+  test_positions?: AchievementTestPositionDto[];
 
   @ApiProperty({ example: 1, minimum: 1, maximum: 114, description: 'Starting surah (1–114).' })
   @Type(() => Number)
@@ -59,26 +101,19 @@ export class CreateAchievementDto {
   @Min(1)
   end_verse!: number;
 
-  @ApiProperty({ required: false, example: 2, minimum: 0, description: 'Defaults to 0.' })
+  @ApiProperty({
+    required: false,
+    type: [PositionErrorDto],
+    description:
+      'Errors for `recitation_method = full` only — they attach to the single auto-created position. ' +
+      'Rejected for `test` (send errors inside each `test_positions` entry). ' +
+      'Each error must fall within the achievement range. The per-type counts are derived from this list.',
+  })
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  mistakes_count?: number;
-
-  @ApiProperty({ required: false, example: 1, minimum: 0, description: 'Defaults to 0.' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  warnings_count?: number;
-
-  @ApiProperty({ required: false, example: 0, minimum: 0, description: 'Defaults to 0.' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  tajweed_errors_count?: number;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PositionErrorDto)
+  errors?: PositionErrorDto[];
 
   @ApiProperty({
     example: 92.5,

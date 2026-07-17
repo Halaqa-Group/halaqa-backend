@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsObject,
@@ -6,8 +7,10 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import type { HalaqaType } from '../entities/halaqa.entity';
+import { EvaluationSettingsDto } from './evaluation-settings.dto';
 
 export class UpdateHalaqaDto {
   @ApiProperty({
@@ -35,10 +38,14 @@ export class UpdateHalaqaDto {
   @ApiProperty({
     required: false,
     nullable: true,
-    example: { weights: { mistake: 1.0 } },
-    description: 'Free-form JSON. Pass null to clear.',
+    type: EvaluationSettingsDto,
+    description:
+      'Per-error-type score deductions. Replaces the stored object wholesale — send every weight ' +
+      'you want to keep. Omitted weights fall back to their defaults; pass null to reset to defaults.',
   })
   @IsOptional()
   @IsObject()
-  evaluation_settings?: Record<string, unknown> | null;
+  @ValidateNested()
+  @Type(() => EvaluationSettingsDto)
+  evaluation_settings?: EvaluationSettingsDto | null;
 }

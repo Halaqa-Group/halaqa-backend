@@ -19,6 +19,7 @@ import { PlanReconciliationService } from './plan-reconciliation.service';
 export interface CreateWeeklyPlanItemInput {
   trackType: TrackType;
   dayOfWeek: number;
+  order?: number;
   startSurah: number;
   startVerse: number;
   endSurah: number;
@@ -194,6 +195,7 @@ export class WeeklyPlansService {
         this.planItems.create({
           trackType: item.trackType,
           dayOfWeek: item.dayOfWeek,
+          order: item.order ?? 0,
           startSurah: item.startSurah,
           startVerse: item.startVerse,
           endSurah: item.endSurah,
@@ -314,8 +316,8 @@ export class WeeklyPlansService {
       newValues: { approvedBy: actor.id },
     });
 
-    // Reconcile every item now that the plan is approved
-    await Promise.all(plan.items.map((item) => this.reconciliation.reconcileItem(item.id)));
+    // Reconcile the whole plan now that it is approved
+    await this.reconciliation.reconcilePlan(id);
 
     return this.loadOrFail(id, actor.schoolId);
   }

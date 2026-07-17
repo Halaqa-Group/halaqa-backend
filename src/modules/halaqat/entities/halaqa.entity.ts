@@ -11,6 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { School } from '../../tenant/school.entity';
+import type { EvaluationSettings } from '../dto/evaluation-settings.dto';
 
 export type HalaqaType = 'Memorization' | 'Tajweed' | 'Aqeedah';
 export type HalaqaStatus = 'active' | 'archived' | 'completed';
@@ -34,8 +35,9 @@ export class Halaqa {
   })
   type!: HalaqaType;
 
+  // NULL means "no weights configured" — reads resolve every weight to its default.
   @Column({ name: 'evaluation_settings', type: 'json', nullable: true })
-  evaluationSettings!: Record<string, unknown> | null;
+  evaluationSettings!: Partial<EvaluationSettings> | null;
 
   @Column({
     type: 'enum',

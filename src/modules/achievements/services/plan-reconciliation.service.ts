@@ -1,22 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Between, Repository } from 'typeorm';
 import { SURAH_VERSES } from '../../../quran/quran.constants';
 import { Achievement } from '../entities/achievement.entity';
 import type { PlanItemStatus } from '../entities/weekly-plan-item.entity';
 import { WeeklyPlanItem } from '../entities/weekly-plan-item.entity';
+import { WeeklyPlan } from '../entities/weekly-plan.entity';
 
 /**
- * Implements the "invoice + payments" reconciliation between approved achievements
- * and weekly plan items. Each plan item is an invoice; each approved achievement
- * covering overlapping verses is a payment. See SKILL.md §Reconciliation.
+ * Week-level "invoice + payments" reconciliation between approved achievements
+ * and weekly plan items. See SKILL.md §Reconciliation.
+ *
+ * The whole plan (week) reconciles as a unit, not one item in isolation: an
+ * approved achievement on ANY day of the week can settle ANY item in that week
+ * whose range it overlaps. Each achieved verse is *consumed* by a single item —
+ * the earliest one (lowest day_of_week, then lowest id) claims it, so a verse
+ * planned in two items only credits the first. That's why an item can't be
+ * reconciled alone: what an earlier item consumes changes what's left for later
+ * items.
  */
 @Injectable()
 export class PlanReconciliationService {
   constructor(
     @InjectRepository(WeeklyPlanItem) private readonly items: Repository<WeeklyPlanItem>,
     @InjectRepository(Achievement) private readonly achievements: Repository<Achievement>,
-    @InjectDataSource() private readonly dataSource: DataSource,
+    @InjectRepository(WeeklyPlan) private readonly plans: Repository<WeeklyPlan>,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -36,15 +44,6 @@ export class PlanReconciliationService {
     return set;
   }
 
-  /** Set intersection of two verse-key sets. */
-  private intersect(a: Set<string>, b: Set<string>): Set<string> {
-    const result = new Set<string>();
-    for (const key of a) {
-      if (b.has(key)) result.add(key);
-    }
-    return result;
-  }
-
   /** Add `days` days to a YYYY-MM-DD string, returns YYYY-MM-DD. Uses UTC to avoid DST shifts. */
   private addDays(dateStr: string, days: number): string {
     const d = new Date(`${dateStr}T00:00:00Z`);
@@ -55,76 +54,111 @@ export class PlanReconciliationService {
   // ─── Core reconciliation ──────────────────────────────────────────────────
 
   /**
-   * Recomputes `achieved_verses` and `status` for a single plan item by summing
-   * the union of all approved-achievement verse overlaps for that item's day.
+   * Reconciles every item in a plan (week) as a unit. Builds a per-track pool of
+   * verses achieved anywhere in the week, then walks items in priority order
+   * (day_of_week asc, then id asc), letting each item consume the pool verses it
+   * covers. Consumed verses are removed so a later item planning the same verse
+   * won't be credited again — "priority to the earliest item in the week".
    */
-  async reconcileItem(planItemId: number): Promise<void> {
-    const item = await this.items.findOne({
-      where: { id: planItemId },
-      relations: ['weeklyPlan'],
-    });
-    if (!item) return;
+  async reconcilePlan(planId: number): Promise<void> {
+    // Soft-deleted plans are excluded automatically via @DeleteDateColumn.
+    const plan = await this.plans.findOne({ where: { id: planId }, relations: ['items'] });
+    if (!plan) return;
 
-    const plan = item.weeklyPlan;
-    const itemDate = this.addDays(plan.weekStartDate, item.dayOfWeek);
+    const weekStart = plan.weekStartDate;
+    const weekEnd = this.addDays(weekStart, 6);
 
-    // All approved non-deleted achievements that could contribute to this item
+    // Every approved, non-deleted achievement anywhere in the plan's week.
     const candidates = await this.achievements.find({
       where: {
         studentId: plan.studentId,
         halaqaId: plan.halaqaId,
-        date: itemDate,
-        trackType: item.trackType,
         status: 'approved',
+        date: Between(weekStart, weekEnd),
       },
     });
 
-    const itemSet = this.expandRange(item.startSurah, item.startVerse, item.endSurah, item.endVerse);
-    const union = new Set<string>();
-
+    // Per-track pool of achieved verse keys. Mutable — items consume from it.
+    const poolByTrack = new Map<string, Set<string>>();
     for (const ach of candidates) {
-      const achSet = this.expandRange(ach.startSurah, ach.startVerse, ach.endSurah, ach.endVerse);
-      for (const key of this.intersect(achSet, itemSet)) union.add(key);
+      let pool = poolByTrack.get(ach.trackType);
+      if (!pool) {
+        pool = new Set<string>();
+        poolByTrack.set(ach.trackType, pool);
+      }
+      for (const key of this.expandRange(ach.startSurah, ach.startVerse, ach.endSurah, ach.endVerse)) {
+        pool.add(key);
+      }
     }
 
-    const achievedVerses = union.size;
+    // Priority order: earliest day first, then explicit `order`, then creation order (id).
+    const ordered = [...(plan.items ?? [])].sort(
+      (a, b) => a.dayOfWeek - b.dayOfWeek || a.order - b.order || a.id - b.id,
+    );
+    const today = new Date().toISOString().slice(0, 10);
 
-    let status: PlanItemStatus;
-    if (achievedVerses >= item.totalVerses) {
-      status = 'completed';
-    } else if (achievedVerses > 0) {
-      status = 'partial';
-    } else {
-      const today = new Date().toISOString().slice(0, 10);
-      status = itemDate < today ? 'overdue' : 'due';
+    for (const item of ordered) {
+      const pool = poolByTrack.get(item.trackType);
+      const itemSet = this.expandRange(item.startSurah, item.startVerse, item.endSurah, item.endVerse);
+
+      let achievedVerses = 0;
+      if (pool) {
+        for (const key of itemSet) {
+          if (pool.has(key)) {
+            achievedVerses++;
+            pool.delete(key); // consume — earliest item claims the verse
+          }
+        }
+      }
+
+      let status: PlanItemStatus;
+      if (achievedVerses >= item.totalVerses) {
+        status = 'completed';
+      } else if (achievedVerses > 0) {
+        status = 'partial';
+      } else {
+        const itemDate = this.addDays(weekStart, item.dayOfWeek);
+        status = itemDate < today ? 'overdue' : 'due';
+      }
+
+      await this.items.update(item.id, { achievedVerses, status });
     }
+  }
 
-    await this.items.update(planItemId, { achievedVerses, status });
+  /**
+   * Reconciles the plan that owns a single item. Kept for callers that only hold
+   * an item id (e.g. after a range edit); reconciliation is always plan-wide
+   * because item results are interdependent.
+   */
+  async reconcileItem(planItemId: number): Promise<void> {
+    const item = await this.items.findOne({
+      where: { id: planItemId },
+      select: { id: true, weeklyPlanId: true },
+    });
+    if (!item) return;
+    await this.reconcilePlan(item.weeklyPlanId);
   }
 
   /**
    * Entry point called from AchievementsService after approve/unapprove/delete.
-   * Finds every plan item whose computed date matches the achievement's date,
-   * then reconciles each one.
+   * Finds every plan whose week contains the achievement's date and reconciles
+   * each one whole.
    */
   async reconcileForAchievement(achievementId: number): Promise<void> {
-    // Load without scope guard — this is an internal trigger, not an HTTP action.
     // TypeORM automatically excludes soft-deleted achievements via @DeleteDateColumn.
     const achievement = await this.achievements.findOne({ where: { id: achievementId } });
     if (!achievement) return;
 
-    const rows: { id: number }[] = await this.dataSource.manager.query(
-      `SELECT wpi.id
-       FROM weekly_plan_items wpi
-       JOIN weekly_plans wp ON wp.id = wpi.weekly_plan_id
-       WHERE wp.student_id = ?
-         AND wp.halaqa_id = ?
-         AND wp.deleted_at IS NULL
-         AND wpi.track_type = ?
-         AND DATE_ADD(wp.week_start_date, INTERVAL wpi.day_of_week DAY) = ?`,
-      [achievement.studentId, achievement.halaqaId, achievement.trackType, achievement.date],
-    );
+    // A plan covers the achievement's date when week_start_date ∈ [date-6, date].
+    const plans = await this.plans.find({
+      where: {
+        studentId: achievement.studentId,
+        halaqaId: achievement.halaqaId,
+        weekStartDate: Between(this.addDays(achievement.date, -6), achievement.date),
+      },
+      select: { id: true },
+    });
 
-    await Promise.all(rows.map((r) => this.reconcileItem(r.id)));
+    await Promise.all(plans.map((p) => this.reconcilePlan(p.id)));
   }
 }

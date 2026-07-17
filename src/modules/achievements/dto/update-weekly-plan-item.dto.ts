@@ -17,6 +17,18 @@ export class UpdateWeeklyPlanItemDto {
   @Max(6)
   day_of_week?: number;
 
+  @ApiProperty({
+    required: false,
+    example: 0,
+    minimum: 0,
+    description: 'Reconciliation priority within the same day + track (lower = first).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  order?: number;
+
   @ApiProperty({ required: false, example: 1, minimum: 1, maximum: 114 })
   @IsOptional()
   @Type(() => Number)

@@ -23,11 +23,38 @@ import { ApiMessage } from '../../../common/api-message';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { AchievementTestPositionDto } from '../dto/achievement-test-position.dto';
 import { CreateAchievementDto } from '../dto/create-achievement.dto';
 import { ListAchievementsQuery } from '../dto/list-achievements.query';
+import { PositionErrorDto } from '../dto/position-error.dto';
 import { UpdateAchievementDto } from '../dto/update-achievement.dto';
 import { AchievementDto, AchievementListData } from '../mappers/achievement.dto';
+import type { PositionErrorInput, PositionInput } from '../services/achievements.service';
 import { AchievementsService } from '../services/achievements.service';
+
+/** Maps a snake_case error DTO to the service's camelCase shape. */
+function mapErrorDto(e: PositionErrorDto): PositionErrorInput {
+  return {
+    errorType: e.error_type,
+    startWordId: e.start_word_id,
+    endWordId: e.end_word_id,
+    surah: e.surah,
+    ayah: e.ayah,
+    juz: e.juz,
+    hizb: e.hizb,
+  };
+}
+
+/** Maps a snake_case position DTO to the service's camelCase shape. */
+function mapPositionDto(p: AchievementTestPositionDto): PositionInput {
+  return {
+    startSurah: p.start_surah,
+    startVerse: p.start_verse,
+    endSurah: p.end_surah,
+    endVerse: p.end_verse,
+    errors: p.errors?.map(mapErrorDto),
+  };
+}
 
 @ApiTags('Achievements')
 @ApiBearerAuth('access-token')
@@ -62,13 +89,14 @@ export class AchievementsController {
         halaqaId: dto.halaqa_id,
         date: dto.date,
         trackType: dto.track_type,
+        completionMethod: dto.completion_method,
+        recitationMethod: dto.recitation_method,
+        testPositions: dto.test_positions?.map(mapPositionDto),
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
-        mistakesCount: dto.mistakes_count,
-        warningsCount: dto.warnings_count,
-        tajweedErrorsCount: dto.tajweed_errors_count,
+        errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
         approve: dto.approve,
@@ -78,7 +106,8 @@ export class AchievementsController {
 
     const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
     const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const positions = await this.service.resolvePositions([achievement.id]);
+    return AchievementDto.fromEntity(achievement, actor, userMap, positions.get(achievement.id));
   }
 
   // ─── List ─────────────────────────────────────────────────────────────────
@@ -122,9 +151,10 @@ export class AchievementsController {
       if (a.approvedBy) userIds.add(a.approvedBy);
     }
     const userMap = await this.service.resolveUserNames([...userIds], actor.schoolId);
+    const positions = await this.service.resolvePositions(result.items.map((a) => a.id));
 
     return {
-      items: result.items.map((a) => AchievementDto.fromEntity(a, actor, userMap)),
+      items: result.items.map((a) => AchievementDto.fromEntity(a, actor, userMap, positions.get(a.id))),
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -152,7 +182,8 @@ export class AchievementsController {
     const achievement = await this.service.findOne(id, actor);
     const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
     const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const positions = await this.service.resolvePositions([achievement.id]);
+    return AchievementDto.fromEntity(achievement, actor, userMap, positions.get(achievement.id));
   }
 
   // ─── Update ───────────────────────────────────────────────────────────────
@@ -181,13 +212,14 @@ export class AchievementsController {
       id,
       {
         trackType: dto.track_type,
+        completionMethod: dto.completion_method,
+        recitationMethod: dto.recitation_method,
+        testPositions: dto.test_positions?.map(mapPositionDto),
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
-        mistakesCount: dto.mistakes_count,
-        warningsCount: dto.warnings_count,
-        tajweedErrorsCount: dto.tajweed_errors_count,
+        errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
       },
@@ -196,7 +228,8 @@ export class AchievementsController {
 
     const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
     const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const positions = await this.service.resolvePositions([achievement.id]);
+    return AchievementDto.fromEntity(achievement, actor, userMap, positions.get(achievement.id));
   }
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -249,7 +282,8 @@ export class AchievementsController {
     const achievement = await this.service.approve(id, actor);
     const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
     const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const positions = await this.service.resolvePositions([achievement.id]);
+    return AchievementDto.fromEntity(achievement, actor, userMap, positions.get(achievement.id));
   }
 
   // ─── Unapprove ────────────────────────────────────────────────────────────
@@ -278,6 +312,7 @@ export class AchievementsController {
     const achievement = await this.service.unapprove(id, actor);
     const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
     const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const positions = await this.service.resolvePositions([achievement.id]);
+    return AchievementDto.fromEntity(achievement, actor, userMap, positions.get(achievement.id));
   }
 }

@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AuditLog } from '../modules/audit/audit-log.entity';
 import { Achievement } from '../modules/achievements/entities/achievement.entity';
+import { AchievementRecitationPosition } from '../modules/achievements/entities/achievement-recitation-position.entity';
+import { AchievementPositionError } from '../modules/achievements/entities/achievement-position-error.entity';
 import { WeeklyPlan } from '../modules/achievements/entities/weekly-plan.entity';
 import { WeeklyPlanItem } from '../modules/achievements/entities/weekly-plan-item.entity';
 import { Holiday } from '../modules/attendance/entities/holiday.entity';
@@ -19,6 +21,7 @@ import { StudentHalaqa } from '../modules/halaqat/entities/student-halaqa.entity
 import { SupervisorHalaqa } from '../modules/halaqat/entities/supervisor-halaqa.entity';
 import { Role } from '../modules/roles/role.entity';
 import { UserRole } from '../modules/roles/user-role.entity';
+import { MemorizationJob } from '../modules/students/entities/memorization-job.entity';
 import { StudentGuardian } from '../modules/students/entities/student-guardian.entity';
 import { Student } from '../modules/students/entities/student.entity';
 import { School } from '../modules/tenant/school.entity';
@@ -52,12 +55,15 @@ export default new DataSource({
     AuditLog,
     Student,
     StudentGuardian,
+    MemorizationJob,
     Halaqa,
     HalaqaTeacher,
     StudentHalaqa,
     SupervisorHalaqa,
     HalaqaActivityLog,
     Achievement,
+    AchievementRecitationPosition,
+    AchievementPositionError,
     WeeklyPlan,
     WeeklyPlanItem,
     StudentAttendance,

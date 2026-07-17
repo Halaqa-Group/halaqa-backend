@@ -9,6 +9,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { CreateHalaqaDto } from '../dto/create-halaqa.dto';
+import { resolveEvaluationSettings } from '../dto/evaluation-settings.dto';
 import type {
   HalaqaCreatedResponse,
   HalaqaDetailResponse,
@@ -235,7 +236,7 @@ export class HalaqatService {
       school_id: halaqa.schoolId,
       name: halaqa.name,
       type: halaqa.type,
-      evaluation_settings: halaqa.evaluationSettings,
+      evaluation_settings: resolveEvaluationSettings(halaqa.evaluationSettings),
       status: halaqa.status,
       teachers: detail.teachers,
       supervisors: detail.supervisors,
@@ -298,7 +299,7 @@ export class HalaqatService {
         school_id: halaqa.schoolId,
         name: halaqa.name,
         type: halaqa.type,
-        evaluation_settings: halaqa.evaluationSettings,
+        evaluation_settings: resolveEvaluationSettings(halaqa.evaluationSettings),
         status: halaqa.status,
         created_at: halaqa.createdAt,
       };

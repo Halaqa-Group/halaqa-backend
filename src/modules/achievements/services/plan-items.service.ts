@@ -17,6 +17,7 @@ import { PlanReconciliationService } from './plan-reconciliation.service';
 export interface AddItemInput {
   trackType: TrackType;
   dayOfWeek: number;
+  order?: number;
   startSurah: number;
   startVerse: number;
   endSurah: number;
@@ -26,6 +27,7 @@ export interface AddItemInput {
 export interface UpdateItemInput {
   trackType?: TrackType;
   dayOfWeek?: number;
+  order?: number;
   startSurah?: number;
   startVerse?: number;
   endSurah?: number;
@@ -112,6 +114,7 @@ export class PlanItemsService {
       weeklyPlanId: planId,
       trackType: input.trackType,
       dayOfWeek: input.dayOfWeek,
+      order: input.order ?? 0,
       startSurah: input.startSurah,
       startVerse: input.startVerse,
       endSurah: input.endSurah,
@@ -198,6 +201,7 @@ export class PlanItemsService {
     // Apply changes
     if (input.trackType !== undefined) item.trackType = input.trackType;
     if (input.dayOfWeek !== undefined) item.dayOfWeek = input.dayOfWeek;
+    if (input.order !== undefined) item.order = input.order;
     if (input.startSurah !== undefined) item.startSurah = input.startSurah;
     if (input.startVerse !== undefined) item.startVerse = input.startVerse;
     if (input.endSurah !== undefined) item.endSurah = input.endSurah;
@@ -233,8 +237,14 @@ export class PlanItemsService {
       },
     });
 
-    // Reconcile whenever the matching criteria (range, track_type, day_of_week) change
-    if (rangeChanged || input.trackType !== undefined || input.dayOfWeek !== undefined) {
+    // Reconcile whenever the matching criteria or priority (range, track_type,
+    // day_of_week, order) change — order affects consumption priority in the week.
+    if (
+      rangeChanged ||
+      input.trackType !== undefined ||
+      input.dayOfWeek !== undefined ||
+      input.order !== undefined
+    ) {
       await this.reconciliation.reconcileItem(itemId);
     }
 
