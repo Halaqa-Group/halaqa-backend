@@ -74,6 +74,19 @@ export class Student {
   })
   dailyFarPagesCapacity!: number;
 
+  // Bitmap of memorized ayat, one bit per ayah in mushaf order (see quran-bitmap.ts).
+  // NULL = nothing memorized. Maintained by the memorization recompute worker
+  // (union of approved Hifz achievements) and by manual edits.
+  // VARBINARY (not BINARY — BINARY caps at 255 bytes). Always written full-length
+  // (780 bytes); short/NULL legacy values are zero-padded on read (see toBitmap).
+  @Column({
+    name: 'memorized_ayat',
+    type: 'varbinary',
+    length: 780,
+    nullable: true,
+  })
+  memorizedAyat!: Buffer | null;
+
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 

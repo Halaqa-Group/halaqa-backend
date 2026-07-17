@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
@@ -59,19 +56,28 @@ function makeSgRow(overrides?: Partial<StudentGuardian>): StudentGuardian {
 
 function makeSgRepo(rows: StudentGuardian[] = []) {
   return {
-    findOne: jest.fn().mockImplementation(({ where }: { where: Record<string, unknown> }) =>
-      Promise.resolve(rows.find((r) => r.guardianUserId === where['guardianUserId']) ?? null),
-    ),
+    findOne: jest
+      .fn()
+      .mockImplementation(({ where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          rows.find((r) => r.guardianUserId === where['guardianUserId']) ??
+            null,
+        ),
+      ),
     find: jest.fn().mockResolvedValue(rows),
   };
 }
 
 function makeAudit() {
-  return { log: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<AuditService>;
+  return {
+    log: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<AuditService>;
 }
 
 function makeNotifications() {
-  return { notifyRole: jest.fn().mockResolvedValue(undefined) } as jest.Mocked<NotificationService>;
+  return {
+    notifyRole: jest.fn().mockResolvedValue(undefined),
+  } as jest.Mocked<NotificationService>;
 }
 
 function makeUsersService(findByEmailResult: User | null = null) {
@@ -82,7 +88,15 @@ function makeUsersService(findByEmailResult: User | null = null) {
 }
 
 interface TxMocks {
-  sgRepo: { findOne: jest.Mock; count: jest.Mock; save: jest.Mock; find: jest.Mock; update: jest.Mock; delete: jest.Mock; create: jest.Mock };
+  sgRepo: {
+    findOne: jest.Mock;
+    count: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    create: jest.Mock;
+  };
   userRepo: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   studentRepo: { findOne: jest.Mock };
 }
@@ -92,7 +106,11 @@ function makeTxMocks(existingGuardians: StudentGuardian[] = []): TxMocks {
     sgRepo: {
       findOne: jest.fn().mockResolvedValue(null),
       count: jest.fn().mockResolvedValue(existingGuardians.length),
-      save: jest.fn().mockImplementation((s: StudentGuardian) => Promise.resolve({ ...s, guardian: GUARDIAN_USER })),
+      save: jest
+        .fn()
+        .mockImplementation((s: StudentGuardian) =>
+          Promise.resolve({ ...s, guardian: GUARDIAN_USER }),
+        ),
       find: jest.fn().mockResolvedValue(existingGuardians),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -101,15 +119,20 @@ function makeTxMocks(existingGuardians: StudentGuardian[] = []): TxMocks {
     userRepo: {
       findOne: jest.fn().mockResolvedValue(GUARDIAN_USER),
       save: jest.fn().mockResolvedValue({ ...GUARDIAN_USER, id: 99 }),
-      create: jest.fn().mockImplementation((d: Record<string, unknown>) => ({ ...d, id: 99 })),
+      create: jest
+        .fn()
+        .mockImplementation((d: Record<string, unknown>) => ({ ...d, id: 99 })),
     },
     studentRepo: {
-      findOne: jest.fn().mockResolvedValue({ id: 10, name: 'محمد' } as Student),
+      findOne: jest.fn().mockResolvedValue({ id: 10, name: 'محمد' }),
     },
   };
 }
 
-function makeDataSource(tx: TxMocks): { ds: DataSource; txManager: EntityManager & { update: jest.Mock; delete: jest.Mock } } {
+function makeDataSource(tx: TxMocks): {
+  ds: DataSource;
+  txManager: EntityManager & { update: jest.Mock; delete: jest.Mock };
+} {
   const savedSg: StudentGuardian = {
     studentId: 10,
     guardianUserId: 42,
@@ -124,26 +147,38 @@ function makeDataSource(tx: TxMocks): { ds: DataSource; txManager: EntityManager
   let sgFindOneCallCount = 0;
 
   const txManager = {
-    findOne: jest.fn().mockImplementation(
-      (cls: unknown, opts: { where?: Record<string, unknown> }) => {
-        if (cls === User) return tx.userRepo.findOne(opts);
-        if (cls === Student) return Promise.resolve({ id: 10, name: 'محمد' } as Student);
-        if (cls === StudentGuardian) {
-          sgFindOneCallCount++;
-          return sgFindOneCallCount === 1
-            ? Promise.resolve(null)
-            : Promise.resolve(savedSg);
-        }
-        return Promise.resolve(null);
-      },
-    ),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        (cls: unknown, opts: { where?: Record<string, unknown> }) => {
+          if (cls === User) return tx.userRepo.findOne(opts);
+          if (cls === Student)
+            return Promise.resolve({ id: 10, name: 'محمد' } as Student);
+          if (cls === StudentGuardian) {
+            sgFindOneCallCount++;
+            return sgFindOneCallCount === 1
+              ? Promise.resolve(null)
+              : Promise.resolve(savedSg);
+          }
+          return Promise.resolve(null);
+        },
+      ),
     count: jest.fn().mockImplementation(() => tx.sgRepo.count()),
     save: jest.fn().mockImplementation((entity: unknown) => {
-      if (entity instanceof Object && 'guardianUserId' in (entity as Record<string, unknown>)) {
-        return Promise.resolve({ ...(entity as StudentGuardian), guardian: GUARDIAN_USER });
+      if (
+        entity instanceof Object &&
+        'guardianUserId' in (entity as Record<string, unknown>)
+      ) {
+        return Promise.resolve({
+          ...(entity as StudentGuardian),
+          guardian: GUARDIAN_USER,
+        });
       }
-      if (entity instanceof Object && 'email' in (entity as Record<string, unknown>)) {
-        return tx.userRepo.save(entity as User);
+      if (
+        entity instanceof Object &&
+        'email' in (entity as Record<string, unknown>)
+      ) {
+        return tx.userRepo.save(entity);
       }
       return Promise.resolve(entity);
     }),
@@ -154,7 +189,11 @@ function makeDataSource(tx: TxMocks): { ds: DataSource; txManager: EntityManager
   } as unknown as EntityManager & { update: jest.Mock; delete: jest.Mock };
 
   const ds = {
-    transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => cb(txManager)),
+    transaction: jest
+      .fn()
+      .mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) =>
+        cb(txManager),
+      ),
     manager: txManager,
   } as unknown as DataSource;
 
@@ -192,7 +231,11 @@ describe('GuardiansService', () => {
       tx.sgRepo.count.mockResolvedValue(0);
       const { service, txManager } = makeService([], tx);
 
-      await service.link(10, { guardian_user_id: 42, relation: 'father', is_primary: false }, ACTOR);
+      await service.link(
+        10,
+        { guardian_user_id: 42, relation: 'father', is_primary: false },
+        ACTOR,
+      );
 
       const saveCalls = (txManager.save as jest.Mock).mock.calls;
       const sgSaveCall = saveCalls.find(
@@ -211,7 +254,11 @@ describe('GuardiansService', () => {
       tx.sgRepo.count.mockResolvedValue(1);
       const { service, txManager } = makeService([existing], tx);
 
-      await service.link(10, { guardian_user_id: 42, relation: 'father', is_primary: true }, ACTOR);
+      await service.link(
+        10,
+        { guardian_user_id: 42, relation: 'father', is_primary: true },
+        ACTOR,
+      );
 
       expect(txManager.update).toHaveBeenCalledWith(
         StudentGuardian,
@@ -226,7 +273,11 @@ describe('GuardiansService', () => {
       tx.sgRepo.count.mockResolvedValue(1);
       const { service, txManager } = makeService([existing], tx);
 
-      await service.link(10, { guardian_user_id: 42, relation: 'mother', is_primary: false }, ACTOR);
+      await service.link(
+        10,
+        { guardian_user_id: 42, relation: 'mother', is_primary: false },
+        ACTOR,
+      );
 
       expect(txManager.update).not.toHaveBeenCalled();
     });
@@ -245,14 +296,23 @@ describe('GuardiansService', () => {
       const tx = makeTxMocks([only]);
       tx.sgRepo.find.mockResolvedValue([]);
       const notifications = makeNotifications();
-      const { service, audit, sgRepo } = makeService([only], tx, undefined, notifications);
+      const { service, audit, sgRepo } = makeService(
+        [only],
+        tx,
+        undefined,
+        notifications,
+      );
 
       sgRepo.findOne.mockResolvedValue(only);
 
       await service.unlink(10, 42, ACTOR);
 
       expect(audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'student.orphaned', entityType: 'student', entityId: 10 }),
+        expect.objectContaining({
+          action: 'student.orphaned',
+          entityType: 'student',
+          entityId: 10,
+        }),
       );
       expect(notifications.notifyRole).toHaveBeenCalledWith(
         ACTOR.schoolId,
@@ -262,11 +322,22 @@ describe('GuardiansService', () => {
     });
 
     it('case 7: DELETE primary while others exist promotes earliest-created remaining guardian', async () => {
-      const primary = makeSgRow({ guardianUserId: 42, isPrimary: true, createdAt: new Date('2024-01-01') });
-      const secondary = makeSgRow({ guardianUserId: 55, isPrimary: false, createdAt: new Date('2024-01-02') });
+      const primary = makeSgRow({
+        guardianUserId: 42,
+        isPrimary: true,
+        createdAt: new Date('2024-01-01'),
+      });
+      const secondary = makeSgRow({
+        guardianUserId: 55,
+        isPrimary: false,
+        createdAt: new Date('2024-01-02'),
+      });
       const tx = makeTxMocks([primary, secondary]);
       tx.sgRepo.find.mockResolvedValue([secondary]);
-      const { service, audit, sgRepo, txManager } = makeService([primary, secondary], tx);
+      const { service, audit, sgRepo, txManager } = makeService(
+        [primary, secondary],
+        tx,
+      );
 
       sgRepo.findOne.mockResolvedValue(primary);
 
@@ -274,11 +345,16 @@ describe('GuardiansService', () => {
 
       expect(txManager.update).toHaveBeenCalledWith(
         StudentGuardian,
-        { studentId: secondary.studentId, guardianUserId: secondary.guardianUserId },
+        {
+          studentId: secondary.studentId,
+          guardianUserId: secondary.guardianUserId,
+        },
         { isPrimary: true },
       );
       expect(audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'student.guardian.primary_promoted' }),
+        expect.objectContaining({
+          action: 'student.guardian.primary_promoted',
+        }),
       );
     });
   });
@@ -298,7 +374,11 @@ describe('GuardiansService', () => {
     it('throws 400 when both guardian_user_id and email are provided', async () => {
       const { service } = makeService();
       await expect(
-        service.link(10, { guardian_user_id: 42, email: 'x@y.com', relation: 'father' }, ACTOR),
+        service.link(
+          10,
+          { guardian_user_id: 42, email: 'x@y.com', relation: 'father' },
+          ACTOR,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -310,7 +390,11 @@ describe('GuardiansService', () => {
       const { service } = makeService([], tx, users);
 
       await expect(
-        service.link(10, { email: 'unknown@parent.com', relation: 'father' }, ACTOR),
+        service.link(
+          10,
+          { email: 'unknown@parent.com', relation: 'father' },
+          ACTOR,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -325,9 +409,18 @@ describe('GuardiansService', () => {
         Promise.resolve({ ...s, guardian: GUARDIAN_USER }),
       );
 
-      await service.link(10, { email: 'father@x.com', relation: 'father' }, ACTOR);
+      await service.link(
+        10,
+        { email: 'father@x.com', relation: 'father' },
+        ACTOR,
+      );
 
-      expect(users.ensureRoleBySlug).toHaveBeenCalledWith(GUARDIAN_USER.id, 'parent', ACTOR, undefined);
+      expect(users.ensureRoleBySlug).toHaveBeenCalledWith(
+        GUARDIAN_USER.id,
+        'parent',
+        ACTOR,
+        undefined,
+      );
     });
   });
 });

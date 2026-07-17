@@ -19,12 +19,24 @@ export class GuardianResponse {
   user!: GuardianUserResponse;
 
   @ApiProperty({
-    enum: ['father', 'mother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'other'],
+    enum: [
+      'father',
+      'mother',
+      'grandfather',
+      'grandmother',
+      'uncle',
+      'aunt',
+      'sibling',
+      'other',
+    ],
     example: 'father',
   })
   relation!: string;
 
-  @ApiProperty({ example: true, description: 'Exactly one guardian per student has this set.' })
+  @ApiProperty({
+    example: true,
+    description: 'Exactly one guardian per student has this set.',
+  })
   is_primary!: boolean;
 
   @ApiProperty({ example: true })
@@ -71,7 +83,10 @@ export class StudentResponse {
   @ApiProperty({ nullable: true, example: 'Needs extra support on Juz 30.' })
   notes!: string | null;
 
-  @ApiProperty({ nullable: true, example: 'https://cdn.example.com/photos/1.jpg' })
+  @ApiProperty({
+    nullable: true,
+    example: 'https://cdn.example.com/photos/1.jpg',
+  })
   photo_url!: string | null;
 
   @ApiProperty({
@@ -114,7 +129,8 @@ export class StudentEnvelope {
     required: false,
     type: [String],
     example: ['id_number.checksum_invalid'],
-    description: 'Non-fatal warnings. Present only when id_number validation produced warnings.',
+    description:
+      'Non-fatal warnings. Present only when id_number validation produced warnings.',
   })
   warnings?: string[];
 }
@@ -130,7 +146,8 @@ export class StudentDetailEnvelope {
     required: false,
     type: [String],
     example: ['id_number.checksum_invalid'],
-    description: 'Non-fatal warnings. Present only when id_number validation produced warnings.',
+    description:
+      'Non-fatal warnings. Present only when id_number validation produced warnings.',
   })
   warnings?: string[];
 }

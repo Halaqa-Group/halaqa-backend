@@ -10,7 +10,16 @@ import type { GuardianRelation } from '../entities/student-guardian.entity';
 export class UpdateGuardianDto {
   @ApiProperty({
     required: false,
-    enum: ['father', 'mother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'other'],
+    enum: [
+      'father',
+      'mother',
+      'grandfather',
+      'grandmother',
+      'uncle',
+      'aunt',
+      'sibling',
+      'other',
+    ],
     example: 'mother',
   })
   @IsOptional()
@@ -31,7 +40,7 @@ export class UpdateGuardianDto {
     example: true,
     description:
       'Set to true to promote this guardian to primary (unsets the current primary). ' +
-      'Setting false is rejected with 400 — use another guardian\'s PATCH with is_primary=true instead.',
+      "Setting false is rejected with 400 — use another guardian's PATCH with is_primary=true instead.",
   })
   @IsOptional()
   @IsBoolean()

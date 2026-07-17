@@ -10,7 +10,7 @@ import { DataWithWarnings } from '../../../common/data-with-warnings';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { Student } from '../entities/student.entity';
-import type { IdNumberValidator } from '../validators/id-number-validator.interface';
+import type { IdNumberValidator } from '../../../common/validators/id-number-validator.interface';
 import { GuardiansService } from './guardians.service';
 import { StudentsService } from './students.service';
 
@@ -51,6 +51,7 @@ const BASE_STUDENT: Student = {
   dailyNearPagesCapacity: 5,
   dailyFarPagesCapacity: 10,
   notes: null,
+  memorizedAyat: null,
   photoUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -61,9 +62,9 @@ const BASE_STUDENT: Student = {
 function makeStudentRepo() {
   return {
     findOne: jest.fn(),
-    save: jest.fn().mockImplementation((s: Student) =>
-      Promise.resolve({ ...s, id: 10 }),
-    ),
+    save: jest
+      .fn()
+      .mockImplementation((s: Student) => Promise.resolve({ ...s, id: 10 })),
     create: jest.fn().mockImplementation((d: unknown) => d),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     softDelete: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -89,18 +90,32 @@ function makeGuardiansService(): jest.Mocked<GuardiansService> {
   } as never;
 }
 
-function makeDataSource(managerQuery: jest.Mock = jest.fn().mockResolvedValue([])) {
-  const manager = { query: managerQuery, findOne: jest.fn() } as unknown as EntityManager;
+function makeDataSource(
+  managerQuery: jest.Mock = jest.fn().mockResolvedValue([]),
+) {
+  const manager = {
+    query: managerQuery,
+    findOne: jest.fn(),
+  } as unknown as EntityManager;
   return {
-    transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-      const txManager = {
-        getRepository: jest.fn().mockImplementation((cls: unknown) => {
-          if (cls === Student) return makeStudentRepo();
-          return { save: jest.fn(), count: jest.fn(), findOne: jest.fn(), find: jest.fn() };
-        }),
-      } as unknown as EntityManager;
-      return cb(txManager);
-    }),
+    transaction: jest
+      .fn()
+      .mockImplementation(
+        async (cb: (m: EntityManager) => Promise<unknown>) => {
+          const txManager = {
+            getRepository: jest.fn().mockImplementation((cls: unknown) => {
+              if (cls === Student) return makeStudentRepo();
+              return {
+                save: jest.fn(),
+                count: jest.fn(),
+                findOne: jest.fn(),
+                find: jest.fn(),
+              };
+            }),
+          } as unknown as EntityManager;
+          return cb(txManager);
+        },
+      ),
     manager,
   } as unknown as DataSource;
 }
@@ -109,7 +124,10 @@ function makeIdValidator(
   normalize: (v: string) => string = (v) => v,
   validate: jest.Mock = jest.fn().mockReturnValue({ ok: true, warnings: [] }),
 ): jest.Mocked<IdNumberValidator> {
-  return { normalize: jest.fn().mockImplementation(normalize), validate } as jest.Mocked<IdNumberValidator>;
+  return {
+    normalize: jest.fn().mockImplementation(normalize),
+    validate,
+  };
 }
 
 function makeService(
@@ -136,14 +154,18 @@ describe('StudentsService', () => {
       const repo = makeStudentRepo();
       repo.findOne.mockResolvedValue({ ...BASE_STUDENT, schoolId: 99 });
       const service = makeService(repo);
-      await expect(service.findInScopeOrFail(10, PRINCIPAL)).rejects.toThrow(NotFoundException);
+      await expect(service.findInScopeOrFail(10, PRINCIPAL)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws 404 when student not found', async () => {
       const repo = makeStudentRepo();
       repo.findOne.mockResolvedValue(null);
       const service = makeService(repo);
-      await expect(service.findInScopeOrFail(10, PRINCIPAL)).rejects.toThrow(NotFoundException);
+      await expect(service.findInScopeOrFail(10, PRINCIPAL)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns student for principal without scope query', async () => {
@@ -160,7 +182,9 @@ describe('StudentsService', () => {
       const managerQuery = jest.fn().mockResolvedValue([]);
       const ds = makeDataSource(managerQuery);
       const service = makeService(repo, makeGuardianRepo(), ds);
-      await expect(service.findInScopeOrFail(10, TEACHER)).rejects.toThrow(NotFoundException);
+      await expect(service.findInScopeOrFail(10, TEACHER)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns student when parent is linked', async () => {
@@ -184,22 +208,40 @@ describe('StudentsService', () => {
       txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
 
       const ds = {
-        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-          const txM = {
-            getRepository: jest.fn().mockImplementation((cls: unknown) => {
-              if (cls === Student) return txStudentRepo;
-              return { count: jest.fn().mockResolvedValue(0), save: jest.fn(), findOne: jest.fn(), find: jest.fn(), insert: jest.fn() };
-            }),
-          } as unknown as EntityManager;
-          return cb(txM);
-        }),
-        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+        transaction: jest
+          .fn()
+          .mockImplementation(
+            async (cb: (m: EntityManager) => Promise<unknown>) => {
+              const txM = {
+                getRepository: jest.fn().mockImplementation((cls: unknown) => {
+                  if (cls === Student) return txStudentRepo;
+                  return {
+                    count: jest.fn().mockResolvedValue(0),
+                    save: jest.fn(),
+                    findOne: jest.fn(),
+                    find: jest.fn(),
+                    insert: jest.fn(),
+                  };
+                }),
+              } as unknown as EntityManager;
+              return cb(txM);
+            },
+          ),
+        manager: {
+          query: jest.fn().mockResolvedValue([{ 1: 1 }]),
+        } as unknown as EntityManager,
       } as unknown as DataSource;
 
       studentRepo.findOne.mockResolvedValue(BASE_STUDENT);
       guardianRepo.find.mockResolvedValue([]);
       const guardians = makeGuardiansService();
-      const service = makeService(studentRepo, guardianRepo, ds, audit, guardians);
+      const service = makeService(
+        studentRepo,
+        guardianRepo,
+        ds,
+        audit,
+        guardians,
+      );
 
       await service.create(
         { name: 'محمد', gender: 'male', join_date: '2023-09-01' },
@@ -207,7 +249,10 @@ describe('StudentsService', () => {
       );
 
       expect(audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'student.create', entityType: 'student' }),
+        expect.objectContaining({
+          action: 'student.create',
+          entityType: 'student',
+        }),
       );
     });
 
@@ -221,19 +266,31 @@ describe('StudentsService', () => {
       txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
 
       const ds = {
-        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-          const txM = {
-            getRepository: jest.fn().mockReturnValue(txStudentRepo),
-          } as unknown as EntityManager;
-          return cb(txM);
-        }),
-        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+        transaction: jest
+          .fn()
+          .mockImplementation(
+            async (cb: (m: EntityManager) => Promise<unknown>) => {
+              const txM = {
+                getRepository: jest.fn().mockReturnValue(txStudentRepo),
+              } as unknown as EntityManager;
+              return cb(txM);
+            },
+          ),
+        manager: {
+          query: jest.fn().mockResolvedValue([{ 1: 1 }]),
+        } as unknown as EntityManager,
       } as unknown as DataSource;
 
       studentRepo.findOne.mockResolvedValue(BASE_STUDENT);
       guardianRepo.find.mockResolvedValue([]);
 
-      const service = makeService(studentRepo, guardianRepo, ds, audit, guardians);
+      const service = makeService(
+        studentRepo,
+        guardianRepo,
+        ds,
+        audit,
+        guardians,
+      );
       await service.create(
         {
           name: 'محمد',
@@ -246,7 +303,9 @@ describe('StudentsService', () => {
 
       expect(guardians.linkMany).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.arrayContaining([expect.objectContaining({ relation: 'father' })]),
+        expect.arrayContaining([
+          expect.objectContaining({ relation: 'father' }),
+        ]),
         PRINCIPAL,
         expect.any(Object),
       );
@@ -259,9 +318,10 @@ describe('StudentsService', () => {
       repo.findOne.mockResolvedValue(BASE_STUDENT);
       // First query: scope check returns rows (teacher is in scope)
       // Second query: primary check returns empty (not primary)
-      const managerQuery = jest.fn()
-        .mockResolvedValueOnce([{ 1: 1 }])  // scope check passes
-        .mockResolvedValueOnce([]);           // primary check fails
+      const managerQuery = jest
+        .fn()
+        .mockResolvedValueOnce([{ 1: 1 }]) // scope check passes
+        .mockResolvedValueOnce([]); // primary check fails
       const ds = makeDataSource(managerQuery);
       const service = makeService(repo, makeGuardianRepo(), ds);
 
@@ -278,7 +338,7 @@ describe('StudentsService', () => {
       const service = makeService(repo, makeGuardianRepo(), ds);
 
       await expect(
-        service.update(10, { name: 'new name' } as never, TEACHER, true),
+        service.update(10, { name: 'new name' }, TEACHER, true),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -290,7 +350,7 @@ describe('StudentsService', () => {
       const ds = makeDataSource(jest.fn().mockResolvedValue([{ 1: 1 }]));
       // refetch after update
       repo.findOne
-        .mockResolvedValueOnce(BASE_STUDENT)   // findInScopeOrFail
+        .mockResolvedValueOnce(BASE_STUDENT) // findInScopeOrFail
         .mockResolvedValueOnce({ ...BASE_STUDENT, notes: 'updated' }); // findOne after
 
       const guardianRepo = makeGuardianRepo();
@@ -313,7 +373,12 @@ describe('StudentsService', () => {
       const repo = makeStudentRepo();
       repo.findOne.mockResolvedValue(BASE_STUDENT);
       const audit = makeAudit();
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), audit);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        audit,
+      );
       await service.softDelete(10, PRINCIPAL);
       expect(audit.log).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'student.delete', entityId: 10 }),
@@ -326,7 +391,9 @@ describe('StudentsService', () => {
       const repo = makeStudentRepo();
       repo.findOne.mockResolvedValue({ ...BASE_STUDENT, status: 'graduated' });
       const service = makeService(repo);
-      await expect(service.graduate(10, {}, PRINCIPAL)).rejects.toThrow(BadRequestException);
+      await expect(service.graduate(10, {}, PRINCIPAL)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('writes student.graduate audit', async () => {
@@ -342,7 +409,10 @@ describe('StudentsService', () => {
       expect(audit.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'student.graduate',
-          newValues: expect.objectContaining({ status: 'graduated', graduationDate: '2026-06-01' }),
+          newValues: expect.objectContaining({
+            status: 'graduated',
+            graduationDate: '2026-06-01',
+          }),
         }),
       );
     });
@@ -353,7 +423,12 @@ describe('StudentsService', () => {
       const service = makeService();
       await expect(
         service.create(
-          { name: 'x', gender: 'male', join_date: '2023-01-01', daily_hifz_pages_capacity: 25 },
+          {
+            name: 'x',
+            gender: 'male',
+            join_date: '2023-01-01',
+            daily_hifz_pages_capacity: 25,
+          },
           PRINCIPAL,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -390,7 +465,10 @@ describe('StudentsService', () => {
 
     it('includes id_number key for supervisor', () => {
       const SUPERVISOR: AuthenticatedUser = {
-        id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
+        id: 7,
+        schoolId: 1,
+        status: 'active',
+        tokenVersion: 0,
         roles: [{ slug: 'supervisor', level: 60 }],
       };
       const service = makeService();
@@ -408,16 +486,26 @@ describe('StudentsService', () => {
       const txStudentRepo = makeStudentRepo();
       txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
       const ds = {
-        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-          const txM = {
-            getRepository: jest.fn().mockImplementation((cls: unknown) => {
-              if (cls === Student) return txStudentRepo;
-              return { save: jest.fn(), findOne: jest.fn(), find: jest.fn() };
-            }),
-          } as unknown as EntityManager;
-          return cb(txM);
-        }),
-        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+        transaction: jest
+          .fn()
+          .mockImplementation(
+            async (cb: (m: EntityManager) => Promise<unknown>) => {
+              const txM = {
+                getRepository: jest.fn().mockImplementation((cls: unknown) => {
+                  if (cls === Student) return txStudentRepo;
+                  return {
+                    save: jest.fn(),
+                    findOne: jest.fn(),
+                    find: jest.fn(),
+                  };
+                }),
+              } as unknown as EntityManager;
+              return cb(txM);
+            },
+          ),
+        manager: {
+          query: jest.fn().mockResolvedValue([{ 1: 1 }]),
+        } as unknown as EntityManager,
       } as unknown as DataSource;
 
       studentRepo.findOne.mockResolvedValue({ ...BASE_STUDENT });
@@ -427,34 +515,61 @@ describe('StudentsService', () => {
         (v) => v.replace(/-/g, ''),
         jest.fn().mockReturnValue({ ok: true, warnings: [] }),
       );
-      if (validatorOverride?.validate) idValidator.validate = validatorOverride.validate as jest.Mock;
-      if (validatorOverride?.normalize) idValidator.normalize = jest.fn().mockImplementation(validatorOverride.normalize);
+      if (validatorOverride?.validate)
+        idValidator.validate = validatorOverride.validate as jest.Mock;
+      if (validatorOverride?.normalize)
+        idValidator.normalize = jest
+          .fn()
+          .mockImplementation(validatorOverride.normalize);
 
       return { studentRepo, guardianRepo, audit, ds, idValidator };
     }
 
     it('persists normalized id_number', async () => {
-      const { studentRepo, guardianRepo, audit, ds, idValidator } = makeCreateSetup();
+      const { studentRepo, guardianRepo, audit, ds, idValidator } =
+        makeCreateSetup();
       // normalize strips hyphens → '300123456'
       idValidator.normalize = jest.fn().mockReturnValue('300123456');
       studentRepo.findOne
-        .mockResolvedValueOnce(null)           // uniqueness check: no conflict
-        .mockResolvedValueOnce(BASE_STUDENT);  // refetch after create
+        .mockResolvedValueOnce(null) // uniqueness check: no conflict
+        .mockResolvedValueOnce(BASE_STUDENT); // refetch after create
       const txStudentRepo = makeStudentRepo();
-      txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456', id: 10 });
+      txStudentRepo.save.mockResolvedValue({
+        ...BASE_STUDENT,
+        idNumber: '300123456',
+        id: 10,
+      });
       const txDs = {
-        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-          const txM = {
-            getRepository: jest.fn().mockReturnValue(txStudentRepo),
-          } as unknown as EntityManager;
-          return cb(txM);
-        }),
-        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+        transaction: jest
+          .fn()
+          .mockImplementation(
+            async (cb: (m: EntityManager) => Promise<unknown>) => {
+              const txM = {
+                getRepository: jest.fn().mockReturnValue(txStudentRepo),
+              } as unknown as EntityManager;
+              return cb(txM);
+            },
+          ),
+        manager: {
+          query: jest.fn().mockResolvedValue([{ 1: 1 }]),
+        } as unknown as EntityManager,
       } as unknown as DataSource;
 
-      const service = makeService(studentRepo, guardianRepo, txDs, audit, makeGuardiansService(), idValidator);
+      const service = makeService(
+        studentRepo,
+        guardianRepo,
+        txDs,
+        audit,
+        makeGuardiansService(),
+        idValidator,
+      );
       await service.create(
-        { name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '300-123-456' },
+        {
+          name: 'x',
+          gender: 'male',
+          join_date: '2023-01-01',
+          id_number: '300-123-456',
+        },
         PRINCIPAL,
       );
 
@@ -470,51 +585,103 @@ describe('StudentsService', () => {
         jest.fn().mockReturnValue({ ok: false, warnings: [] }),
       );
       const service = makeService(
-        makeStudentRepo(), makeGuardianRepo(), makeDataSource(), makeAudit(),
-        makeGuardiansService(), idValidator,
+        makeStudentRepo(),
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
       );
       await expect(
-        service.create({ name: 'x', gender: 'male', join_date: '2023-01-01', id_number: 'bad' }, PRINCIPAL),
+        service.create(
+          {
+            name: 'x',
+            gender: 'male',
+            join_date: '2023-01-01',
+            id_number: 'bad',
+          },
+          PRINCIPAL,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('throws 409 when id_number already used in same school', async () => {
       const studentRepo = makeStudentRepo();
       studentRepo.findOne.mockResolvedValue({ ...BASE_STUDENT, id: 99 }); // conflict row
-      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
       const service = makeService(
-        studentRepo, makeGuardianRepo(), makeDataSource(), makeAudit(),
-        makeGuardiansService(), idValidator,
+        studentRepo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
       );
       await expect(
-        service.create({ name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '300123456' }, PRINCIPAL),
+        service.create(
+          {
+            name: 'x',
+            gender: 'male',
+            join_date: '2023-01-01',
+            id_number: '300123456',
+          },
+          PRINCIPAL,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
     it('returns DataWithWarnings when checksum is invalid', async () => {
-      const { studentRepo, guardianRepo, audit, idValidator } = makeCreateSetup();
-      idValidator.validate = jest.fn().mockReturnValue({ ok: true, warnings: ['checksum_invalid'] });
+      const { studentRepo, guardianRepo, audit, idValidator } =
+        makeCreateSetup();
+      idValidator.validate = jest
+        .fn()
+        .mockReturnValue({ ok: true, warnings: ['checksum_invalid'] });
       studentRepo.findOne
-        .mockResolvedValueOnce(null)          // uniqueness check: no conflict
+        .mockResolvedValueOnce(null) // uniqueness check: no conflict
         .mockResolvedValueOnce(BASE_STUDENT); // refetch
       guardianRepo.find.mockResolvedValue([]);
       const txStudentRepo = makeStudentRepo();
       txStudentRepo.save.mockResolvedValue({ ...BASE_STUDENT, id: 10 });
       const txDs = {
-        transaction: jest.fn().mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) => {
-          const txM = { getRepository: jest.fn().mockReturnValue(txStudentRepo) } as unknown as EntityManager;
-          return cb(txM);
-        }),
-        manager: { query: jest.fn().mockResolvedValue([{ 1: 1 }]) } as unknown as EntityManager,
+        transaction: jest
+          .fn()
+          .mockImplementation(
+            async (cb: (m: EntityManager) => Promise<unknown>) => {
+              const txM = {
+                getRepository: jest.fn().mockReturnValue(txStudentRepo),
+              } as unknown as EntityManager;
+              return cb(txM);
+            },
+          ),
+        manager: {
+          query: jest.fn().mockResolvedValue([{ 1: 1 }]),
+        } as unknown as EntityManager,
       } as unknown as DataSource;
 
-      const service = makeService(studentRepo, guardianRepo, txDs, audit, makeGuardiansService(), idValidator);
+      const service = makeService(
+        studentRepo,
+        guardianRepo,
+        txDs,
+        audit,
+        makeGuardiansService(),
+        idValidator,
+      );
       const result = await service.create(
-        { name: 'x', gender: 'male', join_date: '2023-01-01', id_number: '100000000' },
+        {
+          name: 'x',
+          gender: 'male',
+          join_date: '2023-01-01',
+          id_number: '100000000',
+        },
         PRINCIPAL,
       );
       expect(result).toBeInstanceOf(DataWithWarnings);
-      expect((result as DataWithWarnings<unknown>).warnings).toContain('checksum_invalid');
+      expect((result as DataWithWarnings<unknown>).warnings).toContain(
+        'checksum_invalid',
+      );
     });
   });
 
@@ -533,12 +700,22 @@ describe('StudentsService', () => {
       const guardianRepo = makeGuardianRepo();
       guardianRepo.find.mockResolvedValue([]);
       const audit = makeAudit();
-      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
-      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
+      const service = makeService(
+        repo,
+        guardianRepo,
+        makeDataSource(),
+        audit,
+        makeGuardiansService(),
+        idValidator,
+      );
 
       // second findOne for the refetch after update
       repo.findOne
-        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })   // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }) // findInScopeOrFail
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }); // refetch
 
       await expect(
@@ -548,9 +725,22 @@ describe('StudentsService', () => {
 
     it('throws 400 when changing locked id_number without force flag', async () => {
       const repo = makeStudentRepo();
-      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
-      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      repo.findOne.mockResolvedValue({
+        ...BASE_STUDENT,
+        idNumber: '300123456',
+      });
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await expect(
         service.update(10, { id_number: '300999888' }, PRINCIPAL, false),
@@ -559,19 +749,37 @@ describe('StudentsService', () => {
 
     it('allows changing locked id_number with force flag and writes two audit rows', async () => {
       const repo = makeStudentRepo();
-      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      repo.findOne.mockResolvedValue({
+        ...BASE_STUDENT,
+        idNumber: '300123456',
+      });
       repo.createQueryBuilder = makeUpdateQb(null); // no conflict
       const guardianRepo = makeGuardianRepo();
       guardianRepo.find.mockResolvedValue([]);
       const audit = makeAudit();
-      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
 
       repo.findOne
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }) // findInScopeOrFail
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300999888' }); // refetch
 
-      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
-      await service.update(10, { id_number: '300999888', force_id_number_change: true }, PRINCIPAL, false);
+      const service = makeService(
+        repo,
+        guardianRepo,
+        makeDataSource(),
+        audit,
+        makeGuardiansService(),
+        idValidator,
+      );
+      await service.update(
+        10,
+        { id_number: '300999888', force_id_number_change: true },
+        PRINCIPAL,
+        false,
+      );
 
       const auditCalls = audit.log.mock.calls.map((c) => c[0].action);
       expect(auditCalls).toContain('student.update');
@@ -580,7 +788,10 @@ describe('StudentsService', () => {
 
     it('throws 400 when clearing locked id_number without force flag', async () => {
       const repo = makeStudentRepo();
-      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      repo.findOne.mockResolvedValue({
+        ...BASE_STUDENT,
+        idNumber: '300123456',
+      });
       const service = makeService(repo, makeGuardianRepo(), makeDataSource());
       await expect(
         service.update(10, { id_number: null }, PRINCIPAL, false),
@@ -589,17 +800,25 @@ describe('StudentsService', () => {
 
     it('allows clearing with force flag and writes force_changed audit', async () => {
       const repo = makeStudentRepo();
-      repo.findOne.mockResolvedValue({ ...BASE_STUDENT, idNumber: '300123456' });
+      repo.findOne.mockResolvedValue({
+        ...BASE_STUDENT,
+        idNumber: '300123456',
+      });
       const guardianRepo = makeGuardianRepo();
       guardianRepo.find.mockResolvedValue([]);
       const audit = makeAudit();
 
       repo.findOne
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: '300123456' }) // findInScopeOrFail
-        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null });        // refetch
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }); // refetch
 
       const service = makeService(repo, guardianRepo, makeDataSource(), audit);
-      await service.update(10, { id_number: null, force_id_number_change: true }, PRINCIPAL, false);
+      await service.update(
+        10,
+        { id_number: null, force_id_number_change: true },
+        PRINCIPAL,
+        false,
+      );
 
       expect(audit.log).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'student.id_number.force_changed' }),
@@ -615,8 +834,18 @@ describe('StudentsService', () => {
       const where = jest.fn().mockReturnValue({ withDeleted, getOne });
       repo.createQueryBuilder = jest.fn().mockReturnValue({ where });
 
-      const idValidator = makeIdValidator((v) => v, jest.fn().mockReturnValue({ ok: true, warnings: [] }));
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      const idValidator = makeIdValidator(
+        (v) => v,
+        jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+      );
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await expect(
         service.update(10, { id_number: '300123456' }, PRINCIPAL, false),
@@ -639,19 +868,36 @@ describe('StudentsService', () => {
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })
         .mockResolvedValueOnce(BASE_STUDENT);
 
-      const service = makeService(repo, guardianRepo, makeDataSource(), audit, makeGuardiansService(), idValidator);
-      const result = await service.update(10, { id_number: '100000000' }, PRINCIPAL, false);
+      const service = makeService(
+        repo,
+        guardianRepo,
+        makeDataSource(),
+        audit,
+        makeGuardiansService(),
+        idValidator,
+      );
+      const result = await service.update(
+        10,
+        { id_number: '100000000' },
+        PRINCIPAL,
+        false,
+      );
       expect(result).toBeInstanceOf(DataWithWarnings);
     });
 
     it('allows PATCH on legacy student (id_number IS NULL) without supplying id_number', async () => {
       const repo = makeStudentRepo();
       repo.findOne
-        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null })  // findInScopeOrFail
+        .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }) // findInScopeOrFail
         .mockResolvedValueOnce({ ...BASE_STUDENT, idNumber: null }); // refetch
       const guardianRepo = makeGuardianRepo();
       guardianRepo.find.mockResolvedValue([]);
-      const service = makeService(repo, guardianRepo, makeDataSource(), makeAudit());
+      const service = makeService(
+        repo,
+        guardianRepo,
+        makeDataSource(),
+        makeAudit(),
+      );
 
       await expect(
         service.update(10, { notes: 'updated notes' }, PRINCIPAL, false),
@@ -674,14 +920,24 @@ describe('StudentsService', () => {
 
     it('allows supervisor to use ?id_number= filter', async () => {
       const SUPERVISOR: AuthenticatedUser = {
-        id: 7, schoolId: 1, status: 'active', tokenVersion: 0,
+        id: 7,
+        schoolId: 1,
+        status: 'active',
+        tokenVersion: 0,
         roles: [{ slug: 'supervisor', level: 60 }],
       };
       const repo = makeStudentRepo();
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
       const idValidator = makeIdValidator((v) => v);
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await service.list({ id_number: '300123456' }, SUPERVISOR);
       expect(qb.andWhere).toHaveBeenCalledWith(
@@ -695,7 +951,14 @@ describe('StudentsService', () => {
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
       const idValidator = makeIdValidator((v) => v);
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await service.list({ id_number: '300123456' }, TEACHER);
       expect(qb.andWhere).toHaveBeenCalledWith(
@@ -709,7 +972,14 @@ describe('StudentsService', () => {
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
       const idValidator = makeIdValidator((v) => v);
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await service.list({ id_number: '300123456' }, PRINCIPAL);
       expect(qb.andWhere).toHaveBeenCalledWith(
@@ -723,7 +993,14 @@ describe('StudentsService', () => {
       const qb = makeListQb();
       repo.createQueryBuilder = jest.fn().mockReturnValue(qb);
       const idValidator = makeIdValidator((v) => v);
-      const service = makeService(repo, makeGuardianRepo(), makeDataSource(), makeAudit(), makeGuardiansService(), idValidator);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        makeDataSource(),
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await service.list({ q: '300123456' }, PRINCIPAL);
       // Brackets produces an andWhere call with a Brackets object (not a plain string)
@@ -738,7 +1015,14 @@ describe('StudentsService', () => {
       const managerQuery = jest.fn().mockResolvedValue([]);
       const ds = makeDataSource(managerQuery);
       const idValidator = makeIdValidator((v) => v);
-      const service = makeService(repo, makeGuardianRepo(), ds, makeAudit(), makeGuardiansService(), idValidator);
+      const service = makeService(
+        repo,
+        makeGuardianRepo(),
+        ds,
+        makeAudit(),
+        makeGuardiansService(),
+        idValidator,
+      );
 
       await service.list({ q: 'يوسف' }, TEACHER);
       // All roles now use Brackets with name OR id_number

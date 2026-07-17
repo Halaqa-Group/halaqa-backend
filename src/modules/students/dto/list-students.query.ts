@@ -19,14 +19,25 @@ import {
 import type { StudentGender, StudentStatus } from '../entities/student.entity';
 
 export class ListStudentsQuery {
-  @ApiProperty({ required: false, example: 1, minimum: 1, description: 'Defaults to 1.' })
+  @ApiProperty({
+    required: false,
+    example: 1,
+    minimum: 1,
+    description: 'Defaults to 1.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number;
 
-  @ApiProperty({ required: false, example: 20, minimum: 1, maximum: 100, description: 'Defaults to 20, capped at 100.' })
+  @ApiProperty({
+    required: false,
+    example: 20,
+    minimum: 1,
+    maximum: 100,
+    description: 'Defaults to 20, capped at 100.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -34,7 +45,11 @@ export class ListStudentsQuery {
   @Max(100)
   limit?: number;
 
-  @ApiProperty({ required: false, example: 'يوسف', description: 'Free-text search on student name.' })
+  @ApiProperty({
+    required: false,
+    example: 'يوسف',
+    description: 'Free-text search on student name.',
+  })
   @IsOptional()
   @IsString()
   q?: string;
@@ -57,7 +72,8 @@ export class ListStudentsQuery {
   @ApiProperty({
     required: false,
     example: 3,
-    description: 'Filter by halaqa. For supervisors/teachers this is an additional scope filter on top of their role-based visibility.',
+    description:
+      'Filter by halaqa. For supervisors/teachers this is an additional scope filter on top of their role-based visibility.',
   })
   @IsOptional()
   @Type(() => Number)
@@ -67,7 +83,8 @@ export class ListStudentsQuery {
   @ApiProperty({
     required: false,
     example: false,
-    description: 'Include soft-deleted students. Silently ignored for non-principal/VP callers.',
+    description:
+      'Include soft-deleted students. Silently ignored for non-principal/VP callers.',
   })
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)

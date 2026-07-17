@@ -26,7 +26,10 @@ import { UpdateStudentByTeacherDto } from '../dto/update-student-by-teacher.dto'
 import { UpdateStudentDto } from '../dto/update-student.dto';
 import { Student } from '../entities/student.entity';
 import { GuardiansService } from './guardians.service';
-import type { IdNumberValidator } from '../validators/id-number-validator.interface';
+import {
+  ID_NUMBER_VALIDATOR,
+  type IdNumberValidator,
+} from '../../../common/validators/id-number-validator.interface';
 
 @Injectable()
 export class StudentsService {
@@ -38,7 +41,8 @@ export class StudentsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly audit: AuditService,
     private readonly guardians: GuardiansService,
-    @Inject('ID_NUMBER_VALIDATOR') private readonly idValidator: IdNumberValidator,
+    @Inject(ID_NUMBER_VALIDATOR)
+    private readonly idValidator: IdNumberValidator,
   ) {}
 
   async create(
@@ -86,7 +90,12 @@ export class StudentsService {
       );
 
       if (dto.guardians?.length) {
-        await this.guardians.linkMany(student.id, dto.guardians, actor, manager);
+        await this.guardians.linkMany(
+          student.id,
+          dto.guardians,
+          actor,
+          manager,
+        );
       }
 
       return student.id;
@@ -101,8 +110,12 @@ export class StudentsService {
         name: dto.name,
         gender: dto.gender,
         status: dto.status ?? 'active',
-        ...(normalizedIdNumber !== undefined && { id_number: normalizedIdNumber }),
-        ...(idNumberWarnings.length && { id_number_warnings: idNumberWarnings }),
+        ...(normalizedIdNumber !== undefined && {
+          id_number: normalizedIdNumber,
+        }),
+        ...(idNumberWarnings.length && {
+          id_number_warnings: idNumberWarnings,
+        }),
       },
     });
 
@@ -132,7 +145,9 @@ export class StudentsService {
 
     if (isPrincipalOrVP) {
       if (query.include_deleted) {
-        qb.withDeleted().where('s.schoolId = :schoolId', { schoolId: actor.schoolId });
+        qb.withDeleted().where('s.schoolId = :schoolId', {
+          schoolId: actor.schoolId,
+        });
       } else {
         qb.where('s.schoolId = :schoolId AND s.deletedAt IS NULL', {
           schoolId: actor.schoolId,
@@ -205,7 +220,12 @@ export class StudentsService {
     }
 
     const [rows, total] = await qb.getManyAndCount();
-    return { items: rows.map((s) => this.toView(s, actor)), total, page, limit };
+    return {
+      items: rows.map((s) => this.toView(s, actor)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(
@@ -414,7 +434,10 @@ export class StudentsService {
     }
 
     if (Object.keys(patch).length > 0) {
-      await this.students.update(id, patch as Parameters<typeof this.students.update>[1]);
+      await this.students.update(
+        id,
+        patch as Parameters<typeof this.students.update>[1],
+      );
     }
 
     await this.audit.log({
@@ -455,7 +478,10 @@ export class StudentsService {
     });
   }
 
-  async restore(id: number, actor: AuthenticatedUser): Promise<StudentDetailView> {
+  async restore(
+    id: number,
+    actor: AuthenticatedUser,
+  ): Promise<StudentDetailView> {
     const student = await this.students.findOne({
       where: { id, schoolId: actor.schoolId },
       withDeleted: true,

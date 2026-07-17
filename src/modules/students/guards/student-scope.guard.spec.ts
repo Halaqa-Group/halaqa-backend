@@ -17,6 +17,7 @@ const BASE_STUDENT: Student = {
   dailyNearPagesCapacity: 5,
   dailyFarPagesCapacity: 10,
   notes: null,
+  memorizedAyat: null,
   photoUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -24,7 +25,10 @@ const BASE_STUDENT: Student = {
   school: {} as never,
 };
 
-function makeContext(user: AuthenticatedUser, params: Record<string, string> = { id: '10' }) {
+function makeContext(
+  user: AuthenticatedUser,
+  params: Record<string, string> = { id: '10' },
+) {
   const req = { user, params, student: undefined as Student | undefined };
   return {
     switchToHttp: () => ({ getRequest: () => req }),
@@ -32,10 +36,7 @@ function makeContext(user: AuthenticatedUser, params: Record<string, string> = {
   } as unknown as ExecutionContext & { req: typeof req };
 }
 
-function makeDataSource(
-  student: Student | null,
-  queryRows: unknown[] = [],
-) {
+function makeDataSource(student: Student | null, queryRows: unknown[] = []) {
   return {
     manager: {
       findOne: jest.fn().mockResolvedValue(student),
@@ -49,15 +50,24 @@ function makeGuard(ds: DataSource) {
 }
 
 const PRINCIPAL: AuthenticatedUser = {
-  id: 1, schoolId: 1, status: 'active', tokenVersion: 0,
+  id: 1,
+  schoolId: 1,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'principal', level: 100 }],
 };
 const TEACHER: AuthenticatedUser = {
-  id: 5, schoolId: 1, status: 'active', tokenVersion: 0,
+  id: 5,
+  schoolId: 1,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'teacher', level: 50 }],
 };
 const PARENT: AuthenticatedUser = {
-  id: 9, schoolId: 1, status: 'active', tokenVersion: 0,
+  id: 9,
+  schoolId: 1,
+  status: 'active',
+  tokenVersion: 0,
   roles: [{ slug: 'parent', level: 10 }],
 };
 
@@ -65,7 +75,7 @@ describe('StudentScopeGuard', () => {
   it('allows principal and sets req.student', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(BASE_STUDENT));
-    const result = await guard.canActivate(ctx as unknown as ExecutionContext);
+    const result = await guard.canActivate(ctx);
     expect(result).toBe(true);
     expect(ctx.req.student).toBe(BASE_STUDENT);
   });
@@ -73,19 +83,25 @@ describe('StudentScopeGuard', () => {
   it('throws 404 (not 403) when student is cross-school', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource({ ...BASE_STUDENT, schoolId: 99 }));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('throws 404 when student does not exist', async () => {
     const ctx = makeContext(PRINCIPAL);
     const guard = makeGuard(makeDataSource(null));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('throws 404 when teacher has no halaqa with this student', async () => {
     const ctx = makeContext(TEACHER);
     const guard = makeGuard(makeDataSource(BASE_STUDENT, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('allows teacher when they have a halaqa with this student', async () => {
@@ -93,14 +109,16 @@ describe('StudentScopeGuard', () => {
     const ds = makeDataSource(BASE_STUDENT);
     (ds.manager.query as jest.Mock).mockResolvedValue([{ 1: 1 }]);
     const guard = makeGuard(ds);
-    const result = await guard.canActivate(ctx as unknown as ExecutionContext);
+    const result = await guard.canActivate(ctx);
     expect(result).toBe(true);
   });
 
   it('throws 404 when parent is not linked to this student', async () => {
     const ctx = makeContext(PARENT);
     const guard = makeGuard(makeDataSource(BASE_STUDENT, []));
-    await expect(guard.canActivate(ctx as unknown as ExecutionContext)).rejects.toThrow(NotFoundException);
+    await expect(
+      guard.canActivate(ctx as unknown as ExecutionContext),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('allows parent when they are linked to this student', async () => {
@@ -108,7 +126,7 @@ describe('StudentScopeGuard', () => {
     const ds = makeDataSource(BASE_STUDENT);
     (ds.manager.query as jest.Mock).mockResolvedValue([{ 1: 1 }]);
     const guard = makeGuard(ds);
-    const result = await guard.canActivate(ctx as unknown as ExecutionContext);
+    const result = await guard.canActivate(ctx);
     expect(result).toBe(true);
   });
 });

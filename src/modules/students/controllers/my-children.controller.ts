@@ -1,4 +1,10 @@
-import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ApiBearerAuth,
@@ -48,8 +54,14 @@ export class MyChildrenController {
   })
   @ApiResponse({ status: 200, type: StudentListEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 403, description: 'Caller does not have the parent role', type: ErrorEnvelope })
-  async list(@CurrentUser() actor: AuthenticatedUser): Promise<StudentListResult> {
+  @ApiResponse({
+    status: 403,
+    description: 'Caller does not have the parent role',
+    type: ErrorEnvelope,
+  })
+  async list(
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<StudentListResult> {
     const rows = await this.studentRepo
       .createQueryBuilder('s')
       .where(
@@ -81,8 +93,16 @@ export class MyChildrenController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiResponse({ status: 200, type: StudentDetailEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 403, description: 'Caller does not have the parent role', type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: "Student not found or caller is not the student's guardian", type: ErrorEnvelope })
+  @ApiResponse({
+    status: 403,
+    description: 'Caller does not have the parent role',
+    type: ErrorEnvelope,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Student not found or caller is not the student's guardian",
+    type: ErrorEnvelope,
+  })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,

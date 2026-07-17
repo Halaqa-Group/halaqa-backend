@@ -18,7 +18,8 @@ export class LinkGuardianDto {
   @ApiProperty({
     required: false,
     example: 42,
-    description: 'ID of an existing user. Mutually exclusive with `email`. Must belong to the same school.',
+    description:
+      'ID of an existing user. Mutually exclusive with `email`. Must belong to the same school.',
   })
   @ValidateIf((o: LinkGuardianDto) => !o.email)
   @IsNumber()
@@ -28,14 +29,24 @@ export class LinkGuardianDto {
     required: false,
     example: 'parent@example.com',
     format: 'email',
-    description: 'Email of an existing user. Mutually exclusive with `guardian_user_id`. Returns 404 if not found.',
+    description:
+      'Email of an existing user. Mutually exclusive with `guardian_user_id`. Returns 404 if not found.',
   })
   @ValidateIf((o: LinkGuardianDto) => !o.guardian_user_id)
   @IsEmail()
   email?: string;
 
   @ApiProperty({
-    enum: ['father', 'mother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'other'],
+    enum: [
+      'father',
+      'mother',
+      'grandfather',
+      'grandmother',
+      'uncle',
+      'aunt',
+      'sibling',
+      'other',
+    ],
     example: 'father',
   })
   @IsEnum([
@@ -65,7 +76,8 @@ export class LinkGuardianDto {
   @ApiProperty({
     required: false,
     example: true,
-    description: 'Whether the guardian is authorised to pick up the student. Defaults to true.',
+    description:
+      'Whether the guardian is authorised to pick up the student. Defaults to true.',
   })
   @IsOptional()
   @IsBoolean()

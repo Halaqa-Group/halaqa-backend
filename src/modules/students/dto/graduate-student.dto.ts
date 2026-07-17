@@ -11,7 +11,8 @@ export class GraduateStudentDto {
     required: false,
     format: 'date',
     example: '2025-06-30',
-    description: 'Recorded in the audit log; does not update the student record directly.',
+    description:
+      'Recorded in the audit log; does not update the student record directly.',
   })
   @IsOptional()
   @IsDateString()

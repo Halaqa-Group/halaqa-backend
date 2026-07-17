@@ -34,7 +34,12 @@ export class CreateStudentDto {
   @IsEnum(['male', 'female'])
   gender!: StudentGender;
 
-  @ApiProperty({ required: false, format: 'date', example: '2015-06-01', nullable: true })
+  @ApiProperty({
+    required: false,
+    format: 'date',
+    example: '2015-06-01',
+    nullable: true,
+  })
   @IsOptional()
   @IsDateString()
   dob?: string;
@@ -97,7 +102,10 @@ export class CreateStudentDto {
   @IsString()
   notes?: string;
 
-  @ApiProperty({ required: false, example: 'https://cdn.example.com/photos/1.jpg' })
+  @ApiProperty({
+    required: false,
+    example: 'https://cdn.example.com/photos/1.jpg',
+  })
   @IsOptional()
   @IsString()
   photo_url?: string;
@@ -119,7 +127,8 @@ export class CreateStudentDto {
   @ApiProperty({
     required: false,
     type: [LinkGuardianDto],
-    description: 'Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.',
+    description:
+      'Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.',
   })
   @IsOptional()
   @ValidateNested({ each: true })
