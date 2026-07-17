@@ -120,6 +120,9 @@ export class MeResponse {
   @ApiProperty({ example: 'أحمد المدير' })
   name!: string;
 
+  @ApiProperty({ example: '400000006', description: 'National ID number.' })
+  idNumber!: string;
+
   @ApiProperty({ example: 'admin@school.com', format: 'email' })
   email!: string;
 

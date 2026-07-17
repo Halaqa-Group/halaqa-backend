@@ -20,6 +20,7 @@ export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 @Entity('users')
 @Unique('idx_user_email_school', ['email', 'schoolId'])
+@Unique('idx_user_idnum_school', ['idNumber', 'schoolId'])
 @Index('idx_user_school_status', ['schoolId', 'status'])
 export class User {
   @PrimaryGeneratedColumn({ type: 'int' })
@@ -30,6 +31,10 @@ export class User {
 
   @Column({ type: 'varchar', length: 100 })
   name!: string;
+
+  /** National ID number (Palestinian: 9 digits), normalized. Unique per school. */
+  @Column({ name: 'id_number', type: 'varchar', length: 20 })
+  idNumber!: string;
 
   @Column({ type: 'varchar', length: 255 })
   email!: string;

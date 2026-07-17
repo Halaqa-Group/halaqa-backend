@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "docs:export": "ts-node scripts/export-openapi.ts",
     "docs:check": "ts-node scripts/check-openapi.ts",
+    "reset-password": "ts-node scripts/reset-user-password.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/config/data-source.ts",
     "migration:generate": "pnpm typeorm migration:generate",
     "migration:run": "pnpm typeorm migration:run",

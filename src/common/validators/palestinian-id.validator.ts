@@ -51,6 +51,6 @@ export class PalestinianIdValidator implements IdNumberValidator {
       if (d > 9) d -= 9;
       sum += d;
     }
-    return ((10 - (sum % 10)) % 10) === checkDigit;
+    return (10 - (sum % 10)) % 10 === checkDigit;
   }
 }

@@ -7,6 +7,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActiveUserGuard } from '../../common/guards/active-user.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ID_NUMBER_VALIDATOR } from '../../common/validators/id-number-validator.interface';
+import { PalestinianIdValidator } from '../../common/validators/palestinian-id.validator';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { LoginAttempt } from './entities/login-attempt.entity';
@@ -51,10 +53,17 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RefreshTokenCleanupService,
     NodemailerMailService,
     { provide: MAIL_SERVICE, useExisting: NodemailerMailService },
+    { provide: ID_NUMBER_VALIDATOR, useClass: PalestinianIdValidator },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ActiveUserGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [TypeOrmModule, PassportModule, TokenService, AuthService, MAIL_SERVICE],
+  exports: [
+    TypeOrmModule,
+    PassportModule,
+    TokenService,
+    AuthService,
+    MAIL_SERVICE,
+  ],
 })
 export class AuthModule {}

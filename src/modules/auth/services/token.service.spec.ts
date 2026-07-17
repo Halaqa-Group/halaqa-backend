@@ -112,7 +112,11 @@ describe('TokenService', () => {
       const repo = makeRepo();
       const service = makeService(repo);
 
-      const result = await service.issueRefreshToken(1, CTX, 30 * 24 * 60 * 60 * 1000);
+      const result = await service.issueRefreshToken(
+        1,
+        CTX,
+        30 * 24 * 60 * 60 * 1000,
+      );
 
       expect(result.raw.length).toBeGreaterThan(40);
       expect(repo.save).toHaveBeenCalledTimes(1);

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -17,6 +18,10 @@ import {
   Repository,
 } from 'typeorm';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import {
+  ID_NUMBER_VALIDATOR,
+  type IdNumberValidator,
+} from '../../common/validators/id-number-validator.interface';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Role, type RoleSlug } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
@@ -31,6 +36,7 @@ import { User } from './entities/user.entity';
 export interface UserView {
   id: number;
   name: string;
+  idNumber: string;
   email: string;
   phone: string | null;
   photoUrl: string | null;
@@ -59,6 +65,8 @@ export class UsersService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokens: Repository<RefreshToken>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(ID_NUMBER_VALIDATOR)
+    private readonly idValidator: IdNumberValidator,
   ) {}
 
   async create(
@@ -67,6 +75,14 @@ export class UsersService {
   ): Promise<UserView> {
     if (await this.emailTaken(dto.email, actor.schoolId)) {
       throw new ConflictException('Email already in use');
+    }
+
+    const idNumber = this.idValidator.normalize(dto.id_number);
+    if (!this.idValidator.validate(idNumber).ok) {
+      throw new BadRequestException('id_number format is invalid.');
+    }
+    if (await this.idNumberTaken(idNumber, actor.schoolId)) {
+      throw new ConflictException('ID number already in use');
     }
 
     const roleEntities = await this.resolveRoles(dto.roles ?? []);
@@ -80,6 +96,7 @@ export class UsersService {
         userRepo.create({
           schoolId: actor.schoolId,
           name: dto.name,
+          idNumber,
           email: dto.email,
           password: passwordHash,
           phone: dto.phone ?? null,
@@ -121,9 +138,10 @@ export class UsersService {
       .take(limit);
 
     if (query.search) {
-      qb.andWhere('(user.name LIKE :s OR user.email LIKE :s)', {
-        s: `%${query.search}%`,
-      });
+      qb.andWhere(
+        '(user.name LIKE :s OR user.email LIKE :s OR user.idNumber LIKE :s)',
+        { s: `%${query.search}%` },
+      );
     }
     if (query.status) {
       qb.andWhere('user.status = :status', { status: query.status });
@@ -264,10 +282,16 @@ export class UsersService {
     if (!role) throw new BadRequestException(`Unknown role slug: ${slug}`);
 
     const userRoleRepo = manager?.getRepository(UserRole) ?? this.userRoles;
-    const existing = await userRoleRepo.findOne({ where: { userId, roleId: role.id } });
+    const existing = await userRoleRepo.findOne({
+      where: { userId, roleId: role.id },
+    });
     if (existing) return false;
 
-    await userRoleRepo.insert({ userId, roleId: role.id, assignedBy: actor.id });
+    await userRoleRepo.insert({
+      userId,
+      roleId: role.id,
+      assignedBy: actor.id,
+    });
     return true;
   }
 
@@ -342,6 +366,17 @@ export class UsersService {
     return !!existing;
   }
 
+  private async idNumberTaken(
+    idNumber: string,
+    schoolId: number,
+  ): Promise<boolean> {
+    const existing = await this.users.findOne({
+      where: { idNumber, schoolId },
+      withDeleted: true,
+    });
+    return !!existing;
+  }
+
   private async resolveRoles(slugs: string[]): Promise<Role[]> {
     if (slugs.length === 0) return [];
     const roles = await this.rolesRepo.find({ where: { slug: In(slugs) } });
@@ -381,6 +416,7 @@ export class UsersService {
     return {
       id: user.id,
       name: user.name,
+      idNumber: user.idNumber,
       email: user.email,
       phone: user.phone,
       photoUrl: user.photoUrl,

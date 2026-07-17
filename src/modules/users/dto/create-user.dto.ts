@@ -4,6 +4,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Length,
@@ -19,6 +20,18 @@ export class CreateUserDto {
   @IsString()
   @Length(1, 100)
   name!: string;
+
+  @ApiProperty({
+    example: '400000006',
+    maxLength: 20,
+    description:
+      'National ID number (Palestinian: 9 digits). Normalized and unique per school; ' +
+      'also usable as a login identifier. A bad checksum is stored with a warning, not rejected.',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(20)
+  id_number!: string;
 
   @ApiProperty({ example: 'admin@school.com', format: 'email' })
   @IsEmail()

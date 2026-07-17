@@ -59,11 +59,12 @@ export class AuthController {
   @HttpCode(200)
   @Post('login')
   @ApiOperation({
-    summary: 'Log in with email and password',
+    summary: 'Log in with email or national ID, plus password',
     description:
-      'On success, returns an access token and the user view, and sets the `refresh_token` cookie ' +
-      '(HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, ' +
-      'inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.',
+      'Supply exactly one of `email` or `id_number` together with `password`. On success, returns ' +
+      'an access token and the user view, and sets the `refresh_token` cookie ' +
+      '(HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown ' +
+      'identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, type: AuthSuccessEnvelope })
@@ -212,6 +213,7 @@ export class AuthController {
     return {
       id: view.id,
       name: view.name,
+      idNumber: view.idNumber,
       email: view.email,
       phone: view.phone,
       photoUrl: view.photoUrl,

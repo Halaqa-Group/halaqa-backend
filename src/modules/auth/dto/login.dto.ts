@@ -1,10 +1,37 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 
+/**
+ * Log in with EITHER `email` or `id_number` (national ID), plus `password`.
+ * Exactly one identifier is required: `email` is validated when `id_number`
+ * is absent, and vice-versa — so omitting both fails validation.
+ */
 export class LoginDto {
-  @ApiProperty({ example: 'admin@school.com', format: 'email' })
+  @ApiPropertyOptional({
+    example: 'admin@school.com',
+    format: 'email',
+    description: 'Required when `id_number` is not provided.',
+  })
+  @ValidateIf((o: LoginDto) => o.id_number === undefined || o.id_number === '')
   @IsEmail()
-  email!: string;
+  email?: string;
+
+  @ApiPropertyOptional({
+    example: '400000006',
+    description: 'National ID number. Required when `email` is not provided.',
+  })
+  @ValidateIf((o: LoginDto) => o.email === undefined || o.email === '')
+  @IsString()
+  @IsNotEmpty()
+  id_number?: string;
 
   @ApiProperty({ example: 'Passw0rd!', minLength: 1 })
   @IsString()
