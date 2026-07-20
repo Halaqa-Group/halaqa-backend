@@ -15,6 +15,21 @@
         ]
       }
     },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Service health (checks DB connectivity)",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
     "/users": {
       "post": {
         "description": "Hashes the password (bcrypt cost 12) and optionally assigns role slugs in the same transaction. Cannot create a user in another school — `school_id` is taken from the caller.",
@@ -792,6 +807,87 @@
           }
         },
         "summary": "Consume a reset token and set a new password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-email/request": {
+      "post": {
+        "description": "Authenticated. Always returns the same 200 message (even if the email is already verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new one invalidates any previously sent link.",
+        "operationId": "AuthController_requestEmailVerification",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a verification link to the caller's own email",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "description": "Stamps `email_verified_at` on the user and marks the token used. The token is one-time and expires after 24 hours.",
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Consume a verification token and mark the email verified",
         "tags": [
           "Auth"
         ]
@@ -5690,6 +5786,18 @@
           "token",
           "password",
           "password_confirmation"
+        ]
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Raw token from the email-verification link."
+          }
+        },
+        "required": [
+          "token"
         ]
       },
       "ChangePasswordDto": {

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role, RoleSlug } from './role.entity';
 
-interface RoleSeed {
+export interface RoleSeed {
   slug: RoleSlug;
   nameAr: string;
   nameEn: string;
@@ -11,7 +11,7 @@ interface RoleSeed {
   level: number;
 }
 
-const FIXED_ROLES: RoleSeed[] = [
+export const FIXED_ROLES: RoleSeed[] = [
   {
     slug: 'principal',
     nameAr: 'مدير',

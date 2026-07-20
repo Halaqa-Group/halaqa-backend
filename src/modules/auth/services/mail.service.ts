@@ -6,6 +6,7 @@ import type { Transporter } from 'nodemailer';
 export interface MailService {
   sendResetEmail(to: string, link: string): Promise<void>;
   sendParentInvite(to: string, link: string): Promise<void>;
+  sendVerificationEmail(to: string, link: string): Promise<void>;
 }
 
 @Injectable()
@@ -57,6 +58,22 @@ export class NodemailerMailService
     });
     if (!this.hasSmtp) {
       this.logger.log(`reset email (jsonTransport) → ${to}: ${link}`);
+    }
+  }
+
+  async sendVerificationEmail(to: string, link: string): Promise<void> {
+    await this.transporter.sendMail({
+      from: this.from,
+      to,
+      subject: 'Verify your email',
+      text: `Confirm this email address (link valid for 24 hours):\n\n${link}\n\nIf you didn't request this, ignore this email.`,
+      html:
+        `<p>Confirm this email address (link valid for 24 hours):</p>` +
+        `<p><a href="${link}">${link}</a></p>` +
+        `<p>If you didn't request this, ignore this email.</p>`,
+    });
+    if (!this.hasSmtp) {
+      this.logger.log(`verification email (jsonTransport) → ${to}: ${link}`);
     }
   }
 

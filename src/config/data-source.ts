@@ -11,6 +11,7 @@ import { Holiday } from '../modules/attendance/entities/holiday.entity';
 import { SchoolSchedule } from '../modules/attendance/entities/school-schedule.entity';
 import { StudentAttendance } from '../modules/attendance/entities/student-attendance.entity';
 import { TeacherAttendance } from '../modules/attendance/entities/teacher-attendance.entity';
+import { EmailVerificationToken } from '../modules/auth/entities/email-verification-token.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
@@ -52,6 +53,7 @@ export default new DataSource({
     RefreshToken,
     LoginAttempt,
     PasswordResetToken,
+    EmailVerificationToken,
     AuditLog,
     Student,
     StudentGuardian,

@@ -47,6 +47,7 @@ function makeMocks(): Mocks {
     mail: {
       sendResetEmail: jest.fn().mockResolvedValue(undefined),
       sendParentInvite: jest.fn().mockResolvedValue(undefined),
+      sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
     },
     tokens: {
       revokeAllForUser: jest.fn().mockResolvedValue(undefined),
