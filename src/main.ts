@@ -9,6 +9,16 @@ import { setupSwagger } from './swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+
+  const nodeEnv = config.get<string>('NODE_ENV');
+  const corsOrigins = config.get<string>('CORS_ORIGINS', '');
+  if (nodeEnv === 'development' || corsOrigins) {
+    const origin = corsOrigins
+      ? corsOrigins.split(',').map((o) => o.trim()).filter(Boolean)
+      : ['http://127.0.0.1:3000', 'http://localhost:3000'];
+    app.enableCors({ origin, credentials: true });
+  }
 
   app.setGlobalPrefix('api');
   app.use(cookieParser());
@@ -27,7 +37,7 @@ async function bootstrap() {
 
   setupSwagger(app);
 
-  const port = app.get(ConfigService).get<number>('PORT', 3000);
+  const port = config.get<number>('PORT', 3000);
   await app.listen(port);
 }
 void bootstrap();

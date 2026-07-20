@@ -145,7 +145,8 @@ export interface AchievementListResult {
 @Injectable()
 export class AchievementsService {
   constructor(
-    @InjectRepository(Achievement) private readonly repo: Repository<Achievement>,
+    @InjectRepository(Achievement)
+    private readonly repo: Repository<Achievement>,
     @InjectRepository(AchievementRecitationPosition)
     private readonly positions: Repository<AchievementRecitationPosition>,
     @InjectRepository(AchievementPositionError)
@@ -171,29 +172,50 @@ export class AchievementsService {
       await this.memorization.enqueueRecompute(achievement.studentId);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Failed to enqueue memorization recompute for student ${achievement.studentId}: ${message}`);
+      this.logger.warn(
+        `Failed to enqueue memorization recompute for student ${achievement.studentId}: ${message}`,
+      );
     }
   }
 
   // ─── Recitation positions ─────────────────────────────────────────────────
 
   /** True if `inner` lies entirely within `outer` in Quran order (surah, then verse). */
-  private isRangeWithin(inner: VerseRangeInput, outer: VerseRangeInput): boolean {
-    const gte = (s: number, v: number, s2: number, v2: number) => s > s2 || (s === s2 && v >= v2);
-    const lte = (s: number, v: number, s2: number, v2: number) => s < s2 || (s === s2 && v <= v2);
+  private isRangeWithin(
+    inner: VerseRangeInput,
+    outer: VerseRangeInput,
+  ): boolean {
+    const gte = (s: number, v: number, s2: number, v2: number) =>
+      s > s2 || (s === s2 && v >= v2);
+    const lte = (s: number, v: number, s2: number, v2: number) =>
+      s < s2 || (s === s2 && v <= v2);
     return (
-      gte(inner.startSurah, inner.startVerse, outer.startSurah, outer.startVerse) &&
-      lte(inner.endSurah, inner.endVerse, outer.endSurah, outer.endVerse)
+      gte(
+        inner.startSurah,
+        inner.startVerse,
+        outer.startSurah,
+        outer.startVerse,
+      ) && lte(inner.endSurah, inner.endVerse, outer.endSurah, outer.endVerse)
     );
   }
 
   /** Validates a single error's location against its position range and QUL sanity. */
-  private validatePositionError(e: PositionErrorInput, positionRange: VerseRangeInput): void {
+  private validatePositionError(
+    e: PositionErrorInput,
+    positionRange: VerseRangeInput,
+  ): void {
     if (e.endWordId < e.startWordId) {
       throw new BadRequestException('end_word_id must be >= start_word_id.');
     }
-    if (e.surah < 1 || e.surah > 114 || e.ayah < 1 || e.ayah > SURAH_VERSES[e.surah]) {
-      throw new BadRequestException(`Invalid error location: surah ${e.surah}, ayah ${e.ayah}.`);
+    if (
+      e.surah < 1 ||
+      e.surah > 114 ||
+      e.ayah < 1 ||
+      e.ayah > SURAH_VERSES[e.surah]
+    ) {
+      throw new BadRequestException(
+        `Invalid error location: surah ${e.surah}, ayah ${e.ayah}.`,
+      );
     }
     // The error's ayah must fall within the position's verse range (Quran order).
     const point: VerseRangeInput = {
@@ -203,7 +225,9 @@ export class AchievementsService {
       endVerse: e.ayah,
     };
     if (!this.isRangeWithin(point, positionRange)) {
-      throw new BadRequestException('Each error must fall within its position verse range.');
+      throw new BadRequestException(
+        'Each error must fall within its position verse range.',
+      );
     }
   }
 
@@ -223,7 +247,9 @@ export class AchievementsService {
   ): PositionInput[] {
     if (method === 'test') {
       if (!testPositions || testPositions.length === 0) {
-        throw new BadRequestException('test_positions is required when recitation_method is "test".');
+        throw new BadRequestException(
+          'test_positions is required when recitation_method is "test".',
+        );
       }
       if (topLevelErrors !== undefined) {
         throw new BadRequestException(
@@ -233,7 +259,9 @@ export class AchievementsService {
       for (const p of testPositions) {
         this.rangeValidator.validate(p);
         if (!this.isRangeWithin(p, range)) {
-          throw new BadRequestException('Each test position must fall within the achievement verse range.');
+          throw new BadRequestException(
+            'Each test position must fall within the achievement verse range.',
+          );
         }
         for (const e of p.errors ?? []) this.validatePositionError(e, p);
       }
@@ -242,10 +270,13 @@ export class AchievementsService {
 
     // full — one position over the whole range, holding the top-level errors
     if (testPositions !== undefined) {
-      throw new BadRequestException('test_positions is only valid when recitation_method is "test".');
+      throw new BadRequestException(
+        'test_positions is only valid when recitation_method is "test".',
+      );
     }
     const position: PositionInput = { ...range, errors: topLevelErrors ?? [] };
-    for (const e of position.errors ?? []) this.validatePositionError(e, position);
+    for (const e of position.errors ?? [])
+      this.validatePositionError(e, position);
     return [position];
   }
 
@@ -296,7 +327,9 @@ export class AchievementsService {
   }
 
   /** Loads recitation positions (with their error rows) grouped by achievement id. */
-  async resolvePositions(achievementIds: number[]): Promise<Map<number, AchievementRecitationPosition[]>> {
+  async resolvePositions(
+    achievementIds: number[],
+  ): Promise<Map<number, AchievementRecitationPosition[]>> {
     const map = new Map<number, AchievementRecitationPosition[]>();
     const unique = [...new Set(achievementIds)];
     if (!unique.length) return map;
@@ -316,7 +349,9 @@ export class AchievementsService {
   // ─── Authorization helpers ────────────────────────────────────────────────
 
   private isAdmin(actor: AuthenticatedUser): boolean {
-    return actor.roles.some((r) => r.slug === 'principal' || r.slug === 'vice_principal');
+    return actor.roles.some(
+      (r) => r.slug === 'principal' || r.slug === 'vice_principal',
+    );
   }
 
   private isPrincipal(actor: AuthenticatedUser): boolean {
@@ -324,7 +359,10 @@ export class AchievementsService {
   }
 
   /** Any role that can record achievements for a halaqa (incl. non-primary teachers). */
-  private async hasHalaqaScope(halaqaId: number, actor: AuthenticatedUser): Promise<boolean> {
+  private async hasHalaqaScope(
+    halaqaId: number,
+    actor: AuthenticatedUser,
+  ): Promise<boolean> {
     if (this.isAdmin(actor)) return true;
 
     if (actor.roles.some((r) => r.slug === 'supervisor')) {
@@ -347,7 +385,10 @@ export class AchievementsService {
   }
 
   /** Principal/VP, supervisor in scope, or primary/acting teacher. */
-  private async hasApprovalAuthority(halaqaId: number, actor: AuthenticatedUser): Promise<boolean> {
+  private async hasApprovalAuthority(
+    halaqaId: number,
+    actor: AuthenticatedUser,
+  ): Promise<boolean> {
     if (this.isAdmin(actor)) return true;
 
     if (actor.roles.some((r) => r.slug === 'supervisor')) {
@@ -406,7 +447,9 @@ export class AchievementsService {
       [studentId, halaqaId, schoolId],
     );
     if (!rows.length) {
-      throw new BadRequestException('Student is not actively enrolled in the selected halaqa.');
+      throw new BadRequestException(
+        'Student is not actively enrolled in the selected halaqa.',
+      );
     }
   }
 
@@ -419,7 +462,10 @@ export class AchievementsService {
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
-  async create(input: CreateAchievementInput, actor: AuthenticatedUser): Promise<Achievement> {
+  async create(
+    input: CreateAchievementInput,
+    actor: AuthenticatedUser,
+  ): Promise<Achievement> {
     // 1. Validate verse range (cheap, fail fast before any DB hit)
     const range: VerseRangeInput = {
       startSurah: input.startSurah,
@@ -430,9 +476,21 @@ export class AchievementsService {
     this.rangeValidator.validate(range);
 
     // 1b. Resolve methods + recitation positions (validates positions & errors up front)
-    const completionMethod: CompletionMethod = input.completionMethod ?? 'quick';
+    const completionMethod: CompletionMethod =
+      input.completionMethod ?? 'quick';
     const recitationMethod: RecitationMethod = input.recitationMethod ?? 'full';
-    const positions = this.buildPositions(recitationMethod, range, input.testPositions, input.errors);
+    // New memorization (Hifz) must always be a full recitation — no partial testing.
+    if (input.trackType === 'Hifz' && recitationMethod === 'test') {
+      throw new BadRequestException(
+        'New memorization (Hifz) must be a full recitation, not a partial test.',
+      );
+    }
+    const positions = this.buildPositions(
+      recitationMethod,
+      range,
+      input.testPositions,
+      input.errors,
+    );
     // The achievement's counts are the roll-up of its positions' errors, never client-set.
     const totals = sumPositionCounts(positions);
 
@@ -442,7 +500,11 @@ export class AchievementsService {
     }
 
     // 3. Student must be actively enrolled in the selected halaqa
-    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
+    await this.assertStudentEnrolledInHalaqa(
+      input.studentId,
+      input.halaqaId,
+      actor.schoolId,
+    );
 
     // 4. Attendance check
     const attendance = await this.attendanceQuery.findForStudentOnDate(
@@ -456,7 +518,9 @@ export class AchievementsService {
       );
     }
     if (attendance.status === 'absent') {
-      throw new BadRequestException('Cannot record achievement: student was absent.');
+      throw new BadRequestException(
+        'Cannot record achievement: student was absent.',
+      );
     }
 
     // 5. Score is computed on the frontend and supplied in the request — stored as-is.
@@ -464,8 +528,13 @@ export class AchievementsService {
 
     // 6. Approve authority check (before persisting)
     const shouldApprove = input.approve === true;
-    if (shouldApprove && !(await this.hasApprovalAuthority(input.halaqaId, actor))) {
-      throw new ForbiddenException('You cannot approve achievements for this halaqa.');
+    if (
+      shouldApprove &&
+      !(await this.hasApprovalAuthority(input.halaqaId, actor))
+    ) {
+      throw new ForbiddenException(
+        'You cannot approve achievements for this halaqa.',
+      );
     }
 
     // 7. Persist
@@ -512,7 +581,9 @@ export class AchievementsService {
         trackType: achievement.trackType,
         percentageScore: achievement.percentageScore,
       },
-      description: attendance.id ? `created against attendance row #${attendance.id}` : undefined,
+      description: attendance.id
+        ? `created against attendance row #${attendance.id}`
+        : undefined,
     });
 
     if (shouldApprove) {
@@ -536,7 +607,10 @@ export class AchievementsService {
 
   // ─── Read ─────────────────────────────────────────────────────────────────
 
-  async findAll(filter: ListAchievementsFilter, actor: AuthenticatedUser): Promise<AchievementListResult> {
+  async findAll(
+    filter: ListAchievementsFilter,
+    actor: AuthenticatedUser,
+  ): Promise<AchievementListResult> {
     const page = Math.max(1, filter.page ?? 1);
     const limit = Math.min(100, Math.max(1, filter.limit ?? 20));
 
@@ -574,19 +648,34 @@ export class AchievementsService {
     }
 
     // Parents cannot filter/sort by fields they cannot see
-    const isParent = actor.roles.some((r) => r.slug === 'parent') && !this.isAdmin(actor);
-    if (isParent && (filter.recordedBy !== undefined || filter.approvedBy !== undefined)) {
+    const isParent =
+      actor.roles.some((r) => r.slug === 'parent') && !this.isAdmin(actor);
+    if (
+      isParent &&
+      (filter.recordedBy !== undefined || filter.approvedBy !== undefined)
+    ) {
       throw new BadRequestException('Filter not available for this role.');
     }
 
     // Optional filters
-    if (filter.studentId !== undefined) qb.andWhere('a.studentId = :studentId', { studentId: filter.studentId });
-    if (filter.halaqaId !== undefined) qb.andWhere('a.halaqaId = :halaqaId', { halaqaId: filter.halaqaId });
-    if (filter.date !== undefined) qb.andWhere('a.date = :date', { date: filter.date });
-    if (filter.trackType !== undefined) qb.andWhere('a.trackType = :trackType', { trackType: filter.trackType });
-    if (filter.status !== undefined) qb.andWhere('a.status = :status', { status: filter.status });
-    if (filter.recordedBy !== undefined) qb.andWhere('a.recordedBy = :recordedBy', { recordedBy: filter.recordedBy });
-    if (filter.approvedBy !== undefined) qb.andWhere('a.approvedBy = :approvedBy', { approvedBy: filter.approvedBy });
+    if (filter.studentId !== undefined)
+      qb.andWhere('a.studentId = :studentId', { studentId: filter.studentId });
+    if (filter.halaqaId !== undefined)
+      qb.andWhere('a.halaqaId = :halaqaId', { halaqaId: filter.halaqaId });
+    if (filter.date !== undefined)
+      qb.andWhere('a.date = :date', { date: filter.date });
+    if (filter.trackType !== undefined)
+      qb.andWhere('a.trackType = :trackType', { trackType: filter.trackType });
+    if (filter.status !== undefined)
+      qb.andWhere('a.status = :status', { status: filter.status });
+    if (filter.recordedBy !== undefined)
+      qb.andWhere('a.recordedBy = :recordedBy', {
+        recordedBy: filter.recordedBy,
+      });
+    if (filter.approvedBy !== undefined)
+      qb.andWhere('a.approvedBy = :approvedBy', {
+        approvedBy: filter.approvedBy,
+      });
 
     qb.orderBy('a.date', 'DESC').addOrderBy('a.id', 'DESC');
     qb.skip((page - 1) * limit).take(limit);
@@ -598,7 +687,13 @@ export class AchievementsService {
   async findOne(id: number, actor: AuthenticatedUser): Promise<Achievement> {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
-    if (!(await this.hasReadScope(achievement.halaqaId, achievement.studentId, actor))) {
+    if (
+      !(await this.hasReadScope(
+        achievement.halaqaId,
+        achievement.studentId,
+        actor,
+      ))
+    ) {
       throw new NotFoundException();
     }
 
@@ -607,11 +702,17 @@ export class AchievementsService {
 
   // ─── Update ───────────────────────────────────────────────────────────────
 
-  async update(id: number, input: UpdateAchievementInput, actor: AuthenticatedUser): Promise<Achievement> {
+  async update(
+    id: number,
+    input: UpdateAchievementInput,
+    actor: AuthenticatedUser,
+  ): Promise<Achievement> {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
     if (achievement.status === 'approved') {
-      throw new BadRequestException('Approved achievement is locked. Unapprove it first.');
+      throw new BadRequestException(
+        'Approved achievement is locked. Unapprove it first.',
+      );
     }
 
     if (!(await this.hasHalaqaScope(achievement.halaqaId, actor))) {
@@ -619,16 +720,32 @@ export class AchievementsService {
     }
 
     if (input.trackType !== undefined) achievement.trackType = input.trackType;
-    if (input.startSurah !== undefined) achievement.startSurah = input.startSurah;
-    if (input.startVerse !== undefined) achievement.startVerse = input.startVerse;
+    if (input.startSurah !== undefined)
+      achievement.startSurah = input.startSurah;
+    if (input.startVerse !== undefined)
+      achievement.startVerse = input.startVerse;
     if (input.endSurah !== undefined) achievement.endSurah = input.endSurah;
     if (input.endVerse !== undefined) achievement.endVerse = input.endVerse;
     if (input.percentageScore !== undefined) {
-      achievement.percentageScore = Math.round(input.percentageScore * 100) / 100;
+      achievement.percentageScore =
+        Math.round(input.percentageScore * 100) / 100;
     }
-    if (input.completionMethod !== undefined) achievement.completionMethod = input.completionMethod;
-    if (input.recitationMethod !== undefined) achievement.recitationMethod = input.recitationMethod;
-    if ('teacherNotes' in input) achievement.teacherNotes = input.teacherNotes ?? null;
+    if (input.completionMethod !== undefined)
+      achievement.completionMethod = input.completionMethod;
+    if (input.recitationMethod !== undefined)
+      achievement.recitationMethod = input.recitationMethod;
+    if ('teacherNotes' in input)
+      achievement.teacherNotes = input.teacherNotes ?? null;
+
+    // New memorization (Hifz) must always be a full recitation — no partial testing.
+    if (
+      achievement.trackType === 'Hifz' &&
+      achievement.recitationMethod === 'test'
+    ) {
+      throw new BadRequestException(
+        'New memorization (Hifz) must be a full recitation, not a partial test.',
+      );
+    }
 
     if (input.startSurah !== undefined || input.endSurah !== undefined) {
       this.rangeValidator.validate({
@@ -693,7 +810,9 @@ export class AchievementsService {
     if (wasApproved) {
       // Approved achievements: principal ONLY (VP cannot delete)
       if (!this.isPrincipal(actor)) {
-        throw new ForbiddenException('Only the principal can delete approved achievements.');
+        throw new ForbiddenException(
+          'Only the principal can delete approved achievements.',
+        );
       }
     } else {
       // Unapproved: any in-scope role
@@ -724,7 +843,9 @@ export class AchievementsService {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
     if (!(await this.hasApprovalAuthority(achievement.halaqaId, actor))) {
-      throw new ForbiddenException('You cannot approve achievements for this halaqa.');
+      throw new ForbiddenException(
+        'You cannot approve achievements for this halaqa.',
+      );
     }
 
     if (achievement.status === 'approved') {
@@ -753,14 +874,34 @@ export class AchievementsService {
 
   // ─── User name resolution (for mapper) ───────────────────────────────────
 
-  async resolveUserNames(ids: number[], schoolId: number): Promise<Map<number, string>> {
+  async resolveUserNames(
+    ids: number[],
+    schoolId: number,
+  ): Promise<Map<number, string>> {
     const unique = [...new Set(ids.filter(Boolean))];
     if (!unique.length) return new Map();
     const ph = unique.map(() => '?').join(', ');
-    const rows: { id: number; name: string }[] = await this.dataSource.manager.query(
-      `SELECT id, name FROM users WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
-      [...unique, schoolId],
-    );
+    const rows: { id: number; name: string }[] =
+      await this.dataSource.manager.query(
+        `SELECT id, name FROM users WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
+        [...unique, schoolId],
+      );
+    return new Map(rows.map((r) => [r.id, r.name]));
+  }
+
+  /** studentId → name, for display denormalization on achievement responses. */
+  async resolveStudentNames(
+    ids: number[],
+    schoolId: number,
+  ): Promise<Map<number, string>> {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return new Map();
+    const ph = unique.map(() => '?').join(', ');
+    const rows: { id: number; name: string }[] =
+      await this.dataSource.manager.query(
+        `SELECT id, name FROM students WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
+        [...unique, schoolId],
+      );
     return new Map(rows.map((r) => [r.id, r.name]));
   }
 
@@ -770,7 +911,9 @@ export class AchievementsService {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
     if (!this.isAdmin(actor)) {
-      throw new ForbiddenException('Only principal or vice_principal can unapprove achievements.');
+      throw new ForbiddenException(
+        'Only principal or vice_principal can unapprove achievements.',
+      );
     }
 
     if (achievement.status === 'unapproved') {
@@ -789,7 +932,11 @@ export class AchievementsService {
       action: 'achievement.unapprove',
       entityType: 'achievement',
       entityId: id,
-      oldValues: { approvedBy: oldApprovedBy, approvedAt: oldApprovedAt, status: 'approved' },
+      oldValues: {
+        approvedBy: oldApprovedBy,
+        approvedAt: oldApprovedAt,
+        status: 'approved',
+      },
     });
 
     await this.reconciliation.reconcileForAchievement(id);

@@ -258,6 +258,25 @@ describe('AchievementsService', () => {
         service.create({ ...CREATE_INPUT, startSurah: 5, endSurah: 2 }, makeActor()),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('throws BadRequestException when Hifz is recited as a partial test', async () => {
+      // Hifz⇒full guard fires after range validation, before any DB call.
+      const service = makeService({ ds: makeDataSource([]) });
+
+      await expect(
+        service.create(
+          {
+            ...CREATE_INPUT,
+            trackType: 'Hifz',
+            recitationMethod: 'test',
+            testPositions: [
+              { startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 },
+            ],
+          },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   // ─── approve() ────────────────────────────────────────────────────────────
@@ -447,6 +466,7 @@ describe('AchievementsService', () => {
       await service.create(
         {
           ...CREATE_INPUT,
+          trackType: 'Near',
           recitationMethod: 'test',
           testPositions: [
             { startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3, errors: [err('mistake', 1, 1), err('harakat', 1, 2), err('harakat', 1, 3)] },
@@ -473,6 +493,7 @@ describe('AchievementsService', () => {
         service.create(
           {
             ...CREATE_INPUT,
+            trackType: 'Near',
             recitationMethod: 'test',
             testPositions: [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 }],
             errors: [err('mistake', 1, 1)],

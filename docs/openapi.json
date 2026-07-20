@@ -3324,6 +3324,78 @@
         ]
       }
     },
+    "/students/{id}/error-heatmap": {
+      "get": {
+        "description": "Aggregates the student's recitation errors by ayah over the last `days` days, returning the worst ayat (most errors first) with per-type counts. Staff only — parents do not see error breakdowns. Out-of-scope or cross-school access returns 404.",
+        "operationId": "StudentErrorHeatmapController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "description": "How many days back to aggregate errors over. Defaults to 56 (8 weeks).",
+            "schema": {
+              "minimum": 1,
+              "maximum": 365,
+              "default": 56,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max number of hotspots (worst ayat) to return. Defaults to 20.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHeatmapEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a student's error heatmap",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
     "/me/children": {
       "get": {
         "description": "Returns all students for which the authenticated parent has a `student_guardians` entry. **Cross-school exception**: this is the only endpoint in the system that returns students from multiple schools. A parent's children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. Soft-deleted students are excluded. No pagination — returns all children in one response. Does NOT write an audit log.",
@@ -7120,6 +7192,97 @@
           }
         }
       },
+      "HeatmapHotspotDto": {
+        "type": "object",
+        "properties": {
+          "surah": {
+            "type": "number",
+            "example": 2
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 3
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0
+          },
+          "harakat_errors_count": {
+            "type": "number",
+            "example": 2
+          },
+          "total": {
+            "type": "number",
+            "example": 6,
+            "description": "Total errors at this ayah in the window."
+          }
+        },
+        "required": [
+          "surah",
+          "ayah",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
+          "total"
+        ]
+      },
+      "ErrorHeatmapResponse": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "days": {
+            "type": "number",
+            "example": 56,
+            "description": "The window (in days) that was aggregated."
+          },
+          "total_errors": {
+            "type": "number",
+            "example": 37,
+            "description": "Total error occurrences across all ayat in the window."
+          },
+          "hotspots": {
+            "description": "Worst ayat, most errors first (ties broken by mushaf order).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeatmapHotspotDto"
+            }
+          }
+        },
+        "required": [
+          "student_id",
+          "days",
+          "total_errors",
+          "hotspots"
+        ]
+      },
+      "ErrorHeatmapEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/ErrorHeatmapResponse"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
       "SyncAttendanceEntryDto": {
         "type": "object",
         "properties": {
@@ -8091,6 +8254,12 @@
           "student_id": {
             "type": "number",
             "example": 42
+          },
+          "student_name": {
+            "type": "object",
+            "nullable": true,
+            "example": "Yusuf Ahmad",
+            "description": "Student's name (denormalized for display)."
           },
           "halaqa_id": {
             "type": "number",

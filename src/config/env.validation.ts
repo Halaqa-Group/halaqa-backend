@@ -23,6 +23,9 @@ export const envValidationSchema = Joi.object({
 
   COOKIE_SECURE: Joi.boolean().default(false),
 
+  /** Comma-separated browser origins allowed for CORS (credentials). Empty = no extra CORS (dev still enables defaults in main.ts). */
+  CORS_ORIGINS: Joi.string().allow('').optional(),
+
   APP_URL: Joi.string().uri().required(),
   MAIL_FROM: Joi.string().required(),
   SMTP_HOST: Joi.string().allow('').optional(),
