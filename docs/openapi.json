@@ -4253,7 +4253,7 @@
     },
     "/achievements": {
       "post": {
-        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
+        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
         "operationId": "AchievementsController_create",
         "parameters": [],
         "requestBody": {
@@ -4281,7 +4281,7 @@
             "description": "Validation error, invalid verse range, or student absent."
           },
           "403": {
-            "description": "No halaqa scope, or approve=true without authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found or out of scope."
@@ -4298,7 +4298,7 @@
         ]
       },
       "get": {
-        "description": "Returns a paginated list of achievements visible to the caller.\n- **principal / vice_principal**: all achievements in the school.\n- **supervisor**: achievements for halaqat they supervise.\n- **teacher**: achievements for halaqat they are assigned to.\n- **parent**: achievements for their linked students only.   `recorded_by` and `approved_by` filters return 400 for this role.",
+        "description": "Returns a paginated list of achievements visible to the caller.\n- **principal / vice_principal**: all achievements in the school.\n- **supervisor**: achievements for halaqat they supervise.\n- **teacher**: achievements for halaqat they are assigned to.\n- **parent**: achievements for their linked students only (read-only, full detail).",
         "operationId": "AchievementsController_findAll",
         "parameters": [
           {
@@ -4413,9 +4413,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Parent using a restricted filter."
           }
         },
         "security": [
@@ -4431,7 +4428,7 @@
     },
     "/achievements/{id}": {
       "get": {
-        "description": "Returns a single achievement. Out-of-scope or cross-school access returns 404 (never 403). Parent role: `mistakes_count`, `warnings_count`, `tajweed_errors_count`, `recorded_by_name`, `approved_by_name`, and `approved_at` are omitted.",
+        "description": "Returns a single achievement with its recitation positions and itemized errors. Out-of-scope or cross-school access returns 404 (never 403). All roles that can read the achievement (including **parent**) receive the full payload.",
         "operationId": "AchievementsController_findOne",
         "parameters": [
           {
@@ -4566,7 +4563,7 @@
     },
     "/achievements/{id}/approve": {
       "post": {
-        "description": "Marks the achievement as approved. Caller must be: principal, VP, supervisor in scope, or primary/acting teacher for the halaqa. Returns 400 if already approved. Triggers plan item reconciliation.",
+        "description": "Marks the achievement as approved. Caller must be: principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 400 if already approved. Triggers plan item reconciliation.",
         "operationId": "AchievementsController_approve",
         "parameters": [
           {
@@ -4594,7 +4591,7 @@
             "description": "Already approved."
           },
           "403": {
-            "description": "No approval authority for this halaqa."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4613,7 +4610,7 @@
     },
     "/achievements/{id}/unapprove": {
       "post": {
-        "description": "Reverts an approved achievement back to unapproved. Principal and vice_principal only. `approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). Returns 400 if not currently approved. Triggers plan item reconciliation.",
+        "description": "Reverts an approved achievement back to unapproved. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. `approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). Returns 400 if not currently approved. Triggers plan item reconciliation.",
         "operationId": "AchievementsController_unapprove",
         "parameters": [
           {
@@ -4641,7 +4638,7 @@
             "description": "Not currently approved."
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4681,7 +4678,7 @@
     },
     "/weekly-plans": {
       "post": {
-        "description": "Creates a draft weekly plan with one or more items. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Regular (non-primary) teachers are rejected with 403. Returns 409 if a plan already exists for the same student/halaqa/week.",
+        "description": "Creates a draft weekly plan with one or more items. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 409 if a plan already exists for the same student/halaqa/week.",
         "operationId": "WeeklyPlansController_create",
         "parameters": [],
         "requestBody": {
@@ -4709,7 +4706,7 @@
             "description": "Validation error or invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority for this halaqa."
+            "description": "No halaqa scope."
           },
           "409": {
             "description": "Plan already exists. Response includes existing_plan_id."
@@ -4861,7 +4858,7 @@
         ]
       },
       "delete": {
-        "description": "Permanently deletes the plan and its items. Principal and vice_principal only. This is a hard delete — the plan and its items are removed from the database and cannot be restored.",
+        "description": "Permanently deletes the plan and its items. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. This is a hard delete — the plan and its items are removed from the database and cannot be restored.",
         "operationId": "WeeklyPlansController_remove",
         "parameters": [
           {
@@ -4886,7 +4883,7 @@
             }
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4905,7 +4902,7 @@
     },
     "/weekly-plans/{id}/approve": {
       "post": {
-        "description": "Locks the plan structure and runs reconciliation for every item. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Returns 400 if already approved.",
+        "description": "Locks the plan structure and runs reconciliation for every item. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 400 if already approved.",
         "operationId": "WeeklyPlansController_approve",
         "parameters": [
           {
@@ -4933,7 +4930,7 @@
             "description": "Already approved."
           },
           "403": {
-            "description": "No approval authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4952,7 +4949,7 @@
     },
     "/weekly-plans/{id}/unapprove": {
       "post": {
-        "description": "Reverts the plan to draft status. Principal and VP only. `approved_by` is preserved for audit purposes. Returns 400 if not currently approved.",
+        "description": "Reverts the plan to draft status. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. `approved_by` is preserved for audit purposes. Returns 400 if not currently approved.",
         "operationId": "WeeklyPlansController_unapprove",
         "parameters": [
           {
@@ -4980,7 +4977,7 @@
             "description": "Not currently approved."
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4999,7 +4996,7 @@
     },
     "/weekly-plans/{planId}/items": {
       "post": {
-        "description": "Adds a new item to a **draft** plan. Returns 400 if the plan is approved (unapprove it first). Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa.",
+        "description": "Adds a new item to a **draft** plan. Returns 400 if the plan is approved (unapprove it first). Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa.",
         "operationId": "PlanItemsController_addItem",
         "parameters": [
           {
@@ -5037,7 +5034,7 @@
             "description": "Plan is approved, or invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Plan not found."
@@ -5056,7 +5053,7 @@
     },
     "/weekly-plan-items/{id}": {
       "delete": {
-        "description": "Hard-deletes a plan item. Returns 400 if the plan is approved (unapprove first). Caller must have primary-teacher authority for the halaqa.",
+        "description": "Hard-deletes a plan item. Returns 400 if the plan is approved (unapprove first). Caller must have halaqa scope (any assigned teacher, supervisor in scope, VP, or principal).",
         "operationId": "PlanItemsController_deleteItem",
         "parameters": [
           {
@@ -5084,7 +5081,7 @@
             "description": "Plan is approved."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Item not found or out of scope."
@@ -5101,7 +5098,7 @@
         ]
       },
       "patch": {
-        "description": "Updates a plan item's range, track type, or day. Range edits are allowed even on **approved** plans (no unapprove required). Changing any range field (`start_surah`, `start_verse`, `end_surah`, `end_verse`) sets `is_manual_override = true` permanently, recomputes `total_verses`, and re-runs reconciliation. Caller must have primary-teacher authority for the halaqa.",
+        "description": "Updates a plan item's range, track type, or day. Range edits are allowed even on **approved** plans (no unapprove required). Changing any range field (`start_surah`, `start_verse`, `end_surah`, `end_verse`) sets `is_manual_override = true` permanently, recomputes `total_verses`, and re-runs reconciliation. Caller must have halaqa scope (any assigned teacher, supervisor in scope, VP, or principal).",
         "operationId": "PlanItemsController_updateItem",
         "parameters": [
           {
@@ -5139,7 +5136,7 @@
             "description": "Invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Item not found or out of scope."
@@ -8235,7 +8232,7 @@
           "approve": {
             "type": "boolean",
             "default": false,
-            "description": "Approve in the same request. Caller must have approval authority. Lacks authority → 403 (never silently downgraded to unapproved)."
+            "description": "Approve in the same request. Caller must have halaqa scope. Lacks scope → 403 (never silently downgraded to unapproved)."
           }
         },
         "required": [
@@ -8320,25 +8317,25 @@
           "mistakes_count": {
             "type": "number",
             "example": 1,
-            "description": "Derived from `errors`. Hidden for parent role."
+            "description": "Derived from `errors`."
           },
           "warnings_count": {
             "type": "number",
             "example": 1,
-            "description": "Derived from `errors`. Hidden for parent role."
+            "description": "Derived from `errors`."
           },
           "tajweed_errors_count": {
             "type": "number",
             "example": 0,
-            "description": "Derived from `errors`. Hidden for parent role."
+            "description": "Derived from `errors`."
           },
           "harakat_errors_count": {
             "type": "number",
             "example": 2,
-            "description": "Harakat (حركات) errors, derived from `errors`. Hidden for parent role."
+            "description": "Harakat (حركات) errors, derived from `errors`."
           },
           "errors": {
-            "description": "Itemized errors at this position. Hidden for parent role.",
+            "description": "Itemized errors at this position.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PositionErrorDtoOut"
@@ -8349,7 +8346,12 @@
           "start_surah",
           "start_verse",
           "end_surah",
-          "end_verse"
+          "end_verse",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
+          "errors"
         ]
       },
       "AchievementDto": {
@@ -8429,26 +8431,23 @@
           "mistakes_count": {
             "type": "object",
             "example": 2,
-            "nullable": true,
-            "description": "Hidden for parent role."
+            "nullable": true
           },
           "warnings_count": {
             "type": "object",
             "example": 1,
-            "nullable": true,
-            "description": "Hidden for parent role."
+            "nullable": true
           },
           "tajweed_errors_count": {
             "type": "object",
             "example": 0,
-            "nullable": true,
-            "description": "Hidden for parent role."
+            "nullable": true
           },
           "harakat_errors_count": {
             "type": "object",
             "example": 3,
             "nullable": true,
-            "description": "Total harakat (حركات) errors across all positions. Hidden for parent role."
+            "description": "Total harakat (حركات) errors across all positions."
           },
           "percentage_score": {
             "type": "string",
@@ -8466,20 +8465,17 @@
           "recorded_by_name": {
             "type": "object",
             "nullable": true,
-            "example": "Ahmad Ali",
-            "description": "Hidden for parent role."
+            "example": "Ahmad Ali"
           },
           "approved_by_name": {
             "type": "object",
             "nullable": true,
-            "example": "Ahmad Ali",
-            "description": "Hidden for parent role."
+            "example": "Ahmad Ali"
           },
           "approved_at": {
             "type": "object",
             "nullable": true,
-            "example": "2026-05-11T12:00:00.000Z",
-            "description": "Hidden for parent role."
+            "example": "2026-05-11T12:00:00.000Z"
           },
           "teacher_notes": {
             "type": "object",
@@ -8504,8 +8500,15 @@
           "start_verse",
           "end_surah",
           "end_verse",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
           "percentage_score",
           "status",
+          "recorded_by_name",
+          "approved_by_name",
+          "approved_at",
           "teacher_notes",
           "created_at"
         ]
@@ -8686,7 +8689,7 @@
           "halaqa_id": {
             "type": "number",
             "example": 3,
-            "description": "Halaqa ID. Caller must have primary-teacher authority."
+            "description": "Halaqa ID. Caller must have scope on this halaqa."
           },
           "week_start_date": {
             "type": "string",
