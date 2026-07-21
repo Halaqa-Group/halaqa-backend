@@ -1,42 +1,58 @@
 # Score formula — worked examples
 
-The formula:
+> **The backend does not compute this.** `percentage_score` arrives on the request, already
+> computed by the frontend, and is stored as-is (rounded to 2dp). There is no
+> `AchievementScoreService`. This file documents the weights the backend serves and the
+> convention the frontend applies to them — it is not a description of backend behaviour.
+
+## What the backend owns: the weights
+
+`evaluation_settings` is JSON on the `halaqat` row. It holds exactly four weights — the score
+**deducted per single error** of each type:
+
+```json
+{
+  "mistake_weight": 4,
+  "warning_weight": 2,
+  "tajweed_weight": 1,
+  "harakat_weight": 2
+}
+```
+
+Those values are also the defaults. The column is nullable and every key optional; reads run
+through `resolveEvaluationSettings()`, which merges stored values over the defaults, so a halaqa
+response **always carries all four weights**. Unknown keys are rejected (400) — the shape is closed.
+
+There is no stored `base_score` or `min_score`. The 100-point base and the 0 floor below are
+frontend conventions, not configuration.
+
+## The convention the frontend applies
 
 ```
-score = max(min_score,
-            base_score
-              - mistakes_count    * mistake_weight
-              - warnings_count    * warning_weight
-              - tajweed_errors_count * tajweed_weight)
+score = max(0,
+            100
+              - mistakes_count       * mistake_weight
+              - warnings_count       * warning_weight
+              - tajweed_errors_count * tajweed_weight
+              - harakat_errors_count * harakat_weight)
 
 then round to 2 decimal places.
 ```
 
-`evaluation_settings` is JSON on the `halaqat` row. Mandatory; the achievements module assumes presence.
+The counts fed in are the achievement's **totals** — the roll-up of its recitation positions.
 
-## Default settings
+## Examples, at the default weights
 
-```json
-{
-  "base_score": 100,
-  "mistake_weight": 2.0,
-  "warning_weight": 1.0,
-  "tajweed_weight": 1.5,
-  "min_score": 0
-}
-```
-
-## Examples
-
-| mistakes | warnings | tajweed | score |
-|---:|---:|---:|---:|
-| 0 | 0 | 0 | 100.00 |
-| 1 | 0 | 0 | 98.00  |
-| 0 | 1 | 0 | 99.00  |
-| 0 | 0 | 1 | 98.50  |
-| 2 | 3 | 1 | 100 - 4 - 3 - 1.5 = **91.50** |
-| 5 | 5 | 5 | 100 - 10 - 5 - 7.5 = **77.50** |
-| 30 | 20 | 10 | 100 - 60 - 20 - 15 = -25 → **clamped to 0** |
+| mistakes | warnings | tajweed | harakat | score |
+|---:|---:|---:|---:|---:|
+| 0 | 0 | 0 | 0 | 100.00 |
+| 1 | 0 | 0 | 0 | 100 - 4 = **96.00** |
+| 0 | 1 | 0 | 0 | 100 - 2 = **98.00** |
+| 0 | 0 | 1 | 0 | 100 - 1 = **99.00** |
+| 0 | 0 | 0 | 1 | 100 - 2 = **98.00** |
+| 2 | 3 | 1 | 2 | 100 - 8 - 6 - 1 - 4 = **81.00** |
+| 5 | 5 | 5 | 5 | 100 - 20 - 10 - 5 - 10 = **55.00** |
+| 30 | 20 | 10 | 10 | 100 - 120 - 40 - 10 - 20 = -90 → **clamped to 0** |
 
 ## A more lenient halaqa
 
@@ -44,56 +60,57 @@ A halaqa for younger students might set:
 
 ```json
 {
-  "base_score": 100,
-  "mistake_weight": 1.0,
+  "mistake_weight": 1,
   "warning_weight": 0.5,
   "tajweed_weight": 0.5,
-  "min_score": 50
+  "harakat_weight": 0.5
 }
 ```
 
-| mistakes | warnings | tajweed | score |
-|---:|---:|---:|---:|
-| 5 | 5 | 5 | 100 - 5 - 2.5 - 2.5 = 90 |
-| 20 | 10 | 10 | 100 - 20 - 5 - 5 = 70 |
-| 100 | 0 | 0 | 100 - 100 = 0 → **clamped to 50** |
+| mistakes | warnings | tajweed | harakat | score |
+|---:|---:|---:|---:|---:|
+| 5 | 5 | 5 | 5 | 100 - 5 - 2.5 - 2.5 - 2.5 = **87.50** |
+| 20 | 10 | 10 | 10 | 100 - 20 - 5 - 5 - 5 = **65.00** |
 
 ## A stricter halaqa
 
 ```json
 {
-  "base_score": 100,
-  "mistake_weight": 5.0,
-  "warning_weight": 3.0,
-  "tajweed_weight": 4.0,
-  "min_score": 0
+  "mistake_weight": 8,
+  "warning_weight": 4,
+  "tajweed_weight": 3,
+  "harakat_weight": 4
 }
 ```
 
-| mistakes | warnings | tajweed | score |
-|---:|---:|---:|---:|
-| 1 | 0 | 0 | 95 |
-| 2 | 1 | 1 | 100 - 10 - 3 - 4 = 83 |
-| 5 | 5 | 5 | 100 - 25 - 15 - 20 = **40** |
+| mistakes | warnings | tajweed | harakat | score |
+|---:|---:|---:|---:|---:|
+| 1 | 0 | 0 | 0 | **92.00** |
+| 2 | 1 | 1 | 1 | 100 - 16 - 4 - 3 - 4 = **73.00** |
+| 5 | 5 | 5 | 5 | 100 - 40 - 20 - 15 - 20 = **5.00** |
 
-## Rounding
+## Partial weights fall back per-key
 
-Use half-up rounding to 2 decimal places. JavaScript's `Math.round(score * 100) / 100` does half-to-even for some values; if that matters, use a dedicated rounding helper. For typical inputs (integer counts, decimal weights with one decimal place), the difference is negligible.
+A halaqa storing only `{"mistake_weight": 8}` resolves to
+`{mistake_weight: 8, warning_weight: 2, tajweed_weight: 1, harakat_weight: 2}` — the fallback is
+per-key, not all-or-nothing.
+
+## The score is not validated against the counts
+
+The backend stores whatever `percentage_score` the client sends, clamped only by the DTO's
+`@Min(0) @Max(100)`. It never checks that the value agrees with the counts and the weights. A
+client sending mismatched values produces an achievement whose score doesn't follow the formula,
+and nothing rejects it. If that ever needs enforcing, it belongs in `AchievementsService.create`
+/ `update`, and it needs the weights loaded from the halaqa.
 
 ## Historical scores are frozen
 
-When a halaqa's `evaluation_settings` changes, **existing achievements are not recomputed.** Their stored `percentage_score` reflects the formula in effect at the time of computation.
+When a halaqa's `evaluation_settings` changes, **existing achievements are not recomputed.** Their
+stored `percentage_score` reflects the weights in effect when the frontend computed it.
 
-This is intentional. Schools that update their grading formula in mid-year shouldn't have past grades silently shift. The audit log captures every `evaluation_settings` change on the halaqa, so the formula history is recoverable if needed.
+This is intentional. Schools that update their grading weights mid-year shouldn't have past grades
+silently shift. The halaqa activity log captures every `evaluation_settings` change, so the weight
+history is recoverable if needed.
 
-If a principal genuinely wants to recompute historical scores, that's a future admin endpoint, not part of the routine update flow.
-
-## Where the computation runs
-
-`AchievementScoreService.compute(rawCounts, evaluationSettings) → number`
-
-Called from:
-- `AchievementsService.create` (always)
-- `AchievementsService.update` (only when counts change in the patch)
-
-Not called from anywhere else. Never recompute on read.
+If a principal genuinely wants to recompute historical scores, that's a future admin endpoint, not
+part of the routine update flow.

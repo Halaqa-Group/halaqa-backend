@@ -19,6 +19,7 @@ import { PlanReconciliationService } from './plan-reconciliation.service';
 export interface CreateWeeklyPlanItemInput {
   trackType: TrackType;
   dayOfWeek: number;
+  order?: number;
   startSurah: number;
   startVerse: number;
   endSurah: number;
@@ -51,8 +52,10 @@ export interface WeeklyPlanListResult {
 @Injectable()
 export class WeeklyPlansService {
   constructor(
-    @InjectRepository(WeeklyPlan) private readonly plans: Repository<WeeklyPlan>,
-    @InjectRepository(WeeklyPlanItem) private readonly planItems: Repository<WeeklyPlanItem>,
+    @InjectRepository(WeeklyPlan)
+    private readonly plans: Repository<WeeklyPlan>,
+    @InjectRepository(WeeklyPlanItem)
+    private readonly planItems: Repository<WeeklyPlanItem>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly reconciliation: PlanReconciliationService,
@@ -62,36 +65,20 @@ export class WeeklyPlansService {
   // ─── Authorization helpers ────────────────────────────────────────────────
 
   private isAdmin(actor: AuthenticatedUser): boolean {
-    return actor.roles.some((r) => r.slug === 'principal' || r.slug === 'vice_principal');
+    return actor.roles.some(
+      (r) => r.slug === 'principal' || r.slug === 'vice_principal',
+    );
   }
 
-  /** Principal/VP, supervisor in scope, or primary/acting teacher. */
-  private async hasApprovalAuthority(halaqaId: number, actor: AuthenticatedUser): Promise<boolean> {
-    if (this.isAdmin(actor)) return true;
-
-    if (actor.roles.some((r) => r.slug === 'supervisor')) {
-      const rows: unknown[] = await this.dataSource.manager.query(
-        'SELECT 1 FROM supervisor_halaqat WHERE supervisor_user_id = ? AND halaqa_id = ? LIMIT 1',
-        [actor.id, halaqaId],
-      );
-      if (rows.length > 0) return true;
-    }
-
-    if (actor.roles.some((r) => r.slug === 'teacher')) {
-      const rows: unknown[] = await this.dataSource.manager.query(
-        `SELECT 1 FROM halaqa_teachers
-         WHERE teacher_user_id = ? AND halaqa_id = ? AND end_date IS NULL
-           AND (role = 'main' OR acting_as_primary = 1) LIMIT 1`,
-        [actor.id, halaqaId],
-      );
-      if (rows.length > 0) return true;
-    }
-
-    return false;
-  }
-
-  /** Read access: halaqa scope or parent of the student. */
-  private async hasReadScope(halaqaId: number, studentId: number, actor: AuthenticatedUser): Promise<boolean> {
+  /**
+   * Any role that can act on a halaqa's plans (incl. non-primary teachers).
+   * Create, approve, unapprove and delete all gate on this one check — there is
+   * no separate primary-teacher tier.
+   */
+  private async hasHalaqaScope(
+    halaqaId: number,
+    actor: AuthenticatedUser,
+  ): Promise<boolean> {
     if (this.isAdmin(actor)) return true;
 
     if (actor.roles.some((r) => r.slug === 'supervisor')) {
@@ -110,6 +97,17 @@ export class WeeklyPlansService {
       if (rows.length > 0) return true;
     }
 
+    return false;
+  }
+
+  /** Read access: halaqa scope, or parent of the student (read-only). */
+  private async hasReadScope(
+    halaqaId: number,
+    studentId: number,
+    actor: AuthenticatedUser,
+  ): Promise<boolean> {
+    if (await this.hasHalaqaScope(halaqaId, actor)) return true;
+
     if (actor.roles.some((r) => r.slug === 'parent')) {
       const rows: unknown[] = await this.dataSource.manager.query(
         'SELECT 1 FROM student_guardians WHERE guardian_user_id = ? AND student_id = ? LIMIT 1',
@@ -122,7 +120,10 @@ export class WeeklyPlansService {
   }
 
   private async loadOrFail(id: number, schoolId: number): Promise<WeeklyPlan> {
-    const plan = await this.plans.findOne({ where: { id, schoolId }, relations: ['items'] });
+    const plan = await this.plans.findOne({
+      where: { id, schoolId },
+      relations: ['items'],
+    });
     if (!plan) throw new NotFoundException();
     return plan;
   }
@@ -142,19 +143,30 @@ export class WeeklyPlansService {
       [studentId, halaqaId, schoolId],
     );
     if (!rows.length) {
-      throw new BadRequestException('Student is not actively enrolled in the selected halaqa.');
+      throw new BadRequestException(
+        'Student is not actively enrolled in the selected halaqa.',
+      );
     }
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
-  async create(input: CreateWeeklyPlanInput, actor: AuthenticatedUser): Promise<WeeklyPlan> {
-    if (!(await this.hasApprovalAuthority(input.halaqaId, actor))) {
-      throw new ForbiddenException('You do not have permission to create plans for this halaqa.');
+  async create(
+    input: CreateWeeklyPlanInput,
+    actor: AuthenticatedUser,
+  ): Promise<WeeklyPlan> {
+    if (!(await this.hasHalaqaScope(input.halaqaId, actor))) {
+      throw new ForbiddenException(
+        'You do not have permission to create plans for this halaqa.',
+      );
     }
 
     // Student must be actively enrolled in the selected halaqa
-    await this.assertStudentEnrolledInHalaqa(input.studentId, input.halaqaId, actor.schoolId);
+    await this.assertStudentEnrolledInHalaqa(
+      input.studentId,
+      input.halaqaId,
+      actor.schoolId,
+    );
 
     // Conflict check — returns existing_plan_id so caller can reference it
     const existing = await this.plans.findOne({
@@ -194,6 +206,7 @@ export class WeeklyPlansService {
         this.planItems.create({
           trackType: item.trackType,
           dayOfWeek: item.dayOfWeek,
+          order: item.order ?? 0,
           startSurah: item.startSurah,
           startVerse: item.startVerse,
           endSurah: item.endSurah,
@@ -214,11 +227,22 @@ export class WeeklyPlansService {
     try {
       await this.plans.save(plan);
     } catch (err) {
-      if (err instanceof QueryFailedError && (err as any).driverError?.code === 'ER_DUP_ENTRY') {
+      if (
+        err instanceof QueryFailedError &&
+        (err as any).driverError?.code === 'ER_DUP_ENTRY'
+      ) {
         const dup = await this.plans.findOne({
-          where: { schoolId: actor.schoolId, studentId: input.studentId, halaqaId: input.halaqaId, weekStartDate: input.weekStartDate },
+          where: {
+            schoolId: actor.schoolId,
+            studentId: input.studentId,
+            halaqaId: input.halaqaId,
+            weekStartDate: input.weekStartDate,
+          },
         });
-        throw new ConflictException({ message: 'Plan already exists for this student/halaqa/week.', existing_plan_id: dup?.id ?? null });
+        throw new ConflictException({
+          message: 'Plan already exists for this student/halaqa/week.',
+          existing_plan_id: dup?.id ?? null,
+        });
       }
       throw err;
     }
@@ -241,7 +265,10 @@ export class WeeklyPlansService {
 
   // ─── Read ─────────────────────────────────────────────────────────────────
 
-  async findAll(filter: ListWeeklyPlansFilter, actor: AuthenticatedUser): Promise<WeeklyPlanListResult> {
+  async findAll(
+    filter: ListWeeklyPlansFilter,
+    actor: AuthenticatedUser,
+  ): Promise<WeeklyPlanListResult> {
     const page = Math.max(1, filter.page ?? 1);
     const limit = Math.min(100, Math.max(1, filter.limit ?? 20));
 
@@ -269,10 +296,16 @@ export class WeeklyPlansService {
       );
     }
 
-    if (filter.studentId !== undefined) qb.andWhere('wp.studentId = :studentId', { studentId: filter.studentId });
-    if (filter.halaqaId !== undefined) qb.andWhere('wp.halaqaId = :halaqaId', { halaqaId: filter.halaqaId });
-    if (filter.weekStartDate !== undefined) qb.andWhere('wp.weekStartDate = :weekStartDate', { weekStartDate: filter.weekStartDate });
-    if (filter.status !== undefined) qb.andWhere('wp.status = :status', { status: filter.status });
+    if (filter.studentId !== undefined)
+      qb.andWhere('wp.studentId = :studentId', { studentId: filter.studentId });
+    if (filter.halaqaId !== undefined)
+      qb.andWhere('wp.halaqaId = :halaqaId', { halaqaId: filter.halaqaId });
+    if (filter.weekStartDate !== undefined)
+      qb.andWhere('wp.weekStartDate = :weekStartDate', {
+        weekStartDate: filter.weekStartDate,
+      });
+    if (filter.status !== undefined)
+      qb.andWhere('wp.status = :status', { status: filter.status });
 
     qb.orderBy('wp.weekStartDate', 'DESC').addOrderBy('wp.id', 'DESC');
     qb.skip((page - 1) * limit).take(limit);
@@ -294,8 +327,10 @@ export class WeeklyPlansService {
   async approve(id: number, actor: AuthenticatedUser): Promise<WeeklyPlan> {
     const plan = await this.loadOrFail(id, actor.schoolId);
 
-    if (!(await this.hasApprovalAuthority(plan.halaqaId, actor))) {
-      throw new ForbiddenException('You do not have permission to approve plans for this halaqa.');
+    if (!(await this.hasHalaqaScope(plan.halaqaId, actor))) {
+      throw new ForbiddenException(
+        'You do not have permission to approve plans for this halaqa.',
+      );
     }
 
     if (plan.status === 'approved') {
@@ -314,8 +349,8 @@ export class WeeklyPlansService {
       newValues: { approvedBy: actor.id },
     });
 
-    // Reconcile every item now that the plan is approved
-    await Promise.all(plan.items.map((item) => this.reconciliation.reconcileItem(item.id)));
+    // Reconcile the whole plan now that it is approved
+    await this.reconciliation.reconcilePlan(id);
 
     return this.loadOrFail(id, actor.schoolId);
   }
@@ -325,8 +360,10 @@ export class WeeklyPlansService {
   async unapprove(id: number, actor: AuthenticatedUser): Promise<WeeklyPlan> {
     const plan = await this.loadOrFail(id, actor.schoolId);
 
-    if (!this.isAdmin(actor)) {
-      throw new ForbiddenException('Only principal or vice_principal can unapprove plans.');
+    if (!(await this.hasHalaqaScope(plan.halaqaId, actor))) {
+      throw new ForbiddenException(
+        'You do not have permission to unapprove plans for this halaqa.',
+      );
     }
 
     if (plan.status === 'draft') {
@@ -354,8 +391,10 @@ export class WeeklyPlansService {
   async hardDelete(id: number, actor: AuthenticatedUser): Promise<void> {
     const plan = await this.loadOrFail(id, actor.schoolId);
 
-    if (!this.isAdmin(actor)) {
-      throw new ForbiddenException('Only principal or vice_principal can delete plans.');
+    if (!(await this.hasHalaqaScope(plan.halaqaId, actor))) {
+      throw new ForbiddenException(
+        'You do not have permission to delete plans for this halaqa.',
+      );
     }
 
     const wasApproved = plan.status === 'approved';

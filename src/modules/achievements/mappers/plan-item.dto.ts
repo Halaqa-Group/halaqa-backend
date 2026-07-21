@@ -12,6 +12,13 @@ export class WeeklyPlanItemDto {
   @ApiProperty({ example: 2, description: '0=Saturday … 6=Friday.' })
   day_of_week!: number;
 
+  @ApiProperty({
+    example: 0,
+    description:
+      'Reconciliation priority within the same day + track (lower = first).',
+  })
+  order!: number;
+
   @ApiProperty({ example: 1 })
   start_surah!: number;
 
@@ -30,10 +37,16 @@ export class WeeklyPlanItemDto {
   @ApiProperty({ example: 4 })
   achieved_verses!: number;
 
-  @ApiProperty({ enum: ['due', 'overdue', 'partial', 'completed'], example: 'partial' })
+  @ApiProperty({
+    enum: ['due', 'overdue', 'partial', 'completed'],
+    example: 'partial',
+  })
   status!: string;
 
-  @ApiProperty({ example: false, description: 'True if range was edited after item creation.' })
+  @ApiProperty({
+    example: false,
+    description: 'True if range was edited after item creation.',
+  })
   is_manual_override!: boolean;
 
   @ApiProperty({ example: '2026-05-11T10:00:00.000Z' })
@@ -44,6 +57,7 @@ export class WeeklyPlanItemDto {
     dto.id = item.id;
     dto.track_type = item.trackType;
     dto.day_of_week = item.dayOfWeek;
+    dto.order = item.order;
     dto.start_surah = item.startSurah;
     dto.start_verse = item.startVerse;
     dto.end_surah = item.endSurah;

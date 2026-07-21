@@ -21,7 +21,12 @@ import { CAPACITY_LIMITS } from '../capacity.config';
 import type { StudentGender, StudentStatus } from '../entities/student.entity';
 
 export class UpdateStudentDto {
-  @ApiProperty({ required: false, example: 'يوسف محمد', minLength: 2, maxLength: 100 })
+  @ApiProperty({
+    required: false,
+    example: 'يوسف محمد',
+    minLength: 2,
+    maxLength: 100,
+  })
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -33,7 +38,12 @@ export class UpdateStudentDto {
   @IsEnum(['male', 'female'])
   gender?: StudentGender;
 
-  @ApiProperty({ required: false, format: 'date', example: '2015-06-01', nullable: true })
+  @ApiProperty({
+    required: false,
+    format: 'date',
+    example: '2015-06-01',
+    nullable: true,
+  })
   @IsOptional()
   @IsDateString()
   dob?: string;
@@ -47,7 +57,8 @@ export class UpdateStudentDto {
     required: false,
     enum: ['active', 'inactive', 'graduated'],
     example: 'active',
-    description: 'Use POST /students/:id/graduate to set graduated; this field accepts any status for admin overrides.',
+    description:
+      'Use POST /students/:id/graduate to set graduated; this field accepts any status for admin overrides.',
   })
   @IsOptional()
   @IsEnum(['active', 'inactive', 'graduated'])
@@ -94,7 +105,10 @@ export class UpdateStudentDto {
   @IsString()
   notes?: string;
 
-  @ApiProperty({ required: false, example: 'https://cdn.example.com/photos/1.jpg' })
+  @ApiProperty({
+    required: false,
+    example: 'https://cdn.example.com/photos/1.jpg',
+  })
   @IsOptional()
   @IsString()
   photo_url?: string;

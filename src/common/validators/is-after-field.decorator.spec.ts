@@ -95,12 +95,16 @@ describe('@IsAfterField', () => {
 
   describe('optional sibling behaviour', () => {
     it('passes when sibling (start_time) is absent', async () => {
-      const errors = await validate(make(TimeRangeDto, { end_time: '05:00:00' }));
+      const errors = await validate(
+        make(TimeRangeDto, { end_time: '05:00:00' }),
+      );
       expect(errors).toHaveLength(0);
     });
 
     it('passes when decorated field (end_time) is absent', async () => {
-      const errors = await validate(make(TimeRangeDto, { start_time: '05:00:00' }));
+      const errors = await validate(
+        make(TimeRangeDto, { start_time: '05:00:00' }),
+      );
       expect(errors).toHaveLength(0);
     });
 
@@ -116,15 +120,22 @@ describe('@IsAfterField', () => {
         make(TimeRangeDto, { start_time: '06:00:00', end_time: '05:00:00' }),
       );
       const endErrors = errors.find((e) => e.property === 'end_time');
-      expect(endErrors?.constraints?.isAfterField).toBe('end_time must be after start_time');
+      expect(endErrors?.constraints?.isAfterField).toBe(
+        'end_time must be after start_time',
+      );
     });
 
     it('honors a custom message', async () => {
       const errors = await validate(
-        make(TimeRangeCustomMessageDto, { start_time: '06:00:00', end_time: '05:00:00' }),
+        make(TimeRangeCustomMessageDto, {
+          start_time: '06:00:00',
+          end_time: '05:00:00',
+        }),
       );
       const endErrors = errors.find((e) => e.property === 'end_time');
-      expect(endErrors?.constraints?.isAfterField).toBe('end must come after start');
+      expect(endErrors?.constraints?.isAfterField).toBe(
+        'end must come after start',
+      );
     });
   });
 
@@ -136,18 +147,33 @@ describe('@IsAfterField', () => {
     }
 
     it('passes when acting_ends_at is after acting_starts_at', async () => {
-      const errors = await validate(acting({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-20' }));
+      const errors = await validate(
+        acting({
+          acting_starts_at: '2026-05-10',
+          acting_ends_at: '2026-05-20',
+        }),
+      );
       expect(errors).toHaveLength(0);
     });
 
     it('fails when acting_ends_at is before acting_starts_at', async () => {
-      const errors = await validate(acting({ acting_starts_at: '2026-05-20', acting_ends_at: '2026-05-10' }));
+      const errors = await validate(
+        acting({
+          acting_starts_at: '2026-05-20',
+          acting_ends_at: '2026-05-10',
+        }),
+      );
       const err = errors.find((e) => e.property === 'acting_ends_at');
       expect(err?.constraints).toHaveProperty('isAfterField');
     });
 
     it('fails when acting_ends_at equals acting_starts_at', async () => {
-      const errors = await validate(acting({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-10' }));
+      const errors = await validate(
+        acting({
+          acting_starts_at: '2026-05-10',
+          acting_ends_at: '2026-05-10',
+        }),
+      );
       const err = errors.find((e) => e.property === 'acting_ends_at');
       expect(err?.constraints).toHaveProperty('isAfterField');
     });
@@ -155,22 +181,31 @@ describe('@IsAfterField', () => {
 
   describe('ActingSubstituteDto integration', () => {
     function sub(fields: Record<string, unknown>) {
-      return Object.assign(new ActingSubstituteDto(), { teacher_user_id: 18, ...fields });
+      return Object.assign(new ActingSubstituteDto(), {
+        teacher_user_id: 18,
+        ...fields,
+      });
     }
 
     it('passes when acting_ends_at is after acting_starts_at', async () => {
-      const errors = await validate(sub({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-20' }));
+      const errors = await validate(
+        sub({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-20' }),
+      );
       expect(errors).toHaveLength(0);
     });
 
     it('fails when acting_ends_at is before acting_starts_at', async () => {
-      const errors = await validate(sub({ acting_starts_at: '2026-05-20', acting_ends_at: '2026-05-10' }));
+      const errors = await validate(
+        sub({ acting_starts_at: '2026-05-20', acting_ends_at: '2026-05-10' }),
+      );
       const err = errors.find((e) => e.property === 'acting_ends_at');
       expect(err?.constraints).toHaveProperty('isAfterField');
     });
 
     it('fails when acting_ends_at equals acting_starts_at', async () => {
-      const errors = await validate(sub({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-10' }));
+      const errors = await validate(
+        sub({ acting_starts_at: '2026-05-10', acting_ends_at: '2026-05-10' }),
+      );
       const err = errors.find((e) => e.property === 'acting_ends_at');
       expect(err?.constraints).toHaveProperty('isAfterField');
     });

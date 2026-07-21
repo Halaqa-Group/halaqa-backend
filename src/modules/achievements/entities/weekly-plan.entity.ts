@@ -17,7 +17,9 @@ import { WeeklyPlanItem } from './weekly-plan-item.entity';
 export type WeeklyPlanStatus = 'draft' | 'approved';
 
 @Entity('weekly_plans')
-@Index('idx_weekly_plan_unique', ['studentId', 'halaqaId', 'weekStartDate'], { unique: true })
+@Index('idx_weekly_plan_unique', ['studentId', 'halaqaId', 'weekStartDate'], {
+  unique: true,
+})
 export class WeeklyPlan {
   @PrimaryGeneratedColumn({ type: 'int' })
   id!: number;
@@ -50,13 +52,20 @@ export class WeeklyPlan {
   @UpdateDateColumn({ name: 'updated_at', type: 'datetime', precision: 6 })
   updatedAt!: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', precision: 6, nullable: true })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
   deletedAt!: Date | null;
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school!: Relation<School>;
 
-  @OneToMany(() => WeeklyPlanItem, (item) => item.weeklyPlan, { cascade: ['insert'] })
+  @OneToMany(() => WeeklyPlanItem, (item) => item.weeklyPlan, {
+    cascade: ['insert'],
+  })
   items!: WeeklyPlanItem[];
 }

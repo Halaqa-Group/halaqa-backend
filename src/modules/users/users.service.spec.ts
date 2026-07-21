@@ -84,6 +84,7 @@ interface Mocks {
   txRefreshTokens: { update: jest.Mock };
   dataSource: { transaction: jest.Mock };
   manager: EntityManager;
+  idValidator: { normalize: jest.Mock; validate: jest.Mock };
 }
 
 function makeMocks(): Mocks {
@@ -125,6 +126,10 @@ function makeMocks(): Mocks {
         ),
     },
     manager,
+    idValidator: {
+      normalize: jest.fn((s: string) => s.replace(/[\s-]/g, '')),
+      validate: jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+    },
   };
 }
 
@@ -136,6 +141,7 @@ function makeService(m: Mocks): UsersService {
     m.userRoles as unknown as Repository<UserRole>,
     m.refreshTokens as unknown as Repository<RefreshToken>,
     m.dataSource as unknown as DataSource,
+    m.idValidator,
   );
 }
 
@@ -143,6 +149,7 @@ const ACTIVE_USER_VIEW = {
   id: 99,
   schoolId: 1,
   name: 'X',
+  idNumber: '400000006',
   email: 'x@s.com',
   password: '',
   phone: null,
@@ -176,12 +183,14 @@ describe('UsersService', () => {
       ]);
       mockedHash.mockResolvedValue('$2b$12$hash' as never);
       m.users.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(ACTIVE_USER_VIEW);
+        .mockResolvedValueOnce(null) // emailTaken
+        .mockResolvedValueOnce(null) // idNumberTaken
+        .mockResolvedValueOnce(ACTIVE_USER_VIEW); // final read-back
 
       await service.create(
         {
           name: 'X',
+          id_number: '400-000-006',
           email: 'x@s.com',
           password: 'pw12345678',
           roles: ['teacher'],
@@ -193,6 +202,7 @@ describe('UsersService', () => {
       const saved = m.txUsers.save.mock.calls[0][0] as Partial<User>;
       expect(saved.schoolId).toBe(1);
       expect(saved.password).toBe('$2b$12$hash');
+      expect(saved.idNumber).toBe('400000006'); // normalized
       const inserted = m.txUserRoles.insert.mock.calls[0][0] as Array<{
         userId: number;
         roleId: number;
@@ -206,7 +216,53 @@ describe('UsersService', () => {
 
       await expect(
         service.create(
-          { name: 'X', email: 'x@s.com', password: 'pw12345678' },
+          {
+            name: 'X',
+            id_number: '400000006',
+            email: 'x@s.com',
+            password: 'pw12345678',
+          },
+          ACTOR,
+        ),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockedHash).not.toHaveBeenCalled();
+      expect(m.dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequest when the id_number format is invalid', async () => {
+      m.users.findOne.mockResolvedValueOnce(null); // emailTaken
+      m.idValidator.validate.mockReturnValueOnce({ ok: false, warnings: [] });
+
+      await expect(
+        service.create(
+          {
+            name: 'X',
+            id_number: 'not-an-id',
+            email: 'x@s.com',
+            password: 'pw12345678',
+          },
+          ACTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockedHash).not.toHaveBeenCalled();
+      expect(m.dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws Conflict when the id_number is already in use in the same school', async () => {
+      m.users.findOne
+        .mockResolvedValueOnce(null) // emailTaken
+        .mockResolvedValueOnce({ id: 51 }); // idNumberTaken
+
+      await expect(
+        service.create(
+          {
+            name: 'X',
+            id_number: '400000006',
+            email: 'x@s.com',
+            password: 'pw12345678',
+          },
           ACTOR,
         ),
       ).rejects.toThrow(ConflictException);
@@ -223,6 +279,7 @@ describe('UsersService', () => {
         service.create(
           {
             name: 'X',
+            id_number: '400000006',
             email: 'x@s.com',
             password: 'pw12345678',
             roles: ['no-such-role'],
@@ -581,20 +638,32 @@ describe('UsersService', () => {
   describe('ensureRoleBySlug', () => {
     it('inserts role assignment and returns true when role is new', async () => {
       m.users.findOne.mockResolvedValue(ACTIVE_USER_VIEW);
-      m.rolesRepo.findOne.mockResolvedValue({ id: 4, slug: 'parent', level: 10 } as Role);
+      m.rolesRepo.findOne.mockResolvedValue({
+        id: 4,
+        slug: 'parent',
+        level: 10,
+      });
       m.userRoles.findOne.mockResolvedValue(null);
 
       const assigned = await service.ensureRoleBySlug(99, 'parent', ACTOR);
 
       expect(assigned).toBe(true);
       expect(m.userRoles.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 99, roleId: 4, assignedBy: ACTOR.id }),
+        expect.objectContaining({
+          userId: 99,
+          roleId: 4,
+          assignedBy: ACTOR.id,
+        }),
       );
     });
 
     it('is idempotent — returns false and does not insert when role already exists', async () => {
       m.users.findOne.mockResolvedValue(ACTIVE_USER_VIEW);
-      m.rolesRepo.findOne.mockResolvedValue({ id: 4, slug: 'parent', level: 10 } as Role);
+      m.rolesRepo.findOne.mockResolvedValue({
+        id: 4,
+        slug: 'parent',
+        level: 10,
+      });
       m.userRoles.findOne.mockResolvedValue({ userId: 99, roleId: 4 });
 
       const assigned = await service.ensureRoleBySlug(99, 'parent', ACTOR);

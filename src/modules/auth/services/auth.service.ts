@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -7,6 +8,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import {
+  ID_NUMBER_VALIDATOR,
+  type IdNumberValidator,
+} from '../../../common/validators/id-number-validator.interface';
 import { LoginDto } from '../dto/login.dto';
 import {
   LoginAttempt,
@@ -54,19 +59,26 @@ export class AuthService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(LoginAttempt)
     private readonly attempts: Repository<LoginAttempt>,
+    @Inject(ID_NUMBER_VALIDATOR)
+    private readonly idValidator: IdNumberValidator,
   ) {}
 
   async login(dto: LoginDto, ctx: RequestContext): Promise<AuthResult> {
-    const verdict = await this.rateLimit.check(dto.email, ctx.ip);
+    // Whichever identifier the caller supplied becomes the rate-limit /
+    // login_attempts key. For id_number logins it is normalized first so
+    // repeated attempts collapse onto one key regardless of formatting.
+    const identifier = dto.email ?? this.idValidator.normalize(dto.id_number!);
+
+    const verdict = await this.rateLimit.check(identifier, ctx.ip);
     if (verdict !== 'ok') {
-      await this.recordAttempt({ email: dto.email, status: verdict, ctx });
+      await this.recordAttempt({ email: identifier, status: verdict, ctx });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
-    const user = await this.findUserForLogin(dto.email);
+    const user = await this.findUserForLogin(dto);
     if (!user) {
       await this.recordAttempt({
-        email: dto.email,
+        email: identifier,
         status: 'user_not_found',
         ctx,
       });
@@ -75,7 +87,7 @@ export class AuthService {
 
     if (user.status !== 'active') {
       await this.recordAttempt({
-        email: dto.email,
+        email: identifier,
         status: 'account_inactive',
         userId: user.id,
         schoolId: user.schoolId,
@@ -86,7 +98,7 @@ export class AuthService {
 
     if (!(await bcrypt.compare(dto.password, user.password))) {
       await this.recordAttempt({
-        email: dto.email,
+        email: identifier,
         status: 'wrong_password',
         userId: user.id,
         schoolId: user.schoolId,
@@ -104,7 +116,7 @@ export class AuthService {
     const refresh = await this.tokens.issueRefreshToken(user.id, ctx, ttlMs);
 
     await this.recordAttempt({
-      email: dto.email,
+      email: identifier,
       status: 'success',
       userId: user.id,
       schoolId: user.schoolId,
@@ -177,9 +189,16 @@ export class AuthService {
     if (!ok) throw new NotFoundException();
   }
 
-  private async findUserForLogin(email: string): Promise<User | null> {
+  private async findUserForLogin(dto: LoginDto): Promise<User | null> {
+    const where =
+      dto.email !== undefined && dto.email !== ''
+        ? { email: dto.email, schoolId: this.defaultSchoolId() }
+        : {
+            idNumber: this.idValidator.normalize(dto.id_number!),
+            schoolId: this.defaultSchoolId(),
+          };
     return this.users.findOne({
-      where: { email, schoolId: this.defaultSchoolId() },
+      where,
       relations: { userRoles: { role: true } },
     });
   }

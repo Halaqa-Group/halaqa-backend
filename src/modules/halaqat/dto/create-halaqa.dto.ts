@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -8,8 +9,10 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import type { HalaqaType } from '../entities/halaqa.entity';
+import { EvaluationSettingsDto } from './evaluation-settings.dto';
 
 export class CreateHalaqaDto {
   @ApiProperty({ example: 'حلقة الفجر للحفظ', minLength: 1, maxLength: 100 })
@@ -28,12 +31,16 @@ export class CreateHalaqaDto {
   @ApiProperty({
     required: false,
     nullable: true,
-    example: null,
-    description: 'Free-form JSON for evaluation weights and thresholds.',
+    type: EvaluationSettingsDto,
+    description:
+      'Per-error-type score deductions used by the frontend to compute percentage_score. ' +
+      'Any omitted weight falls back to its default (mistake 4, warning 2, tajweed 1, harakat 2).',
   })
   @IsOptional()
   @IsObject()
-  evaluation_settings?: Record<string, unknown> | null;
+  @ValidateNested()
+  @Type(() => EvaluationSettingsDto)
+  evaluation_settings?: EvaluationSettingsDto | null;
 
   @ApiProperty({
     required: false,

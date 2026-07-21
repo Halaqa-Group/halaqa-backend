@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthController } from './common/health/health.controller';
 import { envValidationSchema } from './config/env.validation';
 import { buildTypeOrmOptions } from './config/typeorm.config';
 import { AuditModule } from './modules/audit/audit.module';
@@ -42,7 +43,7 @@ import { UsersModule } from './modules/users/users.module';
     AchievementsModule,
     DevSeederModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule {}

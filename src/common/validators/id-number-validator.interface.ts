@@ -15,3 +15,6 @@ export interface IdNumberValidator {
   /** Run after normalize(). Format and checksum logic lives here. */
   validate(normalized: string): IdNumberValidationResult;
 }
+
+/** DI token for the active national-ID validator implementation. */
+export const ID_NUMBER_VALIDATOR = 'ID_NUMBER_VALIDATOR';

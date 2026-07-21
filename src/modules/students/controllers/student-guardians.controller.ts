@@ -23,7 +23,10 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { LinkGuardianDto } from '../dto/link-guardian.dto';
-import { GuardianEnvelope, GuardianListEnvelope } from '../dto/student.responses';
+import {
+  GuardianEnvelope,
+  GuardianListEnvelope,
+} from '../dto/student.responses';
 import { UpdateGuardianDto } from '../dto/update-guardian.dto';
 import { StudentScopeGuard } from '../guards/student-scope.guard';
 import { GuardiansService } from '../services/guardians.service';
@@ -51,7 +54,11 @@ export class StudentGuardiansController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiResponse({ status: 200, type: GuardianListEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or out of scope', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found or out of scope',
+    type: ErrorEnvelope,
+  })
   list(
     @Param('id', ParseIntPipe) studentId: number,
     @CurrentUser() _actor: AuthenticatedUser,
@@ -78,11 +85,23 @@ export class StudentGuardiansController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiBody({ type: LinkGuardianDto })
   @ApiResponse({ status: 201, type: GuardianEnvelope })
-  @ApiResponse({ status: 400, description: 'Validation failure or guardian already linked', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failure or guardian already linked',
+    type: ErrorEnvelope,
+  })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student or guardian user not found in this school', type: ErrorEnvelope })
-  @ApiResponse({ status: 409, description: 'Guardian user account is deactivated', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student or guardian user not found in this school',
+    type: ErrorEnvelope,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Guardian user account is deactivated',
+    type: ErrorEnvelope,
+  })
   link(
     @Param('id', ParseIntPipe) studentId: number,
     @Body() dto: LinkGuardianDto,
@@ -108,10 +127,18 @@ export class StudentGuardiansController {
   @ApiParam({ name: 'guardianUserId', description: 'Guardian user ID' })
   @ApiBody({ type: UpdateGuardianDto })
   @ApiResponse({ status: 200, type: GuardianEnvelope })
-  @ApiResponse({ status: 400, description: 'is_primary=false rejected or validation failure', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'is_primary=false rejected or validation failure',
+    type: ErrorEnvelope,
+  })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student or guardian link not found', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student or guardian link not found',
+    type: ErrorEnvelope,
+  })
   update(
     @Param('id', ParseIntPipe) studentId: number,
     @Param('guardianUserId', ParseIntPipe) guardianUserId: number,
@@ -141,7 +168,11 @@ export class StudentGuardiansController {
   @ApiResponse({ status: 204, description: 'Guardian unlinked (no body)' })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student or guardian link not found', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student or guardian link not found',
+    type: ErrorEnvelope,
+  })
   unlink(
     @Param('id', ParseIntPipe) studentId: number,
     @Param('guardianUserId', ParseIntPipe) guardianUserId: number,

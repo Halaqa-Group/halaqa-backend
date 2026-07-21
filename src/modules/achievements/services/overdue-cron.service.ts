@@ -19,14 +19,15 @@ export class WeeklyPlansOverdueCron {
    */
   @Cron('0 0 * * *')
   async markOverdue(): Promise<void> {
-    const result: { affectedRows: number } = await this.dataSource.manager.query(
-      `UPDATE weekly_plan_items wpi
+    const result: { affectedRows: number } =
+      await this.dataSource.manager.query(
+        `UPDATE weekly_plan_items wpi
        JOIN weekly_plans wp ON wp.id = wpi.weekly_plan_id
        SET wpi.status = 'overdue'
        WHERE wp.deleted_at IS NULL
          AND wpi.status = 'due'
          AND DATE_ADD(wp.week_start_date, INTERVAL wpi.day_of_week DAY) < CURDATE()`,
-    );
+      );
 
     const affected = result?.affectedRows ?? 0;
     if (affected > 0) {

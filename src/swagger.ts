@@ -23,10 +23,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       'Students',
       'Student CRUD, soft-delete/restore, and graduation. Visibility is role-scoped.',
     )
-    .addTag(
-      'Guardians',
-      'Link, update, and unlink guardians for a student.',
-    )
+    .addTag('Guardians', 'Link, update, and unlink guardians for a student.')
     .addTag('My Children', 'Parent-only views over their linked students.')
     .addTag(
       'Achievements',

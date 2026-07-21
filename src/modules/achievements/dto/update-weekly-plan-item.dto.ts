@@ -4,18 +4,41 @@ import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import type { TrackType } from '../entities/achievement.entity';
 
 export class UpdateWeeklyPlanItemDto {
-  @ApiProperty({ required: false, enum: ['Hifz', 'Near', 'Far'], example: 'Hifz' })
+  @ApiProperty({
+    required: false,
+    enum: ['Hifz', 'Near', 'Far'],
+    example: 'Hifz',
+  })
   @IsOptional()
   @IsEnum(['Hifz', 'Near', 'Far'])
   track_type?: TrackType;
 
-  @ApiProperty({ required: false, example: 2, minimum: 0, maximum: 6, description: '0=Saturday … 6=Friday.' })
+  @ApiProperty({
+    required: false,
+    example: 2,
+    minimum: 0,
+    maximum: 6,
+    description: '0=Saturday … 6=Friday.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(6)
   day_of_week?: number;
+
+  @ApiProperty({
+    required: false,
+    example: 0,
+    minimum: 0,
+    description:
+      'Reconciliation priority within the same day + track (lower = first).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  order?: number;
 
   @ApiProperty({ required: false, example: 1, minimum: 1, maximum: 114 })
   @IsOptional()

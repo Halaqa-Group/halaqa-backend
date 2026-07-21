@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { EvaluationSettingsDto } from './evaluation-settings.dto';
+import type { EvaluationSettings } from './evaluation-settings.dto';
 import type { HalaqaActivityAction } from '../entities/halaqa-activity-log.entity';
 import type { HalaqaStatus, HalaqaType } from '../entities/halaqa.entity';
 import type { EndReason, TeacherRole } from '../entities/halaqa-teacher.entity';
@@ -53,10 +55,12 @@ export class HalaqaCreatedResponse {
     example: 'Memorization',
   })
   type!: HalaqaType;
-  @ApiProperty({ nullable: true, example: null }) evaluation_settings!: Record<
-    string,
-    unknown
-  > | null;
+  @ApiProperty({
+    type: EvaluationSettingsDto,
+    description:
+      'Always fully populated — unset weights are returned as their defaults.',
+  })
+  evaluation_settings!: EvaluationSettings;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })
   status!: HalaqaStatus;
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) created_at!: Date;
@@ -98,10 +102,12 @@ export class HalaqaDetailResponse {
     example: 'Memorization',
   })
   type!: HalaqaType;
-  @ApiProperty({ nullable: true, example: null }) evaluation_settings!: Record<
-    string,
-    unknown
-  > | null;
+  @ApiProperty({
+    type: EvaluationSettingsDto,
+    description:
+      'Always fully populated — unset weights are returned as their defaults.',
+  })
+  evaluation_settings!: EvaluationSettings;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })
   status!: HalaqaStatus;
   @ApiProperty({ type: [TeacherAssignmentResponse] })

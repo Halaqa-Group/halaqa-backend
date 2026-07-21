@@ -7,14 +7,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActiveUserGuard } from '../../common/guards/active-user.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ID_NUMBER_VALIDATOR } from '../../common/validators/id-number-validator.interface';
+import { PalestinianIdValidator } from '../../common/validators/palestinian-id.validator';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { LoginAttempt } from './entities/login-attempt.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { MeController } from './me.controller';
 import { SessionsController } from './sessions.controller';
 import { AuthService } from './services/auth.service';
+import { EmailVerificationService } from './services/email-verification.service';
 import { MAIL_SERVICE, NodemailerMailService } from './services/mail.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { RateLimitService } from './services/rate-limit.service';
@@ -38,7 +42,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         },
       }),
     }),
-    TypeOrmModule.forFeature([RefreshToken, LoginAttempt, PasswordResetToken]),
+    TypeOrmModule.forFeature([
+      RefreshToken,
+      LoginAttempt,
+      PasswordResetToken,
+      EmailVerificationToken,
+    ]),
     UsersModule,
   ],
   controllers: [AuthController, SessionsController, MeController],
@@ -48,13 +57,21 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RateLimitService,
     AuthService,
     PasswordResetService,
+    EmailVerificationService,
     RefreshTokenCleanupService,
     NodemailerMailService,
     { provide: MAIL_SERVICE, useExisting: NodemailerMailService },
+    { provide: ID_NUMBER_VALIDATOR, useClass: PalestinianIdValidator },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ActiveUserGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [TypeOrmModule, PassportModule, TokenService, AuthService, MAIL_SERVICE],
+  exports: [
+    TypeOrmModule,
+    PassportModule,
+    TokenService,
+    AuthService,
+    MAIL_SERVICE,
+  ],
 })
 export class AuthModule {}

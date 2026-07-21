@@ -36,8 +36,10 @@ import {
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { buildRequestContext } from './request-context';
 import { AuthService } from './services/auth.service';
+import { EmailVerificationService } from './services/email-verification.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { REFRESH_COOKIE_NAME, TokenService } from './services/token.service';
 
@@ -51,6 +53,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordReset: PasswordResetService,
+    private readonly emailVerification: EmailVerificationService,
     private readonly tokens: TokenService,
     private readonly users: UsersService,
   ) {}
@@ -59,11 +62,12 @@ export class AuthController {
   @HttpCode(200)
   @Post('login')
   @ApiOperation({
-    summary: 'Log in with email and password',
+    summary: 'Log in with email or national ID, plus password',
     description:
-      'On success, returns an access token and the user view, and sets the `refresh_token` cookie ' +
-      '(HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, ' +
-      'inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.',
+      'Supply exactly one of `email` or `id_number` together with `password`. On success, returns ' +
+      'an access token and the user view, and sets the `refresh_token` cookie ' +
+      '(HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown ' +
+      'identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, type: AuthSuccessEnvelope })
@@ -212,6 +216,7 @@ export class AuthController {
     return {
       id: view.id,
       name: view.name,
+      idNumber: view.idNumber,
       email: view.email,
       phone: view.phone,
       photoUrl: view.photoUrl,
@@ -238,6 +243,48 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<ApiMessage> {
     await this.passwordReset.consumeResetToken(dto);
     return new ApiMessage('Password has been reset successfully');
+  }
+
+  @HttpCode(200)
+  @Post('verify-email/request')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: "Send a verification link to the caller's own email",
+    description:
+      'Authenticated. Always returns the same 200 message (even if the email is already ' +
+      'verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new ' +
+      'one invalidates any previously sent link.',
+  })
+  @ApiResponse({ status: 200, type: MessageEnvelope })
+  @ApiResponse({ status: 401, type: ErrorEnvelope })
+  async requestEmailVerification(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Req() req: Request,
+  ): Promise<ApiMessage> {
+    const ctx = buildRequestContext(req);
+    await this.emailVerification.requestVerification(actor.id, ctx.ip);
+    return new ApiMessage('A verification link has been sent.');
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('verify-email')
+  @ApiOperation({
+    summary: 'Consume a verification token and mark the email verified',
+    description:
+      'Stamps `email_verified_at` on the user and marks the token used. The token is one-time and ' +
+      'expires after 24 hours.',
+  })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({ status: 200, type: MessageEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired token',
+    type: ErrorEnvelope,
+  })
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<ApiMessage> {
+    await this.emailVerification.verify(dto.token);
+    return new ApiMessage('Email verified successfully');
   }
 
   @HttpCode(200)

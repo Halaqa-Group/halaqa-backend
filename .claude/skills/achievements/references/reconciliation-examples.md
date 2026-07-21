@@ -1,6 +1,6 @@
 # Reconciliation — worked examples
 
-The model is **invoice + payments**. Each plan item is an invoice with a target verse range. Each approved achievement is a payment that applies to one or more invoices via verse-range overlap. Multiple achievements can accumulate against one item over time. The item is `completed` when its planned verse range is fully covered by the union of applied achievements.
+The model is **invoice + payments**, reconciled **per week, not per day**. Each plan item is an invoice with a target verse range. Each approved achievement recorded anywhere in the plan's week is a payment. Reconciliation runs over the whole plan at once: it builds a per-track pool of all achieved verses in the week, then walks items in priority order (`day_of_week` ascending, then `id`) and lets each item **consume** the pool verses it covers. Consumed verses are removed, so a verse planned in two items credits only the earlier one. The item is `completed` when its planned verse range is fully claimed.
 
 ## Notation
 
@@ -74,17 +74,18 @@ Reconciliation:
 
 The student's extra work on verses 21–30 doesn't apply to this item. It might apply to *another* item for the same day with a range covering 21–30, if one exists. Otherwise it's "unmatched" achievement work — recorded but not credited against any plan target. Reports surface this.
 
-## Example 6 — achievement on wrong day doesn't match
+## Example 6 — achievement on a different day of the same week still counts
 
 **Plan item:** Tuesday (day_of_week=2), Hifz, `2:1–2:20`.
 
-**Achievement A:** Wednesday (day_of_week=3), Hifz, `2:1–2:20`. Range matches but day doesn't.
+**Achievement A:** Wednesday (day_of_week=3), Hifz, `2:1–2:20`. Same week, ranges match.
 
 Reconciliation:
-- A does not match (day_of_week mismatch).
-- No change to the item.
+- Matching is week-scoped, not day-scoped. A is in the plan's week, same track, ranges overlap.
+- Applied = `2:1–2:20` = 20 verses.
+- `status` = **completed**.
 
-The student did Hifz work on Wednesday covering Tuesday's plan content, but the plan tracks day-by-day execution. The achievement is unmatched against the Tuesday item. It may match a Wednesday item if one exists with overlapping range.
+The student covered Tuesday's planned content on Wednesday; within the week that settles the Tuesday item. Day-of-week only sets consumption **priority**, not whether an achievement matches. (Contrast the old day-exact model, where this did not match.)
 
 ## Example 7 — cross-surah achievement
 
@@ -139,6 +140,20 @@ Reconciliation runs again on the re-approval:
 - `status` = **completed**.
 
 The item's history shows the round-trip in the audit log (unapprove, update, approve), but the item's current state is identical to before unapproval.
+
+## Example 11 — consumption: earliest item claims shared verses
+
+**Plan item M:** Monday (day_of_week=1), Hifz, `2:1–2:10`. Total: 10.
+**Plan item W:** Wednesday (day_of_week=3), Hifz, `2:1–2:10`. Total: 10. (Same verses — e.g. a revision item.)
+
+**Achievement A:** Tuesday, Hifz, `2:1–2:10`, approved. Covers the verses once.
+
+Reconciliation walks items in priority order (day asc): Monday first, then Wednesday.
+- Pool (Hifz) = `{2:1 … 2:10}`.
+- **Monday M:** claims `2:1–2:10` = 10. Pool now empty. `achieved_verses` = 10 → **completed**.
+- **Wednesday W:** claims `∅` (verses already consumed). `achieved_verses` = 0 → **due** (if today ≤ Wed) or **overdue**.
+
+The single achievement settles the earliest item only. This is "priority to the earliest item in the week." If instead A covered `2:1–2:20`, Monday would take `2:1–2:10` and Wednesday would still get `∅` for its `2:1–2:10` range (the extra `2:11–2:20` is unmatched unless another item plans it).
 
 ## Implementation note
 

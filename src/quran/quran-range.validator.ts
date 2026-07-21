@@ -33,7 +33,9 @@ export class QuranRangeValidator {
       );
     }
     if (startSurah === endSurah && endVerse < startVerse) {
-      throw new BadRequestException(`end_verse must be >= start_verse within the same surah`);
+      throw new BadRequestException(
+        `end_verse must be >= start_verse within the same surah`,
+      );
     }
   }
 

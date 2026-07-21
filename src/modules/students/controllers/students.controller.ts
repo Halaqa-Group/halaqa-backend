@@ -59,13 +59,24 @@ export class StudentsController {
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
   @ApiQuery({ name: 'q', required: false, description: 'Name search' })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'graduated'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive', 'graduated'],
+  })
   @ApiQuery({ name: 'gender', required: false, enum: ['male', 'female'] })
   @ApiQuery({ name: 'halaqa_id', required: false })
-  @ApiQuery({ name: 'include_deleted', required: false, description: 'Principal/VP only' })
+  @ApiQuery({
+    name: 'include_deleted',
+    required: false,
+    description: 'Principal/VP only',
+  })
   @ApiResponse({ status: 200, type: StudentListEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  list(@Query() query: ListStudentsQuery, @CurrentUser() actor: AuthenticatedUser) {
+  list(
+    @Query() query: ListStudentsQuery,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.service.list(query, actor);
   }
 
@@ -83,7 +94,11 @@ export class StudentsController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiResponse({ status: 200, type: StudentDetailEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or out of scope', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found or out of scope',
+    type: ErrorEnvelope,
+  })
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
@@ -96,7 +111,7 @@ export class StudentsController {
   @ApiOperation({
     summary: 'Create a student (BR-STU-01)',
     description:
-      'Creates a student in the caller\'s school. ' +
+      "Creates a student in the caller's school. " +
       'An optional `guardians[]` array links guardians atomically in the same transaction — ' +
       'the first entry is forced to `is_primary=true` regardless of the submitted value. ' +
       'For the email-branch guardian flow, if no user exists a new account is created with the `parent` role ' +
@@ -105,10 +120,21 @@ export class StudentsController {
   })
   @ApiBody({ type: CreateStudentDto })
   @ApiResponse({ status: 201, type: StudentEnvelope })
-  @ApiResponse({ status: 400, description: 'Validation failure', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failure',
+    type: ErrorEnvelope,
+  })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 403, description: 'Insufficient role', type: ErrorEnvelope })
-  create(@Body() dto: CreateStudentDto, @CurrentUser() actor: AuthenticatedUser) {
+  @ApiResponse({
+    status: 403,
+    description: 'Insufficient role',
+    type: ErrorEnvelope,
+  })
+  create(
+    @Body() dto: CreateStudentDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
     return this.service.create(dto, actor);
   }
 
@@ -121,7 +147,7 @@ export class StudentsController {
       'Updates an in-scope student. Caller role determines allowed fields:\n' +
       '- **principal / vice_principal**: all fields in `UpdateStudentDto` (bio + capacity + notes).\n' +
       '- **teacher**: capacity fields + `notes` only (`UpdateStudentByTeacherDto`). ' +
-      'Teacher must be the **primary teacher** on at least one of the student\'s halaqat; otherwise 403. ' +
+      "Teacher must be the **primary teacher** on at least one of the student's halaqat; otherwise 403. " +
       'Submitting bio fields as a teacher returns 400.\n\n' +
       'Capacity values out of range (hifz 0–20, near 0–50, far 0–100) return 400. ' +
       'Audit: `student.update` with `oldValues`/`newValues` of changed fields only.',
@@ -129,10 +155,22 @@ export class StudentsController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiBody({ type: UpdateStudentDto })
   @ApiResponse({ status: 200, type: StudentEnvelope })
-  @ApiResponse({ status: 400, description: 'Validation failure or capacity out of range', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failure or capacity out of range',
+    type: ErrorEnvelope,
+  })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
-  @ApiResponse({ status: 403, description: 'Teacher not primary on any of the student\'s halaqat', type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or out of scope', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 403,
+    description: "Teacher not primary on any of the student's halaqat",
+    type: ErrorEnvelope,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found or out of scope',
+    type: ErrorEnvelope,
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateStudentDto,
@@ -161,7 +199,11 @@ export class StudentsController {
   @ApiResponse({ status: 204, description: 'Student deleted (no body)' })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or out of scope', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found or out of scope',
+    type: ErrorEnvelope,
+  })
   softDelete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
@@ -183,7 +225,11 @@ export class StudentsController {
   @ApiResponse({ status: 200, type: StudentEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found',
+    type: ErrorEnvelope,
+  })
   restore(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
@@ -206,10 +252,18 @@ export class StudentsController {
   @ApiParam({ name: 'id', description: 'Student ID' })
   @ApiBody({ type: GraduateStudentDto })
   @ApiResponse({ status: 200, type: MessageEnvelope })
-  @ApiResponse({ status: 400, description: 'Student already graduated', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 400,
+    description: 'Student already graduated',
+    type: ErrorEnvelope,
+  })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
   @ApiResponse({ status: 403, type: ErrorEnvelope })
-  @ApiResponse({ status: 404, description: 'Student not found or out of scope', type: ErrorEnvelope })
+  @ApiResponse({
+    status: 404,
+    description: 'Student not found or out of scope',
+    type: ErrorEnvelope,
+  })
   graduate(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GraduateStudentDto,

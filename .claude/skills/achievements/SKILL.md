@@ -5,7 +5,7 @@ description: Implement, extend, or modify the achievements and weekly plans modu
 
 # Achievements & Weekly Plans Module
 
-This module owns three tables: `achievements`, `weekly_plans`, and `weekly_plan_items`. It enforces:
+This module owns four tables: `achievements`, `achievement_recitation_positions`, `weekly_plans`, and `weekly_plan_items`. It enforces:
 
 - The achievement approval state machine (create → approve → unapprove → re-approve, with locks).
 - The percentage-score computation from raw error counts.
@@ -21,10 +21,15 @@ The module **reads** from attendance (one-way coupling — see "Attendance coupl
 - **Framework:** NestJS, same conventions as the auth/users/students modules (`ResponseInterceptor` envelope, `HttpExceptionFilter`, global `JwtAuthGuard`, `RolesGuard`, `ActiveUserGuard`).
 - **ORM:** TypeORM, MySQL. Migrations only; no `synchronize`.
 - **School scoping:** every query scopes by `school_id` derived from `CurrentUser`. Cross-school is 404, never 403.
-- **Soft delete:** `achievements.deleted_at`, `weekly_plans.deleted_at`. Plan items hard-delete (no `deleted_at` column in the schema).
+- **Soft delete:** `achievements.deleted_at` only. Weekly plans and plan items hard-delete (the plan entity has a `deleted_at` column but the service never uses it).
+- **One permission tier per module:** both achievements and plans gate every mutation on `hasHalaqaScope` — principal, VP, supervisor in `supervisor_halaqat`, or **any** teacher with an active `halaqa_teachers` row. Primary/acting teacher status carries no extra rights here. Parents are read-only.
 - **Audit:** every mutation writes an `audit_log` row. Actions listed below.
 - **Cron:** uses `@nestjs/schedule`. Currently runs one job: `WeeklyPlansOverdueCron` at school-timezone midnight.
-- **Service dependencies:** `AttendanceQueryService` (read-only, from attendance module), `HalaqatService` (read-only, for halaqa `evaluation_settings` and primary-teacher lookups), `StudentsService` (read-only, for student capacities and scope checks), `AuditService`, `QuranRangeValidator` (from `src/quran/`).
+- **Service dependencies:** `AttendanceQueryService` (read-only, from attendance module), `HalaqatService` (read-only, for halaqa `evaluation_settings` and primary-teacher lookups), `StudentsService` (read-only, for student capacities and scope checks), `MemorizationService` (from students module — enqueue-only, see below), `AuditService`, `QuranRangeValidator` (from `src/quran/`).
+
+### Memorization bitmap coupling (students module)
+
+On any **Hifz** achievement approve / unapprove / delete-while-approved (and create-with-approve), `AchievementsService` calls `MemorizationService.enqueueRecompute(studentId)` — a durable, best-effort upsert into `memorization_jobs` (failures are logged, never thrown, so the queue can't fail the mutation). A cron worker (`MemorizationCron`, students module) later rebuilds the student's `students.memorized_ayat` bitmap from the **union of their approved, non-deleted Hifz achievement ranges**. Non-Hifz tracks don't touch memorization. The bitmap logic lives entirely in the students module; achievements only enqueues. See the students skill for the bitmap format and the manual-edit endpoint.
 
 ## Module layout
 
@@ -32,6 +37,7 @@ The module **reads** from attendance (one-way coupling — see "Attendance coupl
 src/achievements/
 ├── entities/
 │   ├── achievement.entity.ts
+│   ├── achievement-recitation-position.entity.ts
 │   ├── weekly-plan.entity.ts
 │   └── weekly-plan-item.entity.ts
 ├── dto/
@@ -42,8 +48,7 @@ src/achievements/
 │   ├── create-weekly-plan-item.dto.ts
 │   └── update-weekly-plan-item.dto.ts
 ├── services/
-│   ├── achievements.service.ts            # CRUD + approval state machine
-│   ├── achievement-score.service.ts       # percentage_score computation
+│   ├── achievements.service.ts            # CRUD + approval state machine + count roll-up
 │   ├── weekly-plans.service.ts            # plan CRUD + approval
 │   ├── plan-items.service.ts              # item CRUD + reconciliation entrypoint
 │   ├── plan-reconciliation.service.ts     # the matching/union math
@@ -87,27 +92,81 @@ The `status` enum has two values: `'approved'` and `'unapproved'`. Combined with
 ```ts
 {
   student_id, halaqa_id, date, track_type,         // identifiers
+  completion_method?,      // 'quick' | 'mushaf'  — default 'quick'
+  recitation_method?,      // 'full'  | 'test'    — default 'full'
+  test_positions?,         // [{start_surah,start_verse,end_surah,end_verse, errors[]}] — required when recitation_method='test'
   start_surah, start_verse, end_surah, end_verse,  // verse range
-  mistakes_count, warnings_count, tajweed_errors_count,
+  errors?,                 // [{error_type,start_word_id,end_word_id,surah,ayah,juz,hizb}] — 'full' only; see "Errors"
+  percentage_score,        // computed on the frontend, stored as-is
   teacher_notes?,
   approve?: boolean        // default false
 }
 ```
+
+### Errors — itemized rows; counts are derived
+
+There are **four** error types: `mistake`, `warning`, `tajweed`, and `harakat` (حركات). Each is weighted by the halaqa's `evaluation_settings` (see "Score computation").
+
+Errors are **itemized**, one row per occurrence in `achievement_position_errors`, each tied to a recitation position and located at a QUL word span:
+
+```ts
+{ error_type, start_word_id, end_word_id, surah, ayah, juz, hizb }
+```
+
+- `start_word_id/end_word_id` — QUL word ids (sequential in mushaf order).
+- `surah/ayah/juz/hizb` — **supplied by the client from QUL** at capture time. The backend has **no QUL dataset** to resolve a word id into a location, so it stores what the client sends. `juz/hizb` are the canonical values for reporting.
+- `school_id/student_id/date` — **denormalized by the backend** from the owning achievement (constant, no FK). The client never sends these.
+
+**All counts are derived by COUNT, never client-set:**
+- `achievement_recitation_positions.{mistakes,warnings,tajweed_errors,harakat_errors}_count` = COUNT of that position's error rows per type.
+- `achievements.{...}_count` = SUM across its positions = COUNT across all its error rows.
+
+The columns are a denormalized cache the service fills on every create/update; the error rows are the source of truth.
+
+How the client sends errors depends on `recitation_method`:
+
+| method | where errors come from | violation |
+|---|---|---|
+| `'full'` | top-level `errors[]`; they attach to the single auto-created position | sending `test_positions` → 400 |
+| `'test'` | `errors[]` inside each entry of `test_positions` | sending top-level `errors` → 400 `"Errors are per-position when recitation_method is "test"..."` |
+
+**Validation.** Each error's `(surah, ayah)` must fall within its position's verse range (Quran order), `end_word_id >= start_word_id`, and `(surah, ayah)` must be a real location (`ayah <= SURAH_VERSES[surah]`) — else 400.
+
+On update, sending `errors` (or `test_positions`, or `recitation_method`) **regenerates the positions wholesale** — the new errors fully replace the old, and the counts re-derive. There is no partial-count merge; the unit of edit is the error list. Regeneration is delete-all-then-insert; error rows cascade-delete with their position.
+
+### Completion & recitation methods
+
+Two independent enums describe **how** the achievement was captured:
+
+- **`completion_method`** — `'quick'` (a fast tap) or `'mushaf'` (picked on the mushaf). Descriptive only; no downstream effect. Defaults to `'quick'`.
+- **`recitation_method`** — `'full'` (recited the whole range in one go) or `'test'` (examined at chosen positions). Defaults to `'full'`. Drives the `achievement_recitation_positions` rows (below).
+
+### Recitation positions (`achievement_recitation_positions`)
+
+Every achievement has **≥1 position row**, each a verse range (`start_surah/start_verse/end_surah/end_verse`) with **derived error counts** and **itemized `errors[]`** (see "Errors"). The position **ranges** are descriptive only — they do **not** affect `percentage_score` or reconciliation, which use the achievement's own range.
+
+- `recitation_method = 'full'` → the service auto-creates **exactly one** position spanning the whole achievement range, holding the top-level `errors[]`. `test_positions` in the payload is rejected (400, on create and update alike).
+- `recitation_method = 'test'` → the client supplies `test_positions` (**≥1**, else 400). Each must be a valid range **within** the achievement's range (Quran order), and holds its own `errors[]`.
+
+On **create**: positions and their errors are validated up front, then inserted after the achievement is saved.
+On **update** (unapproved only): positions are regenerated when `recitation_method`, `test_positions`, **or `errors`** is sent — a bare range edit leaves existing positions untouched (client's responsibility to resend). Setting `recitation_method='test'` requires `test_positions`; `='full'` replaces with a single full-range row. Regeneration is delete-all-then-insert; error rows cascade with their positions (neither is individually audited).
+
+Positions are returned in every achievement response as `recitation_positions[]`. All roles see the ranges; **parents do not see the per-position counts or the itemized `errors[]`** (same redaction as the achievement-level counts).
 
 Service flow:
 
 1. **Authorize the create.** Caller must have scope on the halaqa (principal/VP, supervisor with the halaqa in `supervisor_halaqat`, or teacher with active `halaqa_teachers` row — primary OR non-primary, both can record).
 2. **Validate the verse range** via `QuranRangeValidator`. Cross-surah ranges are allowed; see "Verse range semantics" below.
 3. **Attendance check.** Look up `attendance(student_id, halaqa_id, date)`. If no row → 400 `"Attendance must be recorded for this student before achievements can be entered."`. If row exists with absent status → 400 `"Cannot record achievement: student was absent."`. See "Attendance coupling."
-4. **Load the halaqa's `evaluation_settings`.** Mandatory; if NULL, that's a bug (creation/update of halaqa should have required it). Throw 500 if it happens.
-5. **Compute `percentage_score`** via `AchievementScoreService.compute()`. See "Score computation."
+4. **Resolve the recitation positions** and their itemized `errors[]`; derive each position's counts and roll them up into the achievement's four totals. See "Errors."
+5. **Store `percentage_score`** from the request, rounded to 2dp. The backend does not compute it — see "Score computation."
 6. **If `approve === true`:**
-   - Separately authorize approval (caller is principal/VP/supervisor-in-scope/primary-teacher-or-acting). If not allowed → 403 `"You cannot approve achievements for this halaqa."` Do not silently downgrade to "just record."
+   - Re-check halaqa scope. If not allowed → 403 `"You cannot approve achievements for this halaqa."` Do not silently downgrade to "just record."
    - Set `status = 'approved'`, `approved_by = caller`, `approved_at = now()`.
 7. **Persist.**
 8. **Audit.** Write `achievement.create` always. If approved in the same call, write a second `achievement.approve` row. Two audit rows for one API call — keeps the audit log analyzable across paths.
 9. **If approved**, run reconciliation (see "Reconciliation").
-10. **Response.** Return the mapped DTO via `AchievementDto.fromEntity(achievement, currentUser)`.
+10. **Response.** Return the mapped DTO via `AchievementDto.fromEntity(achievement, userMap, positions, studentMap)`.
 
 ### Daily uniqueness — not enforced
 
@@ -117,14 +176,18 @@ This means reports that aggregate by `(student_id, date, track_type)` must do `S
 
 ## Approving an existing achievement
 
-`POST /achievements/:id/approve`. Allowed roles:
+`POST /achievements/:id/approve`. Allowed roles — **anyone with halaqa scope**:
 - principal, VP — always (within school scope).
 - supervisor — only if the achievement's `halaqa_id` is in their `supervisor_halaqat`.
-- teacher — only if they are primary (`is_primary = 1`) or acting (`acting_as_primary = 1`) on the halaqa, with an active `halaqa_teachers` row.
+- teacher — any active `halaqa_teachers` row on the halaqa. **Primary/acting status is not required.**
+
+There is no separate "approval authority" tier: record, approve, unapprove, edit and
+delete all gate on the same `hasHalaqaScope` check. Weekly plans use the identical
+rule.
 
 Service flow:
 1. Load achievement, verify school scope (404 on miss).
-2. Verify caller's approval authority.
+2. Verify caller's halaqa scope.
 3. If `status` is already `'approved'`, return 400 `"Achievement is already approved."` (idempotency through error, not silent success — keeps the audit clean.)
 4. Set `status = 'approved'`, `approved_by`, `approved_at`. Persist.
 5. Audit: `achievement.approve`.
@@ -132,10 +195,12 @@ Service flow:
 
 ## Unapproving (revoking) an approved achievement
 
-`POST /achievements/:id/unapprove`. Allowed roles: **principal, VP only**.
+`POST /achievements/:id/unapprove`. Allowed roles: **anyone with halaqa scope** — same
+set as approve. A teacher who approved by mistake can revoke it without escalating to
+the principal.
 
 Service flow:
-1. Load, verify school scope, verify caller is principal or VP.
+1. Load, verify school scope, verify caller's halaqa scope (403 on miss).
 2. If `status` is `'unapproved'`, return 400.
 3. Flip `status = 'unapproved'`. **Preserve** `approved_by` and `approved_at`.
 4. Audit: `achievement.unapprove` with `oldValues: { approved_by, approved_at, status: 'approved' }`.
@@ -149,7 +214,7 @@ DTO accepts the same fields as create except `student_id`, `halaqa_id`, `date` (
 
 Allowed roles: anyone who could record the achievement in scope. Editing doesn't have a primary-authority gate.
 
-If `mistakes_count`, `warnings_count`, or `tajweed_errors_count` change, `percentage_score` is recomputed in the same transaction.
+If any error count changes, the positions are regenerated and the achievement's count totals are recomputed from them (see "Error counts"). `percentage_score` is **not** recomputed — the frontend must send the new value alongside the counts.
 
 Audit: `achievement.update`.
 
@@ -157,8 +222,10 @@ Audit: `achievement.update`.
 
 `DELETE /achievements/:id`. Soft delete via `deleted_at`.
 
-- **Unapproved achievement:** anyone who could record can delete (principal, VP, supervisor in scope, teacher in scope — primary or non-primary). No `recorded_by` check.
-- **Approved achievement:** **principal only.** VP cannot. Matches the matrix row "حذف إنجاز معتمد" — principal-only.
+Anyone who could record can delete — principal, VP, supervisor in scope, teacher in
+scope (primary or non-primary) — **whether or not the achievement is approved**. No
+`recorded_by` check. Gating the approved case harder would be theatre: the same actor
+can unapprove and then delete.
 
 Audit: `achievement.delete`. If the achievement was approved at delete time, include `was_approved: true` in audit values.
 
@@ -166,35 +233,30 @@ If deleted while approved, run reconciliation (verses drop out).
 
 ## Score computation
 
-`AchievementScoreService.compute(rawCounts, evaluationSettings)`:
+**`percentage_score` is computed on the frontend and sent in the request; the backend stores it as-is** (rounded to 2dp). There is no `AchievementScoreService` — the backend does not derive the score from the counts, and does not validate that it agrees with them.
 
-```ts
-score = Math.max(
-  settings.min_score,
-  settings.base_score
-    - rawCounts.mistakes_count    * settings.mistake_weight
-    - rawCounts.warnings_count    * settings.warning_weight
-    - rawCounts.tajweed_errors_count * settings.tajweed_weight
-);
-return Math.round(score * 100) / 100;  // 2 decimal places
-```
+The frontend computes it from the raw counts and the halaqa's per-error-type weights, which it reads off `evaluation_settings` in any halaqa response.
 
-`evaluation_settings` is a JSON column on `halaqat`. **Mandatory at the halaqa level** — creating or updating a halaqa with NULL settings is a 400 in the halaqat module. This module assumes settings are always present when reading.
+### `evaluation_settings` — the per-halaqa weights
 
-Default shape (the halaqat module enforces this):
+A JSON column on `halaqat`, owned by the halaqat module (`src/modules/halaqat/dto/evaluation-settings.dto.ts`). Each weight is the score **deducted per single error** of that type:
+
 ```json
 {
-  "base_score": 100,
-  "mistake_weight": 2.0,
-  "warning_weight": 1.0,
-  "tajweed_weight": 1.5,
-  "min_score": 0
+  "mistake_weight": 4,
+  "warning_weight": 2,
+  "tajweed_weight": 1,
+  "harakat_weight": 2
 }
 ```
 
+Those values are also the **defaults**. The column is **nullable and optional** — teachers configure it from the halaqa settings screen (`PATCH /halaqat/:id`), and any weight left unset falls back to its default. `resolveEvaluationSettings()` merges stored values over the defaults, so **every halaqa read returns all four weights populated** and the frontend never has to hardcode a fallback.
+
+The shape is closed: `forbidNonWhitelisted` rejects unknown keys with a 400. `PATCH` replaces the object wholesale — send every weight you want to keep; `null` resets to defaults.
+
 ### Historical scores are frozen
 
-When a halaqa's `evaluation_settings` changes, existing achievement scores are **not recomputed**. They reflect the formula in effect at the time of computation. The audit log records every settings change on the halaqa, so historical formula is recoverable from there.
+When a halaqa's `evaluation_settings` changes, existing achievement scores are **not recomputed**. They reflect the weights in effect when the frontend computed them. The halaqa activity log records every settings change, so the historical weights are recoverable from there.
 
 No admin endpoint exists to recompute historical scores. If one is needed later, that's a separate feature.
 
@@ -235,13 +297,14 @@ Constants live in `src/quran/quran.constants.ts` as 1-indexed arrays (a dummy `0
 }
 ```
 
-Allowed: principal, VP, primary (or acting) teacher of the halaqa.
+Allowed: **anyone with halaqa scope** — principal, VP, supervisor in scope, or any
+teacher with an active `halaqa_teachers` row. Primary/acting status is not required.
 
 Service flow:
-1. Authorize. School scope, halaqa scope, primary-authority check for teachers.
+1. Authorize. School scope, then `hasHalaqaScope`.
 2. **Conflict check.** Query `weekly_plans` for an existing non-deleted row with `(student_id, halaqa_id, week_start_date)`. If found → 409 `{ message: "Plan already exists for this student/halaqa/week.", existing_plan_id: <id> }`. To replace, the caller must `DELETE` the existing plan first.
 3. Validate each item: range valid, `day_of_week` in `[0..6]` or `[1..7]` (per your existing convention), `track_type` valid.
-4. Compute `total_verses` for each item via `QuranRangeValidator`. `achieved_verses` starts at `0`, `status` at `'due'`, `is_manual_override` at `0`.
+4. Compute `total_verses` for each item via `QuranRangeValidator`. `achieved_verses` starts at `0`, `status` at `'due'`, `is_manual_override` at `0`, `order` from the item (default `0`).
 5. Persist plan and items in a single transaction.
 6. Audit: `weekly_plan.create` with `items_count` in `newValues`.
 
@@ -251,7 +314,7 @@ Service flow:
 
 When this is built, it will:
 - Accept `{ halaqa_id, week_start_date, student_ids? }`.
-- Allowed roles: principal, VP, primary teacher of the halaqa.
+- Allowed roles: anyone with halaqa scope.
 - Generation strategy is undecided (see Q5b in the design notes). Sources to consider: student capacities (`daily_*_pages_capacity`), the halaqa's meeting schedule, last approved achievement frontier per track.
 - Idempotency: skip students who already have a plan for the week, or 409.
 
@@ -259,7 +322,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 
 ### Approve a plan
 
-`POST /weekly-plans/:id/approve`. Allowed: principal, VP, primary (or acting) teacher of the halaqa.
+`POST /weekly-plans/:id/approve`. Allowed: anyone with halaqa scope.
 
 1. Load plan, school+halaqa scope checks.
 2. If already `'approved'` → 400.
@@ -268,7 +331,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 
 ### Unapprove a plan
 
-`POST /weekly-plans/:id/unapprove`. Allowed: principal, VP (mirroring achievement unapprove).
+`POST /weekly-plans/:id/unapprove`. Allowed: anyone with halaqa scope (mirroring achievement unapprove).
 
 `status = 'draft'`. `approved_by` preserved. Audit: `weekly_plan.unapprove`.
 
@@ -277,7 +340,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 When `status = 'approved'`:
 
 - **Reconciliation updates** to items (`achieved_verses`, `status`): always allowed; the service path is internal, not user-facing.
-- **Manual item range edits** (`PATCH /weekly-plan-items/:id` changing range fields): allowed for principal/VP and primary teacher. Sets `is_manual_override = 1`. Triggers recompute of `total_verses` and re-runs reconciliation for that item.
+- **Manual item range edits** (`PATCH /weekly-plan-items/:id` changing range fields): allowed for anyone with halaqa scope. Sets `is_manual_override = 1`. Triggers recompute of `total_verses` and re-runs reconciliation for that item.
 - **Add new item to approved plan:** `POST /weekly-plans/:id/items` returns 400 `"Cannot add items to an approved plan. Unapprove first."`
 - **Delete item from approved plan:** `DELETE /weekly-plan-items/:id` returns 400 `"Cannot delete items from an approved plan. Unapprove first."`
 
@@ -286,81 +349,89 @@ When `status = 'draft'`:
 
 The `is_manual_override` flag is **permanent** once set. It tracks "this item's range was edited after creation" — not "edited while approved." Unapproving and re-approving doesn't reset it.
 
+### Plan item `order`
+
+`weekly_plan_items.order` (int, default `0`) is the **reconciliation priority tie-breaker** when two items share the same `day_of_week` and `track_type` (e.g. two Monday-Hifz items). Reconciliation walks items by `day_of_week → order → id`; the lower `order` claims shared verses first (consumption model). It's supplied on item create (`POST /weekly-plans` items and `POST /weekly-plans/:id/items`) and editable via `PATCH /weekly-plan-items/:id` — editing it re-runs reconciliation because it changes consumption priority. It has no effect across different days or tracks.
+
 ### Plan deletion
 
-`DELETE /weekly-plans/:id` — soft delete. Allowed: principal, VP. (Primary teachers cannot delete plans, only edit their items.) Items are not soft-deleted (no `deleted_at` column); the soft-deleted plan being un-listable is sufficient.
+`DELETE /weekly-plans/:id` — **hard delete**. Allowed: anyone with halaqa scope. The row is
+removed permanently and its items cascade via `ON DELETE CASCADE`; nothing is recoverable.
+
+Note the entity still declares a `deleted_at` `@DeleteDateColumn`, but `hardDelete()` calls
+`repo.remove()`, so the column is never populated for plans. Achievements, by contrast, really
+are soft-deleted.
 
 Audit: `weekly_plan.delete`.
 
 ## Reconciliation — achievements ↔ plan items
 
-This is the central piece of business logic. Model it as **invoice + payments**: each plan item is an invoice with a target verse range; each approved achievement is a payment that applies to one or more invoices via verse-range overlap.
+This is the central piece of business logic. Model it as **invoice + payments**: each plan item is an invoice with a target verse range; each approved achievement is a payment. Reconciliation is **week-scoped, not day-scoped**: a payment made on *any* day of the plan's week settles the week's items, and each achieved verse is *consumed* by exactly one item — the earliest in the week claims it first.
 
 ### When reconciliation runs
 
 Triggered (synchronously, in the same transaction) on:
-1. **Achievement approved** — apply its verses to matching plan items.
-2. **Achievement unapproved** — remove its verses from matching plan items.
-3. **Approved achievement deleted** — remove its verses (same as unapprove).
-4. **Plan item range edited** — recompute the item against all approved achievements that could match.
-5. **Plan approved** — recompute every item against all approved achievements that could match.
+1. **Achievement approved** — recompute the plan(s) covering its week.
+2. **Achievement unapproved** — recompute (its verses drop out of the pool).
+3. **Approved achievement deleted** — recompute (same as unapprove).
+4. **Plan item range edited** — recompute the whole owning plan (item results are interdependent).
+5. **Plan approved** — recompute every item in the plan.
 
-The recompute service method is:
+The core service method reconciles a **whole plan (week)** as a unit, because items are interdependent — what an earlier item consumes changes what remains for later ones:
 ```ts
-PlanReconciliationService.reconcileItem(planItemId: number): Promise<void>
+PlanReconciliationService.reconcilePlan(planId: number): Promise<void>
 ```
 
-It loads all approved, non-deleted achievements matching the item's `(student_id, halaqa_id, week, day_of_week, track_type)`, computes the union of their verse ranges intersected with the item's range, and updates `achieved_verses` and `status`.
-
-Trigger 1–3 above each compute the set of candidate plan items (same student, same halaqa, same week, same track, day_of_week matches the achievement's date), then call `reconcileItem` for each.
+Convenience entry points delegate to it:
+- `reconcileItem(planItemId)` — loads the item's plan and calls `reconcilePlan`. Kept for callers that only hold an item id (e.g. after a range edit).
+- `reconcileForAchievement(achievementId)` — finds every plan whose week contains the achievement's `date` and reconciles each whole.
 
 ### Matching rule
 
-An achievement matches a plan item when **all** of:
+An achievement contributes to a plan item when **all** of:
 - Same `student_id`.
 - Same `halaqa_id`.
-- Achievement's `date` falls within the plan's week, and `day_of_week(date) === item.day_of_week`.
 - Same `track_type`.
-- The verse ranges overlap (any verse in common).
+- Achievement's `date` falls **anywhere within the plan's week** (`week_start_date … week_start_date + 6`). The achievement's day-of-week does **not** need to equal the item's `day_of_week`.
+- The verse ranges overlap (any verse in common) **and** the overlapping verses haven't already been consumed by an earlier item.
 
-An achievement may match zero, one, or more plan items.
+An achievement may contribute to zero, one, or more plan items.
 
 ### The math
 
+For each plan, per `track_type`, build a **pool** = the set union of all approved, non-deleted achievement verses recorded anywhere in the week. Then walk items in **priority order** (`day_of_week` ascending, then `order` ascending, then `id` ascending), letting each item consume the pool verses it covers:
+
 ```
-applied_verses = ⋃ᵢ (achievementᵢ.range ∩ item.range)
-                 over all approved, non-deleted achievements matching the item
+poolₜ = ⋃ (achievement.range)   over approved, non-deleted achievements in the week with track t
 
-achieved_verses = |applied_verses|       // count of unique verses
-total_verses    = |item.range|           // already stored; doesn't change unless range edited
+for each item (ordered by day_of_week asc, then order asc, then id asc):
+    claimed        = item.range ∩ pool[item.track]
+    achieved_verses = |claimed|
+    pool[item.track] -= claimed          // consume — a later item can't reclaim these verses
+    total_verses    = |item.range|        // stored; changes only on range edit
 
-status determination:
-  if achieved_verses == 0:
-    if today < item's date:  status = 'due'
-    else:                    status = 'overdue'
-  if 0 < achieved_verses < total_verses:
-    status = 'partial'
-  if achieved_verses == total_verses:
-    status = 'completed'
+    status:
+      if achieved_verses >= total_verses:  'completed'
+      elif achieved_verses > 0:            'partial'
+      elif today < item's date:            'due'
+      else:                                'overdue'
 ```
 
-Set union, not arithmetic addition. Two achievements covering the same verses don't double-count.
+Set union, not arithmetic addition — two achievements covering the same verses don't double-count. Consumption means two *items* planning the same verse don't both get credit; the earlier one wins. For the small ranges typical of daily Quran sessions (tens to low hundreds of verses), expand ranges to a `Set` of `"surah:verse"` keys and use `Set` operations.
 
-For implementation: represent the union as a sorted list of disjoint `(surah, verse)` intervals. Or, given the small ranges typical of daily Quran sessions (tens to low hundreds of verses), expand to a set of `(surah, verse)` pairs and take `Set` operations. Both work; the set approach is simpler for small N.
+### Cross-day / cross-week
 
-### Cross-day overlap
-
-An achievement whose verse range spans into territory planned for a different day still counts only against the matching `day_of_week`. The matching is by day-of-week first, then by range overlap. An achievement on Tuesday matches only Tuesday items, regardless of what verses it covers.
+Within a week, day-of-week is irrelevant to *matching* — it only sets **priority order** for consumption. An achievement on Wednesday can complete a Monday item (and vice-versa), as long as ranges overlap and the verses aren't already consumed by an earlier-ordered item. An achievement outside the plan's `[week_start, week_start+6]` window doesn't contribute.
 
 ### Unmatched achievements
 
-An approved achievement that doesn't overlap any plan item still exists — it's just not linked. Reports surface this as "unmatched achievement work." The achievement isn't lost or hidden.
+An approved achievement whose verses overlap no plan item (or whose verses are all consumed by earlier items) still exists — it's just not credited. Reports surface this as "unmatched achievement work." The achievement isn't lost or hidden.
 
 ### Future async swap
 
-`PlanReconciliationService.reconcileItem` is the boundary. Today it's called inside the same transaction as approve/unapprove/delete. When volume grows, the swap is:
+`PlanReconciliationService.reconcilePlan` is the boundary. Today it's called inside the same transaction as approve/unapprove/delete. When volume grows, the swap is:
 1. Replace direct calls with publishing an event (`achievement.approved` etc.) to a queue.
-2. A worker subscribes and calls `reconcileItem`.
+2. A worker subscribes and calls `reconcilePlan`.
 3. The reconciliation logic itself doesn't change.
 
 Don't bake assumptions about synchronicity into the calling code beyond the transaction boundary.
@@ -424,34 +495,19 @@ If/when bulk achievement endpoints are built, attendance is checked **per row** 
 
 ## Visibility — what each role sees
 
-Same response-mapper pattern as students. `AchievementDto.fromEntity(achievement, currentUser)` is the single point of truth.
+`AchievementDto.fromEntity(achievement, userMap, positions, studentMap)` is the single point of truth. It does **not** take the actor — the payload is identical for every role.
 
-### For principal, VP, supervisor in scope, teacher in scope
+### Visibility is scope-only, not field-level
 
-Full row. Every field present. `recorded_by` and `approved_by` are resolved to `{ id, name }` objects, not just IDs.
+Whoever can read an achievement reads all of it: the four error counts, every `recitation_positions[]` entry, and the itemized `errors[]` with their QUL word spans and surah/ayah/juz/hizb locations, plus `recorded_by_name`, `approved_by_name`, and `approved_at`.
 
-### For parent (own children only)
+Access control lives entirely in *which rows* a role can reach (see the scope rules above) — principal/VP see the school, supervisor sees supervised halaqat, teacher sees assigned halaqat, parent sees their linked students. Parents are read-only: they have no create/update/approve/unapprove/delete route.
 
-Stripped response. **Omitted fields** (not present as keys, not null):
-- `mistakes_count`
-- `warnings_count`
-- `tajweed_errors_count`
-- `recorded_by`
-- `approved_by`
-- `approved_at`
+Do not reintroduce per-role field stripping here. A parent seeing where their child stumbled is the point of the feature.
 
-Visible fields: `id`, `student_id`, `halaqa_id`, `date`, `track_type`, range fields, `percentage_score`, `status`, `teacher_notes`, `created_at`, `updated_at`.
+### Filters
 
-The parent sees a clean "what my child did" view. They see the score, the verse range, the note. They don't see error breakdowns or which teacher handled it.
-
-### Search and filter constraints for parents
-
-Parents cannot filter or sort by fields they can't see. The query layer rejects:
-- `?recorded_by=...` → 400
-- `?approved_by=...` → 400
-- `sort=mistakes_count` etc. → 400
-
-This is the same side-channel-prevention rule as the `id_number` skill.
+All roles may use every filter, including `?recorded_by=` and `?approved_by=`. There is no side-channel to protect, since the corresponding names are in the response.
 
 ### Status filter
 

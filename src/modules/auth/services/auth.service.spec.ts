@@ -25,6 +25,7 @@ const ACTIVE_USER = {
   id: 7,
   schoolId: 1,
   name: 'Admin',
+  idNumber: '400000006',
   email: 'admin@school.com',
   password: 'hash',
   status: 'active',
@@ -38,6 +39,7 @@ interface Mocks {
   rateLimit: jest.Mocked<RateLimitService>;
   users: { findOne: jest.Mock; update: jest.Mock };
   attempts: { insert: jest.Mock };
+  idValidator: { normalize: jest.Mock; validate: jest.Mock };
 }
 
 function makeMocks(): Mocks {
@@ -63,6 +65,10 @@ function makeMocks(): Mocks {
     } as unknown as jest.Mocked<RateLimitService>,
     users: { findOne: jest.fn(), update: jest.fn().mockResolvedValue({}) },
     attempts: { insert: jest.fn().mockResolvedValue({}) },
+    idValidator: {
+      normalize: jest.fn((s: string) => s.replace(/[\s-]/g, '')),
+      validate: jest.fn().mockReturnValue({ ok: true, warnings: [] }),
+    },
   };
 }
 
@@ -73,6 +79,7 @@ function makeService(m: Mocks): AuthService {
     m.rateLimit,
     m.users as unknown as Repository<User>,
     m.attempts as unknown as Repository<LoginAttempt>,
+    m.idValidator,
   );
 }
 
@@ -115,6 +122,29 @@ describe('AuthService', () => {
       expect(m.users.update).toHaveBeenCalledWith(
         7,
         expect.objectContaining({ lastLoginAt: expect.any(Date) }),
+      );
+    });
+
+    it('logs in via id_number: normalizes it, looks up by idNumber, records the identifier', async () => {
+      m.rateLimit.check.mockResolvedValue('ok');
+      m.users.findOne.mockResolvedValue(ACTIVE_USER);
+      mockedCompare.mockResolvedValue(true as never);
+
+      const result = await service.login(
+        { id_number: '400-000-006', password: 'pw' },
+        CTX,
+      );
+
+      expect(result.accessToken).toBe('access.jwt');
+      expect(m.idValidator.normalize).toHaveBeenCalledWith('400-000-006');
+      expect(m.rateLimit.check).toHaveBeenCalledWith('400000006', CTX.ip);
+      expect(m.users.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ idNumber: '400000006' }),
+        }),
+      );
+      expect(m.attempts.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success', email: '400000006' }),
       );
     });
 

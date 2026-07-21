@@ -1,4 +1,8 @@
-import { ValidationArguments, ValidationOptions, registerDecorator } from 'class-validator';
+import {
+  ValidationArguments,
+  ValidationOptions,
+  registerDecorator,
+} from 'class-validator';
 
 /**
  * Validates that the decorated field's string value is strictly after the sibling field.
@@ -15,8 +19,11 @@ export function IsAfterField(sibling: string, options?: ValidationOptions) {
       options,
       validator: {
         validate(value: unknown, args: ValidationArguments): boolean {
-          const other = (args.object as Record<string, unknown>)[args.constraints[0] as string];
-          if (typeof value !== 'string' || typeof other !== 'string') return true;
+          const other = (args.object as Record<string, unknown>)[
+            args.constraints[0] as string
+          ];
+          if (typeof value !== 'string' || typeof other !== 'string')
+            return true;
           return value > other;
         },
         defaultMessage(args: ValidationArguments): string {

@@ -12,12 +12,12 @@ import { Student } from '../entities/student.entity';
 
 @Injectable()
 export class StudentScopeGuard implements CanActivate {
-  constructor(
-    @InjectDataSource() private readonly dataSource: DataSource,
-  ) {}
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<AuthenticatedRequest & { student?: Student }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<AuthenticatedRequest & { student?: Student }>();
     const actor: AuthenticatedUser = req.user;
     const studentId = Number(req.params['id']);
 

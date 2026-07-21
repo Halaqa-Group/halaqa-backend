@@ -65,15 +65,24 @@ export class GuardiansService {
       if (!user) throw new NotFoundException();
       guardianUserId = user.id;
     } else if (dto.email !== undefined) {
-      const user = await this.usersService.findByEmail(dto.email, actor.schoolId);
+      const user = await this.usersService.findByEmail(
+        dto.email,
+        actor.schoolId,
+      );
       if (!user) {
-        const deleted = await this.usersService.findByEmail(dto.email, actor.schoolId, true);
+        const deleted = await this.usersService.findByEmail(
+          dto.email,
+          actor.schoolId,
+          true,
+        );
         if (deleted) {
           throw new ConflictException(
             'This user account has been deactivated. Restore the account before linking.',
           );
         }
-        throw new NotFoundException('No user found with this email in this school.');
+        throw new NotFoundException(
+          'No user found with this email in this school.',
+        );
       }
       guardianUserId = user.id;
     } else {
@@ -104,7 +113,9 @@ export class GuardiansService {
         where: { studentId, guardianUserId },
       });
       if (existing) {
-        throw new BadRequestException('Guardian already linked to this student');
+        throw new BadRequestException(
+          'Guardian already linked to this student',
+        );
       }
 
       const count = await txManager.count(StudentGuardian, {
@@ -224,7 +235,9 @@ export class GuardiansService {
     guardianUserId: number,
     actor: AuthenticatedUser,
   ): Promise<void> {
-    const sg = await this.sgRepo.findOne({ where: { studentId, guardianUserId } });
+    const sg = await this.sgRepo.findOne({
+      where: { studentId, guardianUserId },
+    });
     if (!sg) throw new NotFoundException();
 
     await this.dataSource.transaction(async (manager) => {
@@ -235,7 +248,11 @@ export class GuardiansService {
         action: 'student.guardian.unlink',
         entityType: 'student_guardian',
         entityId: studentId,
-        oldValues: { guardianUserId, relation: sg.relation, isPrimary: sg.isPrimary },
+        oldValues: {
+          guardianUserId,
+          relation: sg.relation,
+          isPrimary: sg.isPrimary,
+        },
       });
 
       const remaining = await manager.find(StudentGuardian, {
@@ -253,15 +270,11 @@ export class GuardiansService {
           entityType: 'student',
           entityId: studentId,
         });
-        await this.notifications.notifyRole(
-          actor.schoolId,
-          'vice_principal',
-          {
-            type: 'student.orphaned',
-            studentId,
-            studentName: student?.name ?? '',
-          },
-        );
+        await this.notifications.notifyRole(actor.schoolId, 'vice_principal', {
+          type: 'student.orphaned',
+          studentId,
+          studentName: student?.name ?? '',
+        });
         return;
       }
 
@@ -269,7 +282,10 @@ export class GuardiansService {
         const promote = remaining[0];
         await manager.update(
           StudentGuardian,
-          { studentId: promote.studentId, guardianUserId: promote.guardianUserId },
+          {
+            studentId: promote.studentId,
+            guardianUserId: promote.guardianUserId,
+          },
           { isPrimary: true },
         );
         await this.audit.log({

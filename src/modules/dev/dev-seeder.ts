@@ -11,6 +11,8 @@ import { User } from '../users/entities/user.entity';
 
 interface UserSeed {
   name: string;
+  /** National ID (Palestinian: 9 digits, valid checksum). Also a login identifier. */
+  idNumber: string;
   email: string;
   password: string;
   roles: RoleSlug[];
@@ -21,36 +23,42 @@ const SCHOOL_NAME = 'Halaqa Demo School';
 const USER_SEEDS: UserSeed[] = [
   {
     name: 'أحمد المدير',
+    idNumber: '400000006',
     email: 'principal@school.com',
     password: 'Passw0rd!',
     roles: ['principal'],
   },
   {
     name: 'محمد المدير',
+    idNumber: '100000009',
     email: 'principal2@school.com',
     password: 'Password',
     roles: ['principal'],
   },
   {
     name: 'سامي النائب',
+    idNumber: '200000008',
     email: 'vp@school.com',
     password: 'Passw0rd!',
     roles: ['vice_principal'],
   },
   {
     name: 'خالد المشرف',
+    idNumber: '300000007',
     email: 'supervisor@school.com',
     password: 'Passw0rd!',
     roles: ['supervisor'],
   },
   {
     name: 'يوسف المعلم',
+    idNumber: '500000005',
     email: 'teacher@school.com',
     password: 'Passw0rd!',
     roles: ['teacher'],
   },
   {
     name: 'محمد ولي الأمر',
+    idNumber: '600000004',
     email: 'parent@school.com',
     password: 'Passw0rd!',
     roles: ['parent'],
@@ -158,6 +166,14 @@ export class DevSeeder implements OnApplicationBootstrap {
     let userId: number;
     if (existing) {
       userId = existing.id;
+      // Backfill the canonical demo ID so login-by-id_number works after the
+      // migration seeded placeholders onto pre-existing rows.
+      if (existing.idNumber !== seed.idNumber) {
+        await this.users.update(userId, { idNumber: seed.idNumber });
+        this.logger.log(
+          `Set id_number ${seed.idNumber} on ${seed.email} (id=${userId})`,
+        );
+      }
     } else {
       const passwordHash = await bcrypt.hash(
         seed.password,
@@ -167,6 +183,7 @@ export class DevSeeder implements OnApplicationBootstrap {
         this.users.create({
           schoolId,
           name: seed.name,
+          idNumber: seed.idNumber,
           email: seed.email,
           password: passwordHash,
           status: 'active',

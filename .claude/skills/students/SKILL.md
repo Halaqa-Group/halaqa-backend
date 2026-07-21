@@ -82,6 +82,15 @@ All routes under `/students/*` and `/students/:id/guardians/*` require auth, act
 | POST | `/students/:id/restore` | restore from soft delete | principal, vice_principal |
 | POST | `/students/:id/graduate` | set `status = 'graduated'` | principal, vice_principal |
 
+### Memorization bitmap
+
+| Method | Path | Purpose | Allowed |
+|---|---|---|---|
+| GET | `/students/:id/memorization` | read memorized-ayat count + base64 bitmap | principal, VP, supervisor in scope, teacher in scope, parent in scope |
+| PUT | `/students/:id/memorization` | manual edit — apply `set` then `clear` verse ranges | principal, VP, supervisor in scope, teacher in scope (**not** parent) |
+
+See "Memorization" below.
+
 ### Student → Guardians
 
 | Method | Path | Purpose | Allowed |
@@ -247,6 +256,23 @@ Each item has the bio fields above without `guardians`. Adding it would N+1 ever
   "data": [ /* same guardian objects as above */ ]
 }
 ```
+
+## Memorization
+
+`students.memorized_ayat` is a **`VARBINARY(780)`** bitmap over every ayah of the mushaf — 6236 ayat, one bit each (780 bytes; the last 4 bits are unused). Bit `i` (MSB-first within each byte) is the `i`-th ayah in mushaf order, starting at Al-Fatihah:1 = index 0. **Do not use `BINARY(780)`** — MySQL's fixed `BINARY` caps at 255 bytes. All bitmap logic lives in `src/quran/quran-bitmap.ts` (`ayahIndex`, `applyRange`, `countBits`, `toBitmap`, `createEmptyBitmap`); never hand-roll bit math elsewhere. The surah→offset map is derived from `SURAH_VERSES`.
+
+Two write paths, both owned by `MemorizationService`:
+
+1. **Recompute (authoritative).** The bitmap is *derived* from the union of the student's **approved, non-deleted Hifz achievement ranges**. Any Hifz achievement approve/unapprove/delete enqueues a recompute (see below); the worker rebuilds the whole bitmap. Non-Hifz tracks never touch it.
+2. **Manual edit.** `PUT /students/:id/memorization` applies `set` (mark) then `clear` (unmark) verse ranges directly onto the stored bitmap. **Manual edits are overwritten by the next recompute** (accepted trade-off — there is no manual overlay layer). Parents cannot edit.
+
+### The recompute queue
+
+`memorization_jobs` is a durable, DB-backed queue — **one row per student** (unique `student_id`). Enqueue is an `INSERT … ON DUPLICATE KEY UPDATE status='pending'` upsert, so a burst of achievement changes coalesces into a single pending job and the table stays bounded by the student count. `AchievementsService` enqueues **best-effort** (failures logged, never thrown — a queue hiccup must not fail the approve/unapprove/delete).
+
+`MemorizationCron` (`@nestjs/schedule`, every minute) drains it: claim `pending → processing` with a compare-and-set, recompute, then settle `processing → done` with a second CAS so a concurrent enqueue that re-flags the row `pending` survives for the next tick. Failed jobs retry up to `MAX_ATTEMPTS` (5) then park at `failed`.
+
+This is the one place `AchievementsModule` imports `StudentsModule` (to inject `MemorizationService`). The dependency is one-way; the students module never imports achievements — the worker reads the `achievements` table via raw SQL.
 
 ## Audit actions
 

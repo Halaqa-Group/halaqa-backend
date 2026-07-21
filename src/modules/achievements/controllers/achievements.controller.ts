@@ -23,11 +23,44 @@ import { ApiMessage } from '../../../common/api-message';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { AchievementTestPositionDto } from '../dto/achievement-test-position.dto';
 import { CreateAchievementDto } from '../dto/create-achievement.dto';
 import { ListAchievementsQuery } from '../dto/list-achievements.query';
+import { PositionErrorDto } from '../dto/position-error.dto';
 import { UpdateAchievementDto } from '../dto/update-achievement.dto';
-import { AchievementDto, AchievementListData } from '../mappers/achievement.dto';
+import {
+  AchievementDto,
+  AchievementListData,
+} from '../mappers/achievement.dto';
+import type {
+  PositionErrorInput,
+  PositionInput,
+} from '../services/achievements.service';
 import { AchievementsService } from '../services/achievements.service';
+
+/** Maps a snake_case error DTO to the service's camelCase shape. */
+function mapErrorDto(e: PositionErrorDto): PositionErrorInput {
+  return {
+    errorType: e.error_type,
+    startWordId: e.start_word_id,
+    endWordId: e.end_word_id,
+    surah: e.surah,
+    ayah: e.ayah,
+    juz: e.juz,
+    hizb: e.hizb,
+  };
+}
+
+/** Maps a snake_case position DTO to the service's camelCase shape. */
+function mapPositionDto(p: AchievementTestPositionDto): PositionInput {
+  return {
+    startSurah: p.start_surah,
+    startVerse: p.start_verse,
+    endSurah: p.end_surah,
+    endVerse: p.end_verse,
+    errors: p.errors?.map(mapErrorDto),
+  };
+}
 
 @ApiTags('Achievements')
 @ApiBearerAuth('access-token')
@@ -44,13 +77,19 @@ export class AchievementsController {
     description:
       'Records a Quran recitation achievement for a student. ' +
       '`percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. ' +
-      'Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). ' +
+      'Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). ' +
       'If the student is absent the request is rejected (400).',
   })
   @ApiBody({ type: CreateAchievementDto })
   @ApiResponse({ status: 201, type: AchievementDto })
-  @ApiResponse({ status: 400, description: 'Validation error, invalid verse range, or student absent.' })
-  @ApiResponse({ status: 403, description: 'No halaqa scope, or approve=true without authority.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error, invalid verse range, or student absent.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No halaqa scope.',
+  })
   @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async create(
     @Body() dto: CreateAchievementDto,
@@ -62,13 +101,14 @@ export class AchievementsController {
         halaqaId: dto.halaqa_id,
         date: dto.date,
         trackType: dto.track_type,
+        completionMethod: dto.completion_method,
+        recitationMethod: dto.recitation_method,
+        testPositions: dto.test_positions?.map(mapPositionDto),
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
-        mistakesCount: dto.mistakes_count,
-        warningsCount: dto.warnings_count,
-        tajweedErrorsCount: dto.tajweed_errors_count,
+        errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
         approve: dto.approve,
@@ -76,9 +116,24 @@ export class AchievementsController {
       actor,
     );
 
-    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
-    const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(
+      Boolean,
+    ) as number[];
+    const userMap = await this.service.resolveUserNames(
+      userIds,
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions([achievement.id]);
+    const studentMap = await this.service.resolveStudentNames(
+      [achievement.studentId],
+      actor.schoolId,
+    );
+    return AchievementDto.fromEntity(
+      achievement,
+      userMap,
+      positions.get(achievement.id),
+      studentMap,
+    );
   }
 
   // ─── List ─────────────────────────────────────────────────────────────────
@@ -92,11 +147,9 @@ export class AchievementsController {
       '- **principal / vice_principal**: all achievements in the school.\n' +
       '- **supervisor**: achievements for halaqat they supervise.\n' +
       '- **teacher**: achievements for halaqat they are assigned to.\n' +
-      '- **parent**: achievements for their linked students only. ' +
-      '  `recorded_by` and `approved_by` filters return 400 for this role.',
+      '- **parent**: achievements for their linked students only (read-only, full detail).',
   })
   @ApiResponse({ status: 200, type: AchievementListData })
-  @ApiResponse({ status: 400, description: 'Parent using a restricted filter.' })
   async findAll(
     @Query() query: ListAchievementsQuery,
     @CurrentUser() actor: AuthenticatedUser,
@@ -121,10 +174,22 @@ export class AchievementsController {
       userIds.add(a.recordedBy);
       if (a.approvedBy) userIds.add(a.approvedBy);
     }
-    const userMap = await this.service.resolveUserNames([...userIds], actor.schoolId);
+    const userMap = await this.service.resolveUserNames(
+      [...userIds],
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions(
+      result.items.map((a) => a.id),
+    );
+    const studentMap = await this.service.resolveStudentNames(
+      result.items.map((a) => a.studentId),
+      actor.schoolId,
+    );
 
     return {
-      items: result.items.map((a) => AchievementDto.fromEntity(a, actor, userMap)),
+      items: result.items.map((a) =>
+        AchievementDto.fromEntity(a, userMap, positions.get(a.id), studentMap),
+      ),
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -138,9 +203,9 @@ export class AchievementsController {
   @ApiOperation({
     summary: 'Get achievement detail',
     description:
-      'Returns a single achievement. ' +
+      'Returns a single achievement with its recitation positions and itemized errors. ' +
       'Out-of-scope or cross-school access returns 404 (never 403). ' +
-      'Parent role: `mistakes_count`, `warnings_count`, `tajweed_errors_count`, `recorded_by_name`, `approved_by_name`, and `approved_at` are omitted.',
+      'All roles that can read the achievement (including **parent**) receive the full payload.',
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: AchievementDto })
@@ -150,9 +215,24 @@ export class AchievementsController {
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<AchievementDto> {
     const achievement = await this.service.findOne(id, actor);
-    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
-    const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(
+      Boolean,
+    ) as number[];
+    const userMap = await this.service.resolveUserNames(
+      userIds,
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions([achievement.id]);
+    const studentMap = await this.service.resolveStudentNames(
+      [achievement.studentId],
+      actor.schoolId,
+    );
+    return AchievementDto.fromEntity(
+      achievement,
+      userMap,
+      positions.get(achievement.id),
+      studentMap,
+    );
   }
 
   // ─── Update ───────────────────────────────────────────────────────────────
@@ -170,7 +250,10 @@ export class AchievementsController {
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiBody({ type: UpdateAchievementDto })
   @ApiResponse({ status: 200, type: AchievementDto })
-  @ApiResponse({ status: 400, description: 'Achievement is approved, or invalid verse range.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Achievement is approved, or invalid verse range.',
+  })
   @ApiResponse({ status: 404, description: 'Not found or no halaqa scope.' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -181,22 +264,38 @@ export class AchievementsController {
       id,
       {
         trackType: dto.track_type,
+        completionMethod: dto.completion_method,
+        recitationMethod: dto.recitation_method,
+        testPositions: dto.test_positions?.map(mapPositionDto),
         startSurah: dto.start_surah,
         startVerse: dto.start_verse,
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
-        mistakesCount: dto.mistakes_count,
-        warningsCount: dto.warnings_count,
-        tajweedErrorsCount: dto.tajweed_errors_count,
+        errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
         teacherNotes: dto.teacher_notes,
       },
       actor,
     );
 
-    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
-    const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(
+      Boolean,
+    ) as number[];
+    const userMap = await this.service.resolveUserNames(
+      userIds,
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions([achievement.id]);
+    const studentMap = await this.service.resolveStudentNames(
+      [achievement.studentId],
+      actor.schoolId,
+    );
+    return AchievementDto.fromEntity(
+      achievement,
+      userMap,
+      positions.get(achievement.id),
+      studentMap,
+    );
   }
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -214,7 +313,10 @@ export class AchievementsController {
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 403, description: 'Approved achievement — principal only.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Approved achievement — principal only.',
+  })
   @ApiResponse({ status: 404, description: 'Not found or no halaqa scope.' })
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -233,35 +335,53 @@ export class AchievementsController {
     summary: 'Approve an achievement',
     description:
       'Marks the achievement as approved. ' +
-      'Caller must be: principal, VP, supervisor in scope, or primary/acting teacher for the halaqa. ' +
+      'Caller must be: principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       'Returns 400 if already approved. ' +
       'Triggers plan item reconciliation.',
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: AchievementDto })
   @ApiResponse({ status: 400, description: 'Already approved.' })
-  @ApiResponse({ status: 403, description: 'No approval authority for this halaqa.' })
+  @ApiResponse({
+    status: 403,
+    description: 'No halaqa scope.',
+  })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async approve(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<AchievementDto> {
     const achievement = await this.service.approve(id, actor);
-    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
-    const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(
+      Boolean,
+    ) as number[];
+    const userMap = await this.service.resolveUserNames(
+      userIds,
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions([achievement.id]);
+    const studentMap = await this.service.resolveStudentNames(
+      [achievement.studentId],
+      actor.schoolId,
+    );
+    return AchievementDto.fromEntity(
+      achievement,
+      userMap,
+      positions.get(achievement.id),
+      studentMap,
+    );
   }
 
   // ─── Unapprove ────────────────────────────────────────────────────────────
 
   @Post(':id/unapprove')
-  @Roles('principal', 'vice_principal')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Unapprove an achievement',
     description:
       'Reverts an approved achievement back to unapproved. ' +
-      'Principal and vice_principal only. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       '`approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). ' +
       'Returns 400 if not currently approved. ' +
       'Triggers plan item reconciliation.',
@@ -269,15 +389,30 @@ export class AchievementsController {
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: AchievementDto })
   @ApiResponse({ status: 400, description: 'Not currently approved.' })
-  @ApiResponse({ status: 403, description: 'Principal or VP only.' })
+  @ApiResponse({ status: 403, description: 'No halaqa scope.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async unapprove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<AchievementDto> {
     const achievement = await this.service.unapprove(id, actor);
-    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(Boolean) as number[];
-    const userMap = await this.service.resolveUserNames(userIds, actor.schoolId);
-    return AchievementDto.fromEntity(achievement, actor, userMap);
+    const userIds = [achievement.recordedBy, achievement.approvedBy].filter(
+      Boolean,
+    ) as number[];
+    const userMap = await this.service.resolveUserNames(
+      userIds,
+      actor.schoolId,
+    );
+    const positions = await this.service.resolvePositions([achievement.id]);
+    const studentMap = await this.service.resolveStudentNames(
+      [achievement.studentId],
+      actor.schoolId,
+    );
+    return AchievementDto.fromEntity(
+      achievement,
+      userMap,
+      positions.get(achievement.id),
+      studentMap,
+    );
   }
 }

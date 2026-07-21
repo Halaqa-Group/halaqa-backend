@@ -15,6 +15,21 @@
         ]
       }
     },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Service health (checks DB connectivity)",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
     "/users": {
       "post": {
         "description": "Hashes the password (bcrypt cost 12) and optionally assigns role slugs in the same transaction. Cannot create a user in another school — `school_id` is taken from the caller.",
@@ -510,7 +525,7 @@
     },
     "/auth/login": {
       "post": {
-        "description": "On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown email, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
+        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
         "operationId": "AuthController_login",
         "parameters": [],
         "requestBody": {
@@ -545,7 +560,7 @@
             }
           }
         },
-        "summary": "Log in with email and password",
+        "summary": "Log in with email or national ID, plus password",
         "tags": [
           "Auth"
         ]
@@ -792,6 +807,87 @@
           }
         },
         "summary": "Consume a reset token and set a new password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-email/request": {
+      "post": {
+        "description": "Authenticated. Always returns the same 200 message (even if the email is already verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new one invalidates any previously sent link.",
+        "operationId": "AuthController_requestEmailVerification",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a verification link to the caller's own email",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "description": "Stamps `email_verified_at` on the user and marks the token used. The token is one-time and expires after 24 hours.",
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Consume a verification token and mark the email verified",
         "tags": [
           "Auth"
         ]
@@ -3210,6 +3306,192 @@
         ]
       }
     },
+    "/students/{id}/memorization": {
+      "get": {
+        "description": "Returns the memorized-ayat count and the base64 bitmap (780 bytes, one bit per ayah in mushaf order). Out-of-scope or cross-school access returns 404.",
+        "operationId": "StudentMemorizationController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemorizationEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a student's memorized-ayat bitmap",
+        "tags": [
+          "Students"
+        ]
+      },
+      "put": {
+        "description": "Applies `set` (mark memorized) then `clear` (unmark) ranges onto the current bitmap. **Note:** a later recompute (any Hifz achievement approve/unapprove/delete) rebuilds the bitmap from approved achievements and overwrites manual edits.",
+        "operationId": "StudentMemorizationController_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMemorizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemorizationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No ranges provided, or invalid verse range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Manually edit a student's memorized-ayat bitmap",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/students/{id}/error-heatmap": {
+      "get": {
+        "description": "Aggregates the student's recitation errors by ayah over the last `days` days, returning the worst ayat (most errors first) with per-type counts. Staff only — parents do not see error breakdowns. Out-of-scope or cross-school access returns 404.",
+        "operationId": "StudentErrorHeatmapController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "description": "How many days back to aggregate errors over. Defaults to 56 (8 weeks).",
+            "schema": {
+              "minimum": 1,
+              "maximum": 365,
+              "default": 56,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max number of hotspots (worst ayat) to return. Defaults to 20.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorHeatmapEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student not found or out of scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a student's error heatmap",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
     "/me/children": {
       "get": {
         "description": "Returns all students for which the authenticated parent has a `student_guardians` entry. **Cross-school exception**: this is the only endpoint in the system that returns students from multiple schools. A parent's children may be enrolled at different schools, so the school-scope rule is intentionally bypassed here. Soft-deleted students are excluded. No pagination — returns all children in one response. Does NOT write an audit log.",
@@ -3971,7 +4253,7 @@
     },
     "/achievements": {
       "post": {
-        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
+        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
         "operationId": "AchievementsController_create",
         "parameters": [],
         "requestBody": {
@@ -3999,7 +4281,7 @@
             "description": "Validation error, invalid verse range, or student absent."
           },
           "403": {
-            "description": "No halaqa scope, or approve=true without authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found or out of scope."
@@ -4016,7 +4298,7 @@
         ]
       },
       "get": {
-        "description": "Returns a paginated list of achievements visible to the caller.\n- **principal / vice_principal**: all achievements in the school.\n- **supervisor**: achievements for halaqat they supervise.\n- **teacher**: achievements for halaqat they are assigned to.\n- **parent**: achievements for their linked students only.   `recorded_by` and `approved_by` filters return 400 for this role.",
+        "description": "Returns a paginated list of achievements visible to the caller.\n- **principal / vice_principal**: all achievements in the school.\n- **supervisor**: achievements for halaqat they supervise.\n- **teacher**: achievements for halaqat they are assigned to.\n- **parent**: achievements for their linked students only (read-only, full detail).",
         "operationId": "AchievementsController_findAll",
         "parameters": [
           {
@@ -4131,9 +4413,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Parent using a restricted filter."
           }
         },
         "security": [
@@ -4149,7 +4428,7 @@
     },
     "/achievements/{id}": {
       "get": {
-        "description": "Returns a single achievement. Out-of-scope or cross-school access returns 404 (never 403). Parent role: `mistakes_count`, `warnings_count`, `tajweed_errors_count`, `recorded_by_name`, `approved_by_name`, and `approved_at` are omitted.",
+        "description": "Returns a single achievement with its recitation positions and itemized errors. Out-of-scope or cross-school access returns 404 (never 403). All roles that can read the achievement (including **parent**) receive the full payload.",
         "operationId": "AchievementsController_findOne",
         "parameters": [
           {
@@ -4284,7 +4563,7 @@
     },
     "/achievements/{id}/approve": {
       "post": {
-        "description": "Marks the achievement as approved. Caller must be: principal, VP, supervisor in scope, or primary/acting teacher for the halaqa. Returns 400 if already approved. Triggers plan item reconciliation.",
+        "description": "Marks the achievement as approved. Caller must be: principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 400 if already approved. Triggers plan item reconciliation.",
         "operationId": "AchievementsController_approve",
         "parameters": [
           {
@@ -4312,7 +4591,7 @@
             "description": "Already approved."
           },
           "403": {
-            "description": "No approval authority for this halaqa."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4331,7 +4610,7 @@
     },
     "/achievements/{id}/unapprove": {
       "post": {
-        "description": "Reverts an approved achievement back to unapproved. Principal and vice_principal only. `approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). Returns 400 if not currently approved. Triggers plan item reconciliation.",
+        "description": "Reverts an approved achievement back to unapproved. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. `approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). Returns 400 if not currently approved. Triggers plan item reconciliation.",
         "operationId": "AchievementsController_unapprove",
         "parameters": [
           {
@@ -4359,7 +4638,7 @@
             "description": "Not currently approved."
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4399,7 +4678,7 @@
     },
     "/weekly-plans": {
       "post": {
-        "description": "Creates a draft weekly plan with one or more items. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Regular (non-primary) teachers are rejected with 403. Returns 409 if a plan already exists for the same student/halaqa/week.",
+        "description": "Creates a draft weekly plan with one or more items. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 409 if a plan already exists for the same student/halaqa/week.",
         "operationId": "WeeklyPlansController_create",
         "parameters": [],
         "requestBody": {
@@ -4427,7 +4706,7 @@
             "description": "Validation error or invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority for this halaqa."
+            "description": "No halaqa scope."
           },
           "409": {
             "description": "Plan already exists. Response includes existing_plan_id."
@@ -4579,7 +4858,7 @@
         ]
       },
       "delete": {
-        "description": "Soft-deletes the plan. Principal and vice_principal only. Items are not individually deleted; the plan becoming un-listable is sufficient.",
+        "description": "Permanently deletes the plan and its items. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. This is a hard delete — the plan and its items are removed from the database and cannot be restored.",
         "operationId": "WeeklyPlansController_remove",
         "parameters": [
           {
@@ -4604,7 +4883,7 @@
             }
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4615,7 +4894,7 @@
             "access-token": []
           }
         ],
-        "summary": "Delete (soft-delete) a weekly plan",
+        "summary": "Delete (permanently) a weekly plan",
         "tags": [
           "Weekly Plans"
         ]
@@ -4623,7 +4902,7 @@
     },
     "/weekly-plans/{id}/approve": {
       "post": {
-        "description": "Locks the plan structure and runs reconciliation for every item. Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. Returns 400 if already approved.",
+        "description": "Locks the plan structure and runs reconciliation for every item. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. Returns 400 if already approved.",
         "operationId": "WeeklyPlansController_approve",
         "parameters": [
           {
@@ -4651,7 +4930,7 @@
             "description": "Already approved."
           },
           "403": {
-            "description": "No approval authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4670,7 +4949,7 @@
     },
     "/weekly-plans/{id}/unapprove": {
       "post": {
-        "description": "Reverts the plan to draft status. Principal and VP only. `approved_by` is preserved for audit purposes. Returns 400 if not currently approved.",
+        "description": "Reverts the plan to draft status. Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. `approved_by` is preserved for audit purposes. Returns 400 if not currently approved.",
         "operationId": "WeeklyPlansController_unapprove",
         "parameters": [
           {
@@ -4698,7 +4977,7 @@
             "description": "Not currently approved."
           },
           "403": {
-            "description": "Principal or VP only."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Not found."
@@ -4717,7 +4996,7 @@
     },
     "/weekly-plans/{planId}/items": {
       "post": {
-        "description": "Adds a new item to a **draft** plan. Returns 400 if the plan is approved (unapprove it first). Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa.",
+        "description": "Adds a new item to a **draft** plan. Returns 400 if the plan is approved (unapprove it first). Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa.",
         "operationId": "PlanItemsController_addItem",
         "parameters": [
           {
@@ -4755,7 +5034,7 @@
             "description": "Plan is approved, or invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Plan not found."
@@ -4774,7 +5053,7 @@
     },
     "/weekly-plan-items/{id}": {
       "delete": {
-        "description": "Hard-deletes a plan item. Returns 400 if the plan is approved (unapprove first). Caller must have primary-teacher authority for the halaqa.",
+        "description": "Hard-deletes a plan item. Returns 400 if the plan is approved (unapprove first). Caller must have halaqa scope (any assigned teacher, supervisor in scope, VP, or principal).",
         "operationId": "PlanItemsController_deleteItem",
         "parameters": [
           {
@@ -4802,7 +5081,7 @@
             "description": "Plan is approved."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Item not found or out of scope."
@@ -4819,7 +5098,7 @@
         ]
       },
       "patch": {
-        "description": "Updates a plan item's range, track type, or day. Range edits are allowed even on **approved** plans (no unapprove required). Changing any range field (`start_surah`, `start_verse`, `end_surah`, `end_verse`) sets `is_manual_override = true` permanently, recomputes `total_verses`, and re-runs reconciliation. Caller must have primary-teacher authority for the halaqa.",
+        "description": "Updates a plan item's range, track type, or day. Range edits are allowed even on **approved** plans (no unapprove required). Changing any range field (`start_surah`, `start_verse`, `end_surah`, `end_verse`) sets `is_manual_override = true` permanently, recomputes `total_verses`, and re-runs reconciliation. Caller must have halaqa scope (any assigned teacher, supervisor in scope, VP, or principal).",
         "operationId": "PlanItemsController_updateItem",
         "parameters": [
           {
@@ -4857,7 +5136,7 @@
             "description": "Invalid verse range."
           },
           "403": {
-            "description": "No primary-teacher authority."
+            "description": "No halaqa scope."
           },
           "404": {
             "description": "Item not found or out of scope."
@@ -4938,6 +5217,12 @@
             "example": "أحمد المدير",
             "maxLength": 100
           },
+          "id_number": {
+            "type": "string",
+            "example": "400000006",
+            "maxLength": 20,
+            "description": "National ID number (Palestinian: 9 digits). Normalized and unique per school; also usable as a login identifier. A bad checksum is stored with a warning, not rejected."
+          },
           "email": {
             "type": "string",
             "example": "admin@school.com",
@@ -4977,6 +5262,7 @@
         },
         "required": [
           "name",
+          "id_number",
           "email",
           "password"
         ]
@@ -4991,6 +5277,11 @@
           "name": {
             "type": "string",
             "example": "أحمد المدير"
+          },
+          "idNumber": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number."
           },
           "email": {
             "type": "string",
@@ -5041,6 +5332,7 @@
         "required": [
           "id",
           "name",
+          "idNumber",
           "email",
           "phone",
           "photoUrl",
@@ -5272,7 +5564,13 @@
           "email": {
             "type": "string",
             "example": "admin@school.com",
-            "format": "email"
+            "format": "email",
+            "description": "Required when `id_number` is not provided."
+          },
+          "id_number": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number. Required when `email` is not provided."
           },
           "password": {
             "type": "string",
@@ -5286,7 +5584,6 @@
           }
         },
         "required": [
-          "email",
           "password"
         ]
       },
@@ -5410,6 +5707,11 @@
             "type": "string",
             "example": "أحمد المدير"
           },
+          "idNumber": {
+            "type": "string",
+            "example": "400000006",
+            "description": "National ID number."
+          },
           "email": {
             "type": "string",
             "example": "admin@school.com",
@@ -5438,6 +5740,7 @@
         "required": [
           "id",
           "name",
+          "idNumber",
           "email",
           "phone",
           "photoUrl",
@@ -5480,6 +5783,18 @@
           "token",
           "password",
           "password_confirmation"
+        ]
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Raw token from the email-verification link."
+          }
+        },
+        "required": [
+          "token"
         ]
       },
       "ChangePasswordDto": {
@@ -5593,6 +5908,39 @@
           }
         }
       },
+      "EvaluationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mistake_weight": {
+            "type": "number",
+            "example": 4,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per mistake. Default 4."
+          },
+          "warning_weight": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per warning. Default 2."
+          },
+          "tajweed_weight": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per tajweed error. Default 1."
+          },
+          "harakat_weight": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Deduction per harakat error. Default 2."
+          }
+        }
+      },
       "CreateHalaqaDto": {
         "type": "object",
         "properties": {
@@ -5612,10 +5960,14 @@
             "example": "Memorization"
           },
           "evaluation_settings": {
-            "type": "object",
             "nullable": true,
-            "example": null,
-            "description": "Free-form JSON for evaluation weights and thresholds."
+            "description": "Per-error-type score deductions used by the frontend to compute percentage_score. Any omitted weight falls back to its default (mistake 4, warning 2, tajweed 1, harakat 2).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSettingsDto"
+              }
+            ]
           },
           "primary_teacher_user_id": {
             "type": "number",
@@ -5648,14 +6000,14 @@
             "description": "Only principal / vice_principal may change the type."
           },
           "evaluation_settings": {
-            "type": "object",
             "nullable": true,
-            "example": {
-              "weights": {
-                "mistake": 1
+            "description": "Per-error-type score deductions. Replaces the stored object wholesale — send every weight you want to keep. Omitted weights fall back to their defaults; pass null to reset to defaults.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSettingsDto"
               }
-            },
-            "description": "Free-form JSON. Pass null to clear."
+            ]
           }
         }
       },
@@ -6857,6 +7209,185 @@
           }
         }
       },
+      "MemorizationResponse": {
+        "type": "object",
+        "properties": {
+          "memorized_ayah_count": {
+            "type": "number",
+            "example": 240,
+            "description": "Number of memorized ayat (set bits)."
+          },
+          "bitmap_base64": {
+            "type": "string",
+            "example": "AAAA…",
+            "description": "Base64 of the 780-byte bitmap. Bit i (MSB-first per byte) = the i-th ayah in mushaf order, starting at Al-Fatihah:1 (index 0)."
+          }
+        },
+        "required": [
+          "memorized_ayah_count",
+          "bitmap_base64"
+        ]
+      },
+      "MemorizationEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/MemorizationResponse"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
+      "MemorizationRangeDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
+      "EditMemorizationDto": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "description": "Ranges to mark memorized.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemorizationRangeDto"
+            }
+          },
+          "clear": {
+            "description": "Ranges to unmark.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemorizationRangeDto"
+            }
+          }
+        }
+      },
+      "HeatmapHotspotDto": {
+        "type": "object",
+        "properties": {
+          "surah": {
+            "type": "number",
+            "example": 2
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 3
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0
+          },
+          "harakat_errors_count": {
+            "type": "number",
+            "example": 2
+          },
+          "total": {
+            "type": "number",
+            "example": 6,
+            "description": "Total errors at this ayah in the window."
+          }
+        },
+        "required": [
+          "surah",
+          "ayah",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
+          "total"
+        ]
+      },
+      "ErrorHeatmapResponse": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "days": {
+            "type": "number",
+            "example": 56,
+            "description": "The window (in days) that was aggregated."
+          },
+          "total_errors": {
+            "type": "number",
+            "example": 37,
+            "description": "Total error occurrences across all ayat in the window."
+          },
+          "hotspots": {
+            "description": "Worst ayat, most errors first (ties broken by mushaf order).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeatmapHotspotDto"
+            }
+          }
+        },
+        "required": [
+          "student_id",
+          "days",
+          "total_errors",
+          "hotspots"
+        ]
+      },
+      "ErrorHeatmapEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 200
+          },
+          "data": {
+            "$ref": "#/components/schemas/ErrorHeatmapResponse"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ]
+      },
       "SyncAttendanceEntryDto": {
         "type": "object",
         "properties": {
@@ -7502,6 +8033,106 @@
           "items"
         ]
       },
+      "PositionErrorDto": {
+        "type": "object",
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "enum": [
+              "mistake",
+              "warning",
+              "tajweed",
+              "harakat"
+            ],
+            "example": "mistake"
+          },
+          "start_word_id": {
+            "type": "number",
+            "example": 152,
+            "minimum": 1,
+            "description": "QUL word id (sequential in mushaf order)."
+          },
+          "end_word_id": {
+            "type": "number",
+            "example": 154,
+            "minimum": 1,
+            "description": "Must be >= start_word_id."
+          },
+          "surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          },
+          "juz": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 30
+          },
+          "hizb": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "maximum": 60
+          }
+        },
+        "required": [
+          "error_type",
+          "start_word_id",
+          "end_word_id",
+          "surah",
+          "ayah",
+          "juz",
+          "hizb"
+        ]
+      },
+      "AchievementTestPositionDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1,
+            "maximum": 114,
+            "description": "Must be >= start_surah."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1
+          },
+          "errors": {
+            "description": "Errors made at this position. Each must fall within the position range. Omit or send [] for a clean position. The per-type counts are derived from this list.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse"
+        ]
+      },
       "CreateAchievementDto": {
         "type": "object",
         "properties": {
@@ -7529,6 +8160,31 @@
             ],
             "example": "Hifz"
           },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ],
+            "default": "quick",
+            "description": "How the achievement was entered. Defaults to `quick`."
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "default": "full",
+            "description": "How it was recited. `full` auto-creates one position spanning the whole range. `test` requires `test_positions` (each within the achievement range). Defaults to `full`."
+          },
+          "test_positions": {
+            "description": "Required (>=1) when `recitation_method = test`. Rejected for `full`. Each position must fall within the achievement range and carries its own error counts; the achievement-level counts are their sum.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementTestPositionDto"
+            }
+          },
           "start_surah": {
             "type": "number",
             "example": 1,
@@ -7553,23 +8209,12 @@
             "example": 7,
             "minimum": 1
           },
-          "mistakes_count": {
-            "type": "number",
-            "example": 2,
-            "minimum": 0,
-            "description": "Defaults to 0."
-          },
-          "warnings_count": {
-            "type": "number",
-            "example": 1,
-            "minimum": 0,
-            "description": "Defaults to 0."
-          },
-          "tajweed_errors_count": {
-            "type": "number",
-            "example": 0,
-            "minimum": 0,
-            "description": "Defaults to 0."
+          "errors": {
+            "description": "Errors for `recitation_method = full` only — they attach to the single auto-created position. Rejected for `test` (send errors inside each `test_positions` entry). Each error must fall within the achievement range. The per-type counts are derived from this list.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
           },
           "percentage_score": {
             "type": "number",
@@ -7587,7 +8232,7 @@
           "approve": {
             "type": "boolean",
             "default": false,
-            "description": "Approve in the same request. Caller must have approval authority. Lacks authority → 403 (never silently downgraded to unapproved)."
+            "description": "Approve in the same request. Caller must have halaqa scope. Lacks scope → 403 (never silently downgraded to unapproved)."
           }
         },
         "required": [
@@ -7602,6 +8247,113 @@
           "percentage_score"
         ]
       },
+      "PositionErrorDtoOut": {
+        "type": "object",
+        "properties": {
+          "error_type": {
+            "type": "string",
+            "enum": [
+              "mistake",
+              "warning",
+              "tajweed",
+              "harakat"
+            ],
+            "example": "mistake"
+          },
+          "start_word_id": {
+            "type": "number",
+            "example": 152
+          },
+          "end_word_id": {
+            "type": "number",
+            "example": 154
+          },
+          "surah": {
+            "type": "number",
+            "example": 2
+          },
+          "ayah": {
+            "type": "number",
+            "example": 5
+          },
+          "juz": {
+            "type": "number",
+            "example": 1
+          },
+          "hizb": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "error_type",
+          "start_word_id",
+          "end_word_id",
+          "surah",
+          "ayah",
+          "juz",
+          "hizb"
+        ]
+      },
+      "RecitationPositionDto": {
+        "type": "object",
+        "properties": {
+          "start_surah": {
+            "type": "number",
+            "example": 2
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 2
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 5
+          },
+          "mistakes_count": {
+            "type": "number",
+            "example": 1,
+            "description": "Derived from `errors`."
+          },
+          "warnings_count": {
+            "type": "number",
+            "example": 1,
+            "description": "Derived from `errors`."
+          },
+          "tajweed_errors_count": {
+            "type": "number",
+            "example": 0,
+            "description": "Derived from `errors`."
+          },
+          "harakat_errors_count": {
+            "type": "number",
+            "example": 2,
+            "description": "Harakat (حركات) errors, derived from `errors`."
+          },
+          "errors": {
+            "description": "Itemized errors at this position.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDtoOut"
+            }
+          }
+        },
+        "required": [
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
+          "errors"
+        ]
+      },
       "AchievementDto": {
         "type": "object",
         "properties": {
@@ -7612,6 +8364,12 @@
           "student_id": {
             "type": "number",
             "example": 42
+          },
+          "student_name": {
+            "type": "object",
+            "nullable": true,
+            "example": "Yusuf Ahmad",
+            "description": "Student's name (denormalized for display)."
           },
           "halaqa_id": {
             "type": "number",
@@ -7630,6 +8388,29 @@
               "Far"
             ],
             "example": "Hifz"
+          },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ],
+            "example": "quick"
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "example": "full"
+          },
+          "recitation_positions": {
+            "description": "Recited/tested positions. One full-range row for `full`; one per tested position for `test`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecitationPositionDto"
+            }
           },
           "start_surah": {
             "type": "number",
@@ -7650,20 +8431,23 @@
           "mistakes_count": {
             "type": "object",
             "example": 2,
-            "nullable": true,
-            "description": "Hidden for parent role."
+            "nullable": true
           },
           "warnings_count": {
             "type": "object",
             "example": 1,
-            "nullable": true,
-            "description": "Hidden for parent role."
+            "nullable": true
           },
           "tajweed_errors_count": {
             "type": "object",
             "example": 0,
+            "nullable": true
+          },
+          "harakat_errors_count": {
+            "type": "object",
+            "example": 3,
             "nullable": true,
-            "description": "Hidden for parent role."
+            "description": "Total harakat (حركات) errors across all positions."
           },
           "percentage_score": {
             "type": "string",
@@ -7681,20 +8465,17 @@
           "recorded_by_name": {
             "type": "object",
             "nullable": true,
-            "example": "Ahmad Ali",
-            "description": "Hidden for parent role."
+            "example": "Ahmad Ali"
           },
           "approved_by_name": {
             "type": "object",
             "nullable": true,
-            "example": "Ahmad Ali",
-            "description": "Hidden for parent role."
+            "example": "Ahmad Ali"
           },
           "approved_at": {
             "type": "object",
             "nullable": true,
-            "example": "2026-05-11T12:00:00.000Z",
-            "description": "Hidden for parent role."
+            "example": "2026-05-11T12:00:00.000Z"
           },
           "teacher_notes": {
             "type": "object",
@@ -7712,12 +8493,22 @@
           "halaqa_id",
           "date",
           "track_type",
+          "completion_method",
+          "recitation_method",
+          "recitation_positions",
           "start_surah",
           "start_verse",
           "end_surah",
           "end_verse",
+          "mistakes_count",
+          "warnings_count",
+          "tajweed_errors_count",
+          "harakat_errors_count",
           "percentage_score",
           "status",
+          "recorded_by_name",
+          "approved_by_name",
+          "approved_at",
           "teacher_notes",
           "created_at"
         ]
@@ -7763,6 +8554,28 @@
             ],
             "example": "Hifz"
           },
+          "completion_method": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "mushaf"
+            ]
+          },
+          "recitation_method": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test"
+            ],
+            "description": "Changing to `full` replaces positions with one full-range row. Changing to `test` requires `test_positions`."
+          },
+          "test_positions": {
+            "description": "Replaces the achievement's positions. Required when setting `recitation_method = test`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementTestPositionDto"
+            }
+          },
           "start_surah": {
             "type": "number",
             "example": 1,
@@ -7785,20 +8598,12 @@
             "example": 7,
             "minimum": 1
           },
-          "mistakes_count": {
-            "type": "number",
-            "example": 2,
-            "minimum": 0
-          },
-          "warnings_count": {
-            "type": "number",
-            "example": 1,
-            "minimum": 0
-          },
-          "tajweed_errors_count": {
-            "type": "number",
-            "example": 0,
-            "minimum": 0
+          "errors": {
+            "description": "Errors for `recitation_method = full` only — replaces the single position's errors and the derived totals. Rejected for `test` (resend `test_positions` with their errors instead).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionErrorDto"
+            }
           },
           "percentage_score": {
             "type": "number",
@@ -7832,6 +8637,13 @@
             "minimum": 0,
             "maximum": 6,
             "description": "0=Saturday … 6=Friday."
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "default": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first). Defaults to 0."
           },
           "start_surah": {
             "type": "number",
@@ -7877,7 +8689,7 @@
           "halaqa_id": {
             "type": "number",
             "example": 3,
-            "description": "Halaqa ID. Caller must have primary-teacher authority."
+            "description": "Halaqa ID. Caller must have scope on this halaqa."
           },
           "week_start_date": {
             "type": "string",
@@ -7920,6 +8732,11 @@
             "type": "number",
             "example": 2,
             "description": "0=Saturday … 6=Friday."
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first)."
           },
           "start_surah": {
             "type": "number",
@@ -7969,6 +8786,7 @@
           "id",
           "track_type",
           "day_of_week",
+          "order",
           "start_surah",
           "start_verse",
           "end_surah",
@@ -8082,6 +8900,12 @@
             "minimum": 0,
             "maximum": 6,
             "description": "0=Saturday … 6=Friday."
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "description": "Reconciliation priority within the same day + track (lower = first)."
           },
           "start_surah": {
             "type": "number",
