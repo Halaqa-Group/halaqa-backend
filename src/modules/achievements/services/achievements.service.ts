@@ -354,11 +354,11 @@ export class AchievementsService {
     );
   }
 
-  private isPrincipal(actor: AuthenticatedUser): boolean {
-    return actor.roles.some((r) => r.slug === 'principal');
-  }
-
-  /** Any role that can record achievements for a halaqa (incl. non-primary teachers). */
+  /**
+   * Any role that can act on a halaqa's achievements (incl. non-primary teachers).
+   * Record, approve, unapprove, edit and delete all gate on this single check —
+   * there is no separate "approval authority" tier.
+   */
   private async hasHalaqaScope(
     halaqaId: number,
     actor: AuthenticatedUser,
@@ -376,34 +376,6 @@ export class AchievementsService {
     if (actor.roles.some((r) => r.slug === 'teacher')) {
       const rows: unknown[] = await this.dataSource.manager.query(
         'SELECT 1 FROM halaqa_teachers WHERE teacher_user_id = ? AND halaqa_id = ? AND end_date IS NULL LIMIT 1',
-        [actor.id, halaqaId],
-      );
-      if (rows.length > 0) return true;
-    }
-
-    return false;
-  }
-
-  /** Principal/VP, supervisor in scope, or primary/acting teacher. */
-  private async hasApprovalAuthority(
-    halaqaId: number,
-    actor: AuthenticatedUser,
-  ): Promise<boolean> {
-    if (this.isAdmin(actor)) return true;
-
-    if (actor.roles.some((r) => r.slug === 'supervisor')) {
-      const rows: unknown[] = await this.dataSource.manager.query(
-        'SELECT 1 FROM supervisor_halaqat WHERE supervisor_user_id = ? AND halaqa_id = ? LIMIT 1',
-        [actor.id, halaqaId],
-      );
-      if (rows.length > 0) return true;
-    }
-
-    if (actor.roles.some((r) => r.slug === 'teacher')) {
-      const rows: unknown[] = await this.dataSource.manager.query(
-        `SELECT 1 FROM halaqa_teachers
-         WHERE teacher_user_id = ? AND halaqa_id = ? AND end_date IS NULL
-           AND (role = 'main' OR acting_as_primary = 1) LIMIT 1`,
         [actor.id, halaqaId],
       );
       if (rows.length > 0) return true;
@@ -528,10 +500,7 @@ export class AchievementsService {
 
     // 6. Approve authority check (before persisting)
     const shouldApprove = input.approve === true;
-    if (
-      shouldApprove &&
-      !(await this.hasApprovalAuthority(input.halaqaId, actor))
-    ) {
+    if (shouldApprove && !(await this.hasHalaqaScope(input.halaqaId, actor))) {
       throw new ForbiddenException(
         'You cannot approve achievements for this halaqa.',
       );
@@ -645,16 +614,6 @@ export class AchievementsService {
         )`,
         { actorId: actor.id },
       );
-    }
-
-    // Parents cannot filter/sort by fields they cannot see
-    const isParent =
-      actor.roles.some((r) => r.slug === 'parent') && !this.isAdmin(actor);
-    if (
-      isParent &&
-      (filter.recordedBy !== undefined || filter.approvedBy !== undefined)
-    ) {
-      throw new BadRequestException('Filter not available for this role.');
     }
 
     // Optional filters
@@ -807,18 +766,10 @@ export class AchievementsService {
     const achievement = await this.loadOrFail(id, actor.schoolId);
     const wasApproved = achievement.status === 'approved';
 
-    if (wasApproved) {
-      // Approved achievements: principal ONLY (VP cannot delete)
-      if (!this.isPrincipal(actor)) {
-        throw new ForbiddenException(
-          'Only the principal can delete approved achievements.',
-        );
-      }
-    } else {
-      // Unapproved: any in-scope role
-      if (!(await this.hasHalaqaScope(achievement.halaqaId, actor))) {
-        throw new NotFoundException();
-      }
+    // Approved or not, any in-scope role may delete. Gating the approved case
+    // harder would be theatre: an in-scope actor can unapprove then delete.
+    if (!(await this.hasHalaqaScope(achievement.halaqaId, actor))) {
+      throw new NotFoundException();
     }
 
     await this.repo.softRemove(achievement);
@@ -842,7 +793,7 @@ export class AchievementsService {
   async approve(id: number, actor: AuthenticatedUser): Promise<Achievement> {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
-    if (!(await this.hasApprovalAuthority(achievement.halaqaId, actor))) {
+    if (!(await this.hasHalaqaScope(achievement.halaqaId, actor))) {
       throw new ForbiddenException(
         'You cannot approve achievements for this halaqa.',
       );
@@ -910,9 +861,9 @@ export class AchievementsService {
   async unapprove(id: number, actor: AuthenticatedUser): Promise<Achievement> {
     const achievement = await this.loadOrFail(id, actor.schoolId);
 
-    if (!this.isAdmin(actor)) {
+    if (!(await this.hasHalaqaScope(achievement.halaqaId, actor))) {
       throw new ForbiddenException(
-        'Only principal or vice_principal can unapprove achievements.',
+        'You cannot unapprove achievements for this halaqa.',
       );
     }
 

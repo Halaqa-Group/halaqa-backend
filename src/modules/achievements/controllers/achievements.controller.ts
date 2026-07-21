@@ -77,7 +77,7 @@ export class AchievementsController {
     description:
       'Records a Quran recitation achievement for a student. ' +
       '`percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. ' +
-      'Pass `approve: true` to approve in the same request — caller must have approval authority (403 if not, never silently skipped). ' +
+      'Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). ' +
       'If the student is absent the request is rejected (400).',
   })
   @ApiBody({ type: CreateAchievementDto })
@@ -88,7 +88,7 @@ export class AchievementsController {
   })
   @ApiResponse({
     status: 403,
-    description: 'No halaqa scope, or approve=true without authority.',
+    description: 'No halaqa scope.',
   })
   @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async create(
@@ -130,7 +130,6 @@ export class AchievementsController {
     );
     return AchievementDto.fromEntity(
       achievement,
-      actor,
       userMap,
       positions.get(achievement.id),
       studentMap,
@@ -148,14 +147,9 @@ export class AchievementsController {
       '- **principal / vice_principal**: all achievements in the school.\n' +
       '- **supervisor**: achievements for halaqat they supervise.\n' +
       '- **teacher**: achievements for halaqat they are assigned to.\n' +
-      '- **parent**: achievements for their linked students only. ' +
-      '  `recorded_by` and `approved_by` filters return 400 for this role.',
+      '- **parent**: achievements for their linked students only (read-only, full detail).',
   })
   @ApiResponse({ status: 200, type: AchievementListData })
-  @ApiResponse({
-    status: 400,
-    description: 'Parent using a restricted filter.',
-  })
   async findAll(
     @Query() query: ListAchievementsQuery,
     @CurrentUser() actor: AuthenticatedUser,
@@ -194,13 +188,7 @@ export class AchievementsController {
 
     return {
       items: result.items.map((a) =>
-        AchievementDto.fromEntity(
-          a,
-          actor,
-          userMap,
-          positions.get(a.id),
-          studentMap,
-        ),
+        AchievementDto.fromEntity(a, userMap, positions.get(a.id), studentMap),
       ),
       total: result.total,
       page: result.page,
@@ -215,9 +203,9 @@ export class AchievementsController {
   @ApiOperation({
     summary: 'Get achievement detail',
     description:
-      'Returns a single achievement. ' +
+      'Returns a single achievement with its recitation positions and itemized errors. ' +
       'Out-of-scope or cross-school access returns 404 (never 403). ' +
-      'Parent role: `mistakes_count`, `warnings_count`, `tajweed_errors_count`, `recorded_by_name`, `approved_by_name`, and `approved_at` are omitted.',
+      'All roles that can read the achievement (including **parent**) receive the full payload.',
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: AchievementDto })
@@ -241,7 +229,6 @@ export class AchievementsController {
     );
     return AchievementDto.fromEntity(
       achievement,
-      actor,
       userMap,
       positions.get(achievement.id),
       studentMap,
@@ -305,7 +292,6 @@ export class AchievementsController {
     );
     return AchievementDto.fromEntity(
       achievement,
-      actor,
       userMap,
       positions.get(achievement.id),
       studentMap,
@@ -349,7 +335,7 @@ export class AchievementsController {
     summary: 'Approve an achievement',
     description:
       'Marks the achievement as approved. ' +
-      'Caller must be: principal, VP, supervisor in scope, or primary/acting teacher for the halaqa. ' +
+      'Caller must be: principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       'Returns 400 if already approved. ' +
       'Triggers plan item reconciliation.',
   })
@@ -358,7 +344,7 @@ export class AchievementsController {
   @ApiResponse({ status: 400, description: 'Already approved.' })
   @ApiResponse({
     status: 403,
-    description: 'No approval authority for this halaqa.',
+    description: 'No halaqa scope.',
   })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async approve(
@@ -380,7 +366,6 @@ export class AchievementsController {
     );
     return AchievementDto.fromEntity(
       achievement,
-      actor,
       userMap,
       positions.get(achievement.id),
       studentMap,
@@ -390,13 +375,13 @@ export class AchievementsController {
   // ─── Unapprove ────────────────────────────────────────────────────────────
 
   @Post(':id/unapprove')
-  @Roles('principal', 'vice_principal')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Unapprove an achievement',
     description:
       'Reverts an approved achievement back to unapproved. ' +
-      'Principal and vice_principal only. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       '`approved_by` and `approved_at` are preserved for audit purposes (status only is flipped). ' +
       'Returns 400 if not currently approved. ' +
       'Triggers plan item reconciliation.',
@@ -404,7 +389,7 @@ export class AchievementsController {
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiResponse({ status: 200, type: AchievementDto })
   @ApiResponse({ status: 400, description: 'Not currently approved.' })
-  @ApiResponse({ status: 403, description: 'Principal or VP only.' })
+  @ApiResponse({ status: 403, description: 'No halaqa scope.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async unapprove(
     @Param('id', ParseIntPipe) id: number,
@@ -425,7 +410,6 @@ export class AchievementsController {
     );
     return AchievementDto.fromEntity(
       achievement,
-      actor,
       userMap,
       positions.get(achievement.id),
       studentMap,

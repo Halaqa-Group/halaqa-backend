@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import type { AchievementPositionError } from '../entities/achievement-position-error.entity';
 import type { AchievementRecitationPosition } from '../entities/achievement-recitation-position.entity';
 import type { Achievement } from '../entities/achievement.entity';
@@ -55,63 +54,38 @@ export class RecitationPositionDto {
   @ApiProperty({ example: 5 })
   end_verse!: number;
 
-  @ApiProperty({
-    required: false,
-    example: 1,
-    description: 'Derived from `errors`. Hidden for parent role.',
-  })
-  mistakes_count?: number;
+  @ApiProperty({ example: 1, description: 'Derived from `errors`.' })
+  mistakes_count!: number;
+
+  @ApiProperty({ example: 1, description: 'Derived from `errors`.' })
+  warnings_count!: number;
+
+  @ApiProperty({ example: 0, description: 'Derived from `errors`.' })
+  tajweed_errors_count!: number;
 
   @ApiProperty({
-    required: false,
-    example: 1,
-    description: 'Derived from `errors`. Hidden for parent role.',
-  })
-  warnings_count?: number;
-
-  @ApiProperty({
-    required: false,
-    example: 0,
-    description: 'Derived from `errors`. Hidden for parent role.',
-  })
-  tajweed_errors_count?: number;
-
-  @ApiProperty({
-    required: false,
     example: 2,
-    description:
-      'Harakat (حركات) errors, derived from `errors`. Hidden for parent role.',
+    description: 'Harakat (حركات) errors, derived from `errors`.',
   })
-  harakat_errors_count?: number;
+  harakat_errors_count!: number;
 
   @ApiProperty({
-    required: false,
     type: [PositionErrorDtoOut],
-    description: 'Itemized errors at this position. Hidden for parent role.',
+    description: 'Itemized errors at this position.',
   })
-  errors?: PositionErrorDtoOut[];
+  errors!: PositionErrorDtoOut[];
 
-  static fromEntity(
-    p: AchievementRecitationPosition,
-    isParent = false,
-  ): RecitationPositionDto {
+  static fromEntity(p: AchievementRecitationPosition): RecitationPositionDto {
     const dto = new RecitationPositionDto();
     dto.start_surah = p.startSurah;
     dto.start_verse = p.startVerse;
     dto.end_surah = p.endSurah;
     dto.end_verse = p.endVerse;
-
-    // Parents see where their child recited, not the error breakdown.
-    if (!isParent) {
-      dto.mistakes_count = p.mistakesCount;
-      dto.warnings_count = p.warningsCount;
-      dto.tajweed_errors_count = p.tajweedErrorsCount;
-      dto.harakat_errors_count = p.harakatErrorsCount;
-      dto.errors = (p.errors ?? []).map((e) =>
-        PositionErrorDtoOut.fromEntity(e),
-      );
-    }
-
+    dto.mistakes_count = p.mistakesCount;
+    dto.warnings_count = p.warningsCount;
+    dto.tajweed_errors_count = p.tajweedErrorsCount;
+    dto.harakat_errors_count = p.harakatErrorsCount;
+    dto.errors = (p.errors ?? []).map((e) => PositionErrorDtoOut.fromEntity(e));
     return dto;
   }
 }
@@ -165,38 +139,21 @@ export class AchievementDto {
   @ApiProperty({ example: 7 })
   end_verse!: number;
 
-  @ApiProperty({
-    required: false,
-    example: 2,
-    nullable: true,
-    description: 'Hidden for parent role.',
-  })
-  mistakes_count?: number | null;
+  @ApiProperty({ example: 2, nullable: true })
+  mistakes_count!: number | null;
+
+  @ApiProperty({ example: 1, nullable: true })
+  warnings_count!: number | null;
+
+  @ApiProperty({ example: 0, nullable: true })
+  tajweed_errors_count!: number | null;
 
   @ApiProperty({
-    required: false,
-    example: 1,
-    nullable: true,
-    description: 'Hidden for parent role.',
-  })
-  warnings_count?: number | null;
-
-  @ApiProperty({
-    required: false,
-    example: 0,
-    nullable: true,
-    description: 'Hidden for parent role.',
-  })
-  tajweed_errors_count?: number | null;
-
-  @ApiProperty({
-    required: false,
     example: 3,
     nullable: true,
-    description:
-      'Total harakat (حركات) errors across all positions. Hidden for parent role.',
+    description: 'Total harakat (حركات) errors across all positions.',
   })
-  harakat_errors_count?: number | null;
+  harakat_errors_count!: number | null;
 
   @ApiProperty({
     example: '95.50',
@@ -207,29 +164,14 @@ export class AchievementDto {
   @ApiProperty({ enum: ['approved', 'unapproved'], example: 'unapproved' })
   status!: string;
 
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    example: 'Ahmad Ali',
-    description: 'Hidden for parent role.',
-  })
-  recorded_by_name?: string | null;
+  @ApiProperty({ nullable: true, example: 'Ahmad Ali' })
+  recorded_by_name!: string | null;
 
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    example: 'Ahmad Ali',
-    description: 'Hidden for parent role.',
-  })
-  approved_by_name?: string | null;
+  @ApiProperty({ nullable: true, example: 'Ahmad Ali' })
+  approved_by_name!: string | null;
 
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    example: '2026-05-11T12:00:00.000Z',
-    description: 'Hidden for parent role.',
-  })
-  approved_at?: string | null;
+  @ApiProperty({ nullable: true, example: '2026-05-11T12:00:00.000Z' })
+  approved_at!: string | null;
 
   @ApiProperty({ nullable: true, example: 'Strong on the last 3 verses.' })
   teacher_notes!: string | null;
@@ -239,21 +181,13 @@ export class AchievementDto {
 
   static fromEntity(
     entity: Achievement,
-    actor: AuthenticatedUser,
     userMap?: Map<number, string>,
     positions?: AchievementRecitationPosition[],
     studentMap?: Map<number, string>,
   ): AchievementDto {
-    const isParent =
-      actor.roles.some((r) => r.slug === 'parent') &&
-      !actor.roles.some(
-        (r) => r.slug === 'principal' || r.slug === 'vice_principal',
-      );
-
     const dto = new AchievementDto();
     dto.id = entity.id;
     dto.student_id = entity.studentId;
-    // Visible to every role (a parent sees their own child's name).
     dto.student_name = studentMap?.get(entity.studentId) ?? null;
     dto.halaqa_id = entity.halaqaId;
     dto.date = entity.date;
@@ -264,7 +198,7 @@ export class AchievementDto {
       positions ??
       entity.recitationPositions ??
       []
-    ).map((p) => RecitationPositionDto.fromEntity(p, isParent));
+    ).map((p) => RecitationPositionDto.fromEntity(p));
     dto.start_surah = entity.startSurah;
     dto.start_verse = entity.startVerse;
     dto.end_surah = entity.endSurah;
@@ -274,19 +208,17 @@ export class AchievementDto {
     dto.teacher_notes = entity.teacherNotes;
     dto.created_at = entity.createdAt.toISOString();
 
-    if (!isParent) {
-      dto.mistakes_count = entity.mistakesCount;
-      dto.warnings_count = entity.warningsCount;
-      dto.tajweed_errors_count = entity.tajweedErrorsCount;
-      dto.harakat_errors_count = entity.harakatErrorsCount;
-      dto.recorded_by_name = userMap?.get(entity.recordedBy) ?? null;
-      dto.approved_by_name = entity.approvedBy
-        ? (userMap?.get(entity.approvedBy) ?? null)
-        : null;
-      dto.approved_at = entity.approvedAt
-        ? entity.approvedAt.toISOString()
-        : null;
-    }
+    dto.mistakes_count = entity.mistakesCount;
+    dto.warnings_count = entity.warningsCount;
+    dto.tajweed_errors_count = entity.tajweedErrorsCount;
+    dto.harakat_errors_count = entity.harakatErrorsCount;
+    dto.recorded_by_name = userMap?.get(entity.recordedBy) ?? null;
+    dto.approved_by_name = entity.approvedBy
+      ? (userMap?.get(entity.approvedBy) ?? null)
+      : null;
+    dto.approved_at = entity.approvedAt
+      ? entity.approvedAt.toISOString()
+      : null;
 
     return dto;
   }

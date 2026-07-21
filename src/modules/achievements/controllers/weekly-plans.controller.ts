@@ -46,7 +46,9 @@ export class WeeklyPlansController {
   })
   @ApiResponse({ status: 501, description: 'Not implemented.' })
   generate(): never {
-    throw new NotImplementedException('Auto-generation is not yet implemented. Create plans manually.');
+    throw new NotImplementedException(
+      'Auto-generation is not yet implemented. Create plans manually.',
+    );
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -57,15 +59,23 @@ export class WeeklyPlansController {
     summary: 'Create a weekly plan',
     description:
       'Creates a draft weekly plan with one or more items. ' +
-      'Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. ' +
-      'Regular (non-primary) teachers are rejected with 403. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       'Returns 409 if a plan already exists for the same student/halaqa/week.',
   })
   @ApiBody({ type: CreateWeeklyPlanDto })
   @ApiResponse({ status: 201, type: WeeklyPlanDto })
-  @ApiResponse({ status: 400, description: 'Validation error or invalid verse range.' })
-  @ApiResponse({ status: 403, description: 'No primary-teacher authority for this halaqa.' })
-  @ApiResponse({ status: 409, description: 'Plan already exists. Response includes existing_plan_id.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or invalid verse range.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No halaqa scope.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Plan already exists. Response includes existing_plan_id.',
+  })
   async create(
     @Body() dto: CreateWeeklyPlanDto,
     @CurrentUser() actor: AuthenticatedUser,
@@ -151,17 +161,18 @@ export class WeeklyPlansController {
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   @Delete(':id')
-  @Roles('principal', 'vice_principal')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete (permanently) a weekly plan',
     description:
-      'Permanently deletes the plan and its items. Principal and vice_principal only. ' +
+      'Permanently deletes the plan and its items. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       'This is a hard delete — the plan and its items are removed from the database and cannot be restored.',
   })
   @ApiParam({ name: 'id', description: 'Weekly plan ID' })
   @ApiResponse({ status: 200, type: ApiMessage })
-  @ApiResponse({ status: 403, description: 'Principal or VP only.' })
+  @ApiResponse({ status: 403, description: 'No halaqa scope.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -180,13 +191,13 @@ export class WeeklyPlansController {
     summary: 'Approve a weekly plan',
     description:
       'Locks the plan structure and runs reconciliation for every item. ' +
-      'Caller must be principal, VP, supervisor in scope, or primary/acting teacher of the halaqa. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       'Returns 400 if already approved.',
   })
   @ApiParam({ name: 'id', description: 'Weekly plan ID' })
   @ApiResponse({ status: 200, type: WeeklyPlanDto })
   @ApiResponse({ status: 400, description: 'Already approved.' })
-  @ApiResponse({ status: 403, description: 'No approval authority.' })
+  @ApiResponse({ status: 403, description: 'No halaqa scope.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async approve(
     @Param('id', ParseIntPipe) id: number,
@@ -199,19 +210,20 @@ export class WeeklyPlansController {
   // ─── Unapprove ────────────────────────────────────────────────────────────
 
   @Post(':id/unapprove')
-  @Roles('principal', 'vice_principal')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Unapprove a weekly plan',
     description:
-      'Reverts the plan to draft status. Principal and VP only. ' +
+      'Reverts the plan to draft status. ' +
+      'Caller must be principal, VP, supervisor in scope, or any teacher assigned to the halaqa. ' +
       '`approved_by` is preserved for audit purposes. ' +
       'Returns 400 if not currently approved.',
   })
   @ApiParam({ name: 'id', description: 'Weekly plan ID' })
   @ApiResponse({ status: 200, type: WeeklyPlanDto })
   @ApiResponse({ status: 400, description: 'Not currently approved.' })
-  @ApiResponse({ status: 403, description: 'Principal or VP only.' })
+  @ApiResponse({ status: 403, description: 'No halaqa scope.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async unapprove(
     @Param('id', ParseIntPipe) id: number,
