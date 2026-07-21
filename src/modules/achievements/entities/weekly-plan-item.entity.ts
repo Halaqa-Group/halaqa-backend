@@ -63,7 +63,13 @@ export class WeeklyPlanItem {
   status!: PlanItemStatus;
 
   // Permanently set to 1 once a range edit is made after item creation.
-  @Column({ name: 'is_manual_override', type: 'tinyint', width: 1, unsigned: true, default: 0 })
+  @Column({
+    name: 'is_manual_override',
+    type: 'tinyint',
+    width: 1,
+    unsigned: true,
+    default: 0,
+  })
   isManualOverride!: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime', precision: 6 })

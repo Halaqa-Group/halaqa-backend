@@ -9,25 +9,40 @@ import { MemorizationService } from './memorization.service';
 import { StudentsService } from './students.service';
 
 const actor = (): AuthenticatedUser =>
-  ({ id: 1, schoolId: 1, roles: [{ slug: 'teacher' }] } as unknown as AuthenticatedUser);
+  ({
+    id: 1,
+    schoolId: 1,
+    roles: [{ slug: 'teacher' }],
+  }) as unknown as AuthenticatedUser;
 
 const makeStudents = () => ({ update: jest.fn().mockResolvedValue(undefined) });
 const makeJobs = () => ({});
 const makeStudentsService = (student: Partial<Student> = {}) =>
   ({
-    findInScopeOrFail: jest.fn().mockResolvedValue({ id: 42, schoolId: 1, memorizedAyat: null, ...student }),
-  } as unknown as StudentsService);
+    findInScopeOrFail: jest.fn().mockResolvedValue({
+      id: 42,
+      schoolId: 1,
+      memorizedAyat: null,
+      ...student,
+    }),
+  }) as unknown as StudentsService;
 
 /** dataSource.query mock that dispatches on the SQL text. */
-const makeDs = (handlers: { ranges?: unknown[]; onQuery?: (sql: string, params?: unknown[]) => unknown }) => {
-  const query = jest.fn().mockImplementation((sql: string, params?: unknown[]) => {
-    if (handlers.onQuery) {
-      const r = handlers.onQuery(sql, params);
-      if (r !== undefined) return Promise.resolve(r);
-    }
-    if (/FROM achievements/i.test(sql)) return Promise.resolve(handlers.ranges ?? []);
-    return Promise.resolve([]);
-  });
+const makeDs = (handlers: {
+  ranges?: unknown[];
+  onQuery?: (sql: string, params?: unknown[]) => unknown;
+}) => {
+  const query = jest
+    .fn()
+    .mockImplementation((sql: string, params?: unknown[]) => {
+      if (handlers.onQuery) {
+        const r = handlers.onQuery(sql, params);
+        if (r !== undefined) return Promise.resolve(r);
+      }
+      if (/FROM achievements/i.test(sql))
+        return Promise.resolve(handlers.ranges ?? []);
+      return Promise.resolve([]);
+    });
   return { query } as unknown as DataSource & { query: jest.Mock };
 };
 
@@ -63,7 +78,9 @@ describe('MemorizationService', () => {
       await svc.recompute(42);
 
       expect(students.update).toHaveBeenCalledTimes(1);
-      const buf = (students.update.mock.calls[0][1] as { memorizedAyat: Buffer }).memorizedAyat;
+      const buf = (
+        students.update.mock.calls[0][1] as { memorizedAyat: Buffer }
+      ).memorizedAyat;
       expect(countBits(buf)).toBe(12); // 7 + 5, overlap counted once
     });
 
@@ -73,7 +90,9 @@ describe('MemorizationService', () => {
 
       await svc.recompute(42);
 
-      const buf = (students.update.mock.calls[0][1] as { memorizedAyat: Buffer }).memorizedAyat;
+      const buf = (
+        students.update.mock.calls[0][1] as { memorizedAyat: Buffer }
+      ).memorizedAyat;
       expect(countBits(buf)).toBe(0);
     });
   });
@@ -95,13 +114,17 @@ describe('MemorizationService', () => {
 
     it('rejects an empty edit', async () => {
       const { svc } = make({});
-      await expect(svc.edit(42, actor(), {})).rejects.toThrow(BadRequestException);
+      await expect(svc.edit(42, actor(), {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('rejects an invalid verse range', async () => {
       const { svc } = make({});
       await expect(
-        svc.edit(42, actor(), { set: [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 999 }] }),
+        svc.edit(42, actor(), {
+          set: [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 999 }],
+        }),
       ).rejects.toThrow();
     });
   });
@@ -111,10 +134,16 @@ describe('MemorizationService', () => {
       const settled: string[] = [];
       const ds = makeDs({
         onQuery: (sql) => {
-          if (/status = 'pending'\s*\n?\s*ORDER BY|WHERE status = 'pending'\s*ORDER BY/i.test(sql) || /SELECT id, student_id/i.test(sql)) {
+          if (
+            /status = 'pending'\s*\n?\s*ORDER BY|WHERE status = 'pending'\s*ORDER BY/i.test(
+              sql,
+            ) ||
+            /SELECT id, student_id/i.test(sql)
+          ) {
             return [{ id: 5, studentId: 42, attempts: 0 }];
           }
-          if (/SET status = 'processing'/i.test(sql)) return { affectedRows: 1 };
+          if (/SET status = 'processing'/i.test(sql))
+            return { affectedRows: 1 };
           if (/SET status = 'done'/i.test(sql)) {
             settled.push('done');
             return { affectedRows: 1 };

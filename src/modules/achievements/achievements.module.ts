@@ -31,7 +31,11 @@ import { StudentsModule } from '../students/students.module';
     AttendanceModule,
     StudentsModule,
   ],
-  controllers: [AchievementsController, WeeklyPlansController, PlanItemsController],
+  controllers: [
+    AchievementsController,
+    WeeklyPlansController,
+    PlanItemsController,
+  ],
   providers: [
     AchievementsService,
     WeeklyPlansService,

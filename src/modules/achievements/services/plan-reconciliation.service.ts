@@ -22,20 +22,30 @@ import { WeeklyPlan } from '../entities/weekly-plan.entity';
 @Injectable()
 export class PlanReconciliationService {
   constructor(
-    @InjectRepository(WeeklyPlanItem) private readonly items: Repository<WeeklyPlanItem>,
-    @InjectRepository(Achievement) private readonly achievements: Repository<Achievement>,
-    @InjectRepository(WeeklyPlan) private readonly plans: Repository<WeeklyPlan>,
+    @InjectRepository(WeeklyPlanItem)
+    private readonly items: Repository<WeeklyPlanItem>,
+    @InjectRepository(Achievement)
+    private readonly achievements: Repository<Achievement>,
+    @InjectRepository(WeeklyPlan)
+    private readonly plans: Repository<WeeklyPlan>,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   /** Expand a verse range into a set of 'surah:verse' keys. Cross-surah aware. */
-  private expandRange(startSurah: number, startVerse: number, endSurah: number, endVerse: number): Set<string> {
+  private expandRange(
+    startSurah: number,
+    startVerse: number,
+    endSurah: number,
+    endVerse: number,
+  ): Set<string> {
     const set = new Set<string>();
     if (startSurah === endSurah) {
-      for (let v = startVerse; v <= endVerse; v++) set.add(`${startSurah}:${v}`);
+      for (let v = startVerse; v <= endVerse; v++)
+        set.add(`${startSurah}:${v}`);
     } else {
-      for (let v = startVerse; v <= SURAH_VERSES[startSurah]; v++) set.add(`${startSurah}:${v}`);
+      for (let v = startVerse; v <= SURAH_VERSES[startSurah]; v++)
+        set.add(`${startSurah}:${v}`);
       for (let s = startSurah + 1; s < endSurah; s++) {
         for (let v = 1; v <= SURAH_VERSES[s]; v++) set.add(`${s}:${v}`);
       }
@@ -62,7 +72,10 @@ export class PlanReconciliationService {
    */
   async reconcilePlan(planId: number): Promise<void> {
     // Soft-deleted plans are excluded automatically via @DeleteDateColumn.
-    const plan = await this.plans.findOne({ where: { id: planId }, relations: ['items'] });
+    const plan = await this.plans.findOne({
+      where: { id: planId },
+      relations: ['items'],
+    });
     if (!plan) return;
 
     const weekStart = plan.weekStartDate;
@@ -86,7 +99,12 @@ export class PlanReconciliationService {
         pool = new Set<string>();
         poolByTrack.set(ach.trackType, pool);
       }
-      for (const key of this.expandRange(ach.startSurah, ach.startVerse, ach.endSurah, ach.endVerse)) {
+      for (const key of this.expandRange(
+        ach.startSurah,
+        ach.startVerse,
+        ach.endSurah,
+        ach.endVerse,
+      )) {
         pool.add(key);
       }
     }
@@ -99,7 +117,12 @@ export class PlanReconciliationService {
 
     for (const item of ordered) {
       const pool = poolByTrack.get(item.trackType);
-      const itemSet = this.expandRange(item.startSurah, item.startVerse, item.endSurah, item.endVerse);
+      const itemSet = this.expandRange(
+        item.startSurah,
+        item.startVerse,
+        item.endSurah,
+        item.endVerse,
+      );
 
       let achievedVerses = 0;
       if (pool) {
@@ -146,7 +169,9 @@ export class PlanReconciliationService {
    */
   async reconcileForAchievement(achievementId: number): Promise<void> {
     // TypeORM automatically excludes soft-deleted achievements via @DeleteDateColumn.
-    const achievement = await this.achievements.findOne({ where: { id: achievementId } });
+    const achievement = await this.achievements.findOne({
+      where: { id: achievementId },
+    });
     if (!achievement) return;
 
     // A plan covers the achievement's date when week_start_date ∈ [date-6, date].
@@ -154,7 +179,10 @@ export class PlanReconciliationService {
       where: {
         studentId: achievement.studentId,
         halaqaId: achievement.halaqaId,
-        weekStartDate: Between(this.addDays(achievement.date, -6), achievement.date),
+        weekStartDate: Between(
+          this.addDays(achievement.date, -6),
+          achievement.date,
+        ),
       },
       select: { id: true },
     });

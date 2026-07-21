@@ -299,7 +299,9 @@ export class HalaqatService {
         school_id: halaqa.schoolId,
         name: halaqa.name,
         type: halaqa.type,
-        evaluation_settings: resolveEvaluationSettings(halaqa.evaluationSettings),
+        evaluation_settings: resolveEvaluationSettings(
+          halaqa.evaluationSettings,
+        ),
         status: halaqa.status,
         created_at: halaqa.createdAt,
       };

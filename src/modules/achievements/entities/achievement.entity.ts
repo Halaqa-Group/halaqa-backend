@@ -85,10 +85,20 @@ export class Achievement {
   @Column({ name: 'warnings_count', type: 'int', unsigned: true, default: 0 })
   warningsCount!: number;
 
-  @Column({ name: 'tajweed_errors_count', type: 'int', unsigned: true, default: 0 })
+  @Column({
+    name: 'tajweed_errors_count',
+    type: 'int',
+    unsigned: true,
+    default: 0,
+  })
   tajweedErrorsCount!: number;
 
-  @Column({ name: 'harakat_errors_count', type: 'int', unsigned: true, default: 0 })
+  @Column({
+    name: 'harakat_errors_count',
+    type: 'int',
+    unsigned: true,
+    default: 0,
+  })
   harakatErrorsCount!: number;
 
   @Column({ name: 'percentage_score', type: 'decimal', precision: 5, scale: 2 })
@@ -104,7 +114,12 @@ export class Achievement {
   @Column({ name: 'approved_by', type: 'int', nullable: true })
   approvedBy!: number | null;
 
-  @Column({ name: 'approved_at', type: 'datetime', precision: 6, nullable: true })
+  @Column({
+    name: 'approved_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
   approvedAt!: Date | null;
 
   @Column({ name: 'teacher_notes', type: 'text', nullable: true })
@@ -116,7 +131,12 @@ export class Achievement {
   @UpdateDateColumn({ name: 'updated_at', type: 'datetime', precision: 6 })
   updatedAt!: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'datetime', precision: 6, nullable: true })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
   deletedAt!: Date | null;
 
   @ManyToOne(() => School, { onDelete: 'CASCADE' })

@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { PositionErrorDto } from './position-error.dto';
 
 /**
@@ -23,7 +30,12 @@ export class AchievementTestPositionDto {
   @Min(1)
   start_verse!: number;
 
-  @ApiProperty({ example: 2, minimum: 1, maximum: 114, description: 'Must be >= start_surah.' })
+  @ApiProperty({
+    example: 2,
+    minimum: 1,
+    maximum: 114,
+    description: 'Must be >= start_surah.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)

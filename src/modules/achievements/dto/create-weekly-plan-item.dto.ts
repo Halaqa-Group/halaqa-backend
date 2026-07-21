@@ -8,7 +8,12 @@ export class CreateWeeklyPlanItemDto {
   @IsEnum(['Hifz', 'Near', 'Far'])
   track_type!: TrackType;
 
-  @ApiProperty({ example: 2, minimum: 0, maximum: 6, description: '0=Saturday … 6=Friday.' })
+  @ApiProperty({
+    example: 2,
+    minimum: 0,
+    maximum: 6,
+    description: '0=Saturday … 6=Friday.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -20,7 +25,8 @@ export class CreateWeeklyPlanItemDto {
     example: 0,
     minimum: 0,
     default: 0,
-    description: 'Reconciliation priority within the same day + track (lower = first). Defaults to 0.',
+    description:
+      'Reconciliation priority within the same day + track (lower = first). Defaults to 0.',
   })
   @IsOptional()
   @Type(() => Number)
@@ -41,7 +47,12 @@ export class CreateWeeklyPlanItemDto {
   @Min(1)
   start_verse!: number;
 
-  @ApiProperty({ example: 1, minimum: 1, maximum: 114, description: 'Must be >= start_surah.' })
+  @ApiProperty({
+    example: 1,
+    minimum: 1,
+    maximum: 114,
+    description: 'Must be >= start_surah.',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)

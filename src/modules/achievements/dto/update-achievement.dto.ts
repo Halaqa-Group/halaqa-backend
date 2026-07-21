@@ -13,12 +13,20 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import type { CompletionMethod, RecitationMethod, TrackType } from '../entities/achievement.entity';
+import type {
+  CompletionMethod,
+  RecitationMethod,
+  TrackType,
+} from '../entities/achievement.entity';
 import { AchievementTestPositionDto } from './achievement-test-position.dto';
 import { PositionErrorDto } from './position-error.dto';
 
 export class UpdateAchievementDto {
-  @ApiProperty({ required: false, enum: ['Hifz', 'Near', 'Far'], example: 'Hifz' })
+  @ApiProperty({
+    required: false,
+    enum: ['Hifz', 'Near', 'Far'],
+    example: 'Hifz',
+  })
   @IsOptional()
   @IsEnum(['Hifz', 'Near', 'Far'])
   track_type?: TrackType;
@@ -41,7 +49,8 @@ export class UpdateAchievementDto {
   @ApiProperty({
     required: false,
     type: [AchievementTestPositionDto],
-    description: 'Replaces the achievement\'s positions. Required when setting `recitation_method = test`.',
+    description:
+      "Replaces the achievement's positions. Required when setting `recitation_method = test`.",
   })
   @IsOptional()
   @IsArray()
@@ -84,7 +93,7 @@ export class UpdateAchievementDto {
     required: false,
     type: [PositionErrorDto],
     description:
-      'Errors for `recitation_method = full` only — replaces the single position\'s errors and the ' +
+      "Errors for `recitation_method = full` only — replaces the single position's errors and the " +
       'derived totals. Rejected for `test` (resend `test_positions` with their errors instead).',
   })
   @IsOptional()
@@ -101,7 +110,12 @@ export class UpdateAchievementDto {
   @Max(100)
   percentage_score?: number;
 
-  @ApiProperty({ required: false, nullable: true, example: null, maxLength: 1000 })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: null,
+    maxLength: 1000,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(1000)

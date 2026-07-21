@@ -146,7 +146,10 @@ describe('Students (e2e)', () => {
         join_date: '2024-09-01',
       });
       expect(res.status).toBe(201);
-      expect(res.body.data).toMatchObject({ name: `${RUN}-basic`, gender: 'male' });
+      expect(res.body.data).toMatchObject({
+        name: `${RUN}-basic`,
+        gender: 'male',
+      });
       ids.push(res.body.data.id as number);
     });
 
@@ -199,14 +202,22 @@ describe('Students (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/students')
         .set('Authorization', `Bearer ${principalToken}`)
-        .send({ name: `${RUN}-no-id`, gender: 'male', join_date: '2024-09-01' });
+        .send({
+          name: `${RUN}-no-id`,
+          gender: 'male',
+          join_date: '2024-09-01',
+        });
       expect(res.status).toBe(400);
     });
 
     it('401 — unauthenticated request', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/students')
-        .send({ name: `${RUN}-unauth`, gender: 'male', join_date: '2024-09-01' });
+        .send({
+          name: `${RUN}-unauth`,
+          gender: 'male',
+          join_date: '2024-09-01',
+        });
       expect(res.status).toBe(401);
     });
 
@@ -467,9 +478,9 @@ describe('Students (e2e)', () => {
         .get('/api/students?id_number=222222226')
         .set('Authorization', `Bearer ${principalToken}`)
         .expect(200);
-      const match = (res.body.data.items as { id: number; id_number?: string }[]).find(
-        (s) => s.id === studentId,
-      );
+      const match = (
+        res.body.data.items as { id: number; id_number?: string }[]
+      ).find((s) => s.id === studentId);
       expect(match).toBeDefined();
       expect(match!.id_number).toBe('222222226');
     });

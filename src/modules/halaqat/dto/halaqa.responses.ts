@@ -57,7 +57,8 @@ export class HalaqaCreatedResponse {
   type!: HalaqaType;
   @ApiProperty({
     type: EvaluationSettingsDto,
-    description: 'Always fully populated — unset weights are returned as their defaults.',
+    description:
+      'Always fully populated — unset weights are returned as their defaults.',
   })
   evaluation_settings!: EvaluationSettings;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })
@@ -103,7 +104,8 @@ export class HalaqaDetailResponse {
   type!: HalaqaType;
   @ApiProperty({
     type: EvaluationSettingsDto,
-    description: 'Always fully populated — unset weights are returned as their defaults.',
+    description:
+      'Always fully populated — unset weights are returned as their defaults.',
   })
   evaluation_settings!: EvaluationSettings;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })

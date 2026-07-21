@@ -50,16 +50,28 @@ export class AchievementRecitationPosition {
   @Column({ name: 'warnings_count', type: 'int', unsigned: true, default: 0 })
   warningsCount!: number;
 
-  @Column({ name: 'tajweed_errors_count', type: 'int', unsigned: true, default: 0 })
+  @Column({
+    name: 'tajweed_errors_count',
+    type: 'int',
+    unsigned: true,
+    default: 0,
+  })
   tajweedErrorsCount!: number;
 
-  @Column({ name: 'harakat_errors_count', type: 'int', unsigned: true, default: 0 })
+  @Column({
+    name: 'harakat_errors_count',
+    type: 'int',
+    unsigned: true,
+    default: 0,
+  })
   harakatErrorsCount!: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime', precision: 6 })
   createdAt!: Date;
 
-  @ManyToOne(() => Achievement, (a) => a.recitationPositions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Achievement, (a) => a.recitationPositions, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'achievement_id' })
   achievement!: Relation<Achievement>;
 
