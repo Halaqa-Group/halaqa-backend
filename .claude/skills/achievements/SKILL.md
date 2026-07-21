@@ -21,7 +21,8 @@ The module **reads** from attendance (one-way coupling — see "Attendance coupl
 - **Framework:** NestJS, same conventions as the auth/users/students modules (`ResponseInterceptor` envelope, `HttpExceptionFilter`, global `JwtAuthGuard`, `RolesGuard`, `ActiveUserGuard`).
 - **ORM:** TypeORM, MySQL. Migrations only; no `synchronize`.
 - **School scoping:** every query scopes by `school_id` derived from `CurrentUser`. Cross-school is 404, never 403.
-- **Soft delete:** `achievements.deleted_at`, `weekly_plans.deleted_at`. Plan items hard-delete (no `deleted_at` column in the schema).
+- **Soft delete:** `achievements.deleted_at` only. Weekly plans and plan items hard-delete (the plan entity has a `deleted_at` column but the service never uses it).
+- **One permission tier per module:** both achievements and plans gate every mutation on `hasHalaqaScope` — principal, VP, supervisor in `supervisor_halaqat`, or **any** teacher with an active `halaqa_teachers` row. Primary/acting teacher status carries no extra rights here. Parents are read-only.
 - **Audit:** every mutation writes an `audit_log` row. Actions listed below.
 - **Cron:** uses `@nestjs/schedule`. Currently runs one job: `WeeklyPlansOverdueCron` at school-timezone midnight.
 - **Service dependencies:** `AttendanceQueryService` (read-only, from attendance module), `HalaqatService` (read-only, for halaqa `evaluation_settings` and primary-teacher lookups), `StudentsService` (read-only, for student capacities and scope checks), `MemorizationService` (from students module — enqueue-only, see below), `AuditService`, `QuranRangeValidator` (from `src/quran/`).
@@ -160,12 +161,12 @@ Service flow:
 4. **Resolve the recitation positions** and their itemized `errors[]`; derive each position's counts and roll them up into the achievement's four totals. See "Errors."
 5. **Store `percentage_score`** from the request, rounded to 2dp. The backend does not compute it — see "Score computation."
 6. **If `approve === true`:**
-   - Separately authorize approval (caller is principal/VP/supervisor-in-scope/primary-teacher-or-acting). If not allowed → 403 `"You cannot approve achievements for this halaqa."` Do not silently downgrade to "just record."
+   - Re-check halaqa scope. If not allowed → 403 `"You cannot approve achievements for this halaqa."` Do not silently downgrade to "just record."
    - Set `status = 'approved'`, `approved_by = caller`, `approved_at = now()`.
 7. **Persist.**
 8. **Audit.** Write `achievement.create` always. If approved in the same call, write a second `achievement.approve` row. Two audit rows for one API call — keeps the audit log analyzable across paths.
 9. **If approved**, run reconciliation (see "Reconciliation").
-10. **Response.** Return the mapped DTO via `AchievementDto.fromEntity(achievement, currentUser)`.
+10. **Response.** Return the mapped DTO via `AchievementDto.fromEntity(achievement, userMap, positions, studentMap)`.
 
 ### Daily uniqueness — not enforced
 
@@ -175,14 +176,18 @@ This means reports that aggregate by `(student_id, date, track_type)` must do `S
 
 ## Approving an existing achievement
 
-`POST /achievements/:id/approve`. Allowed roles:
+`POST /achievements/:id/approve`. Allowed roles — **anyone with halaqa scope**:
 - principal, VP — always (within school scope).
 - supervisor — only if the achievement's `halaqa_id` is in their `supervisor_halaqat`.
-- teacher — only if they are primary (`is_primary = 1`) or acting (`acting_as_primary = 1`) on the halaqa, with an active `halaqa_teachers` row.
+- teacher — any active `halaqa_teachers` row on the halaqa. **Primary/acting status is not required.**
+
+There is no separate "approval authority" tier: record, approve, unapprove, edit and
+delete all gate on the same `hasHalaqaScope` check. Weekly plans use the identical
+rule.
 
 Service flow:
 1. Load achievement, verify school scope (404 on miss).
-2. Verify caller's approval authority.
+2. Verify caller's halaqa scope.
 3. If `status` is already `'approved'`, return 400 `"Achievement is already approved."` (idempotency through error, not silent success — keeps the audit clean.)
 4. Set `status = 'approved'`, `approved_by`, `approved_at`. Persist.
 5. Audit: `achievement.approve`.
@@ -190,10 +195,12 @@ Service flow:
 
 ## Unapproving (revoking) an approved achievement
 
-`POST /achievements/:id/unapprove`. Allowed roles: **principal, VP only**.
+`POST /achievements/:id/unapprove`. Allowed roles: **anyone with halaqa scope** — same
+set as approve. A teacher who approved by mistake can revoke it without escalating to
+the principal.
 
 Service flow:
-1. Load, verify school scope, verify caller is principal or VP.
+1. Load, verify school scope, verify caller's halaqa scope (403 on miss).
 2. If `status` is `'unapproved'`, return 400.
 3. Flip `status = 'unapproved'`. **Preserve** `approved_by` and `approved_at`.
 4. Audit: `achievement.unapprove` with `oldValues: { approved_by, approved_at, status: 'approved' }`.
@@ -215,8 +222,10 @@ Audit: `achievement.update`.
 
 `DELETE /achievements/:id`. Soft delete via `deleted_at`.
 
-- **Unapproved achievement:** anyone who could record can delete (principal, VP, supervisor in scope, teacher in scope — primary or non-primary). No `recorded_by` check.
-- **Approved achievement:** **principal only.** VP cannot. Matches the matrix row "حذف إنجاز معتمد" — principal-only.
+Anyone who could record can delete — principal, VP, supervisor in scope, teacher in
+scope (primary or non-primary) — **whether or not the achievement is approved**. No
+`recorded_by` check. Gating the approved case harder would be theatre: the same actor
+can unapprove and then delete.
 
 Audit: `achievement.delete`. If the achievement was approved at delete time, include `was_approved: true` in audit values.
 
@@ -288,10 +297,11 @@ Constants live in `src/quran/quran.constants.ts` as 1-indexed arrays (a dummy `0
 }
 ```
 
-Allowed: principal, VP, primary (or acting) teacher of the halaqa.
+Allowed: **anyone with halaqa scope** — principal, VP, supervisor in scope, or any
+teacher with an active `halaqa_teachers` row. Primary/acting status is not required.
 
 Service flow:
-1. Authorize. School scope, halaqa scope, primary-authority check for teachers.
+1. Authorize. School scope, then `hasHalaqaScope`.
 2. **Conflict check.** Query `weekly_plans` for an existing non-deleted row with `(student_id, halaqa_id, week_start_date)`. If found → 409 `{ message: "Plan already exists for this student/halaqa/week.", existing_plan_id: <id> }`. To replace, the caller must `DELETE` the existing plan first.
 3. Validate each item: range valid, `day_of_week` in `[0..6]` or `[1..7]` (per your existing convention), `track_type` valid.
 4. Compute `total_verses` for each item via `QuranRangeValidator`. `achieved_verses` starts at `0`, `status` at `'due'`, `is_manual_override` at `0`, `order` from the item (default `0`).
@@ -304,7 +314,7 @@ Service flow:
 
 When this is built, it will:
 - Accept `{ halaqa_id, week_start_date, student_ids? }`.
-- Allowed roles: principal, VP, primary teacher of the halaqa.
+- Allowed roles: anyone with halaqa scope.
 - Generation strategy is undecided (see Q5b in the design notes). Sources to consider: student capacities (`daily_*_pages_capacity`), the halaqa's meeting schedule, last approved achievement frontier per track.
 - Idempotency: skip students who already have a plan for the week, or 409.
 
@@ -312,7 +322,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 
 ### Approve a plan
 
-`POST /weekly-plans/:id/approve`. Allowed: principal, VP, primary (or acting) teacher of the halaqa.
+`POST /weekly-plans/:id/approve`. Allowed: anyone with halaqa scope.
 
 1. Load plan, school+halaqa scope checks.
 2. If already `'approved'` → 400.
@@ -321,7 +331,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 
 ### Unapprove a plan
 
-`POST /weekly-plans/:id/unapprove`. Allowed: principal, VP (mirroring achievement unapprove).
+`POST /weekly-plans/:id/unapprove`. Allowed: anyone with halaqa scope (mirroring achievement unapprove).
 
 `status = 'draft'`. `approved_by` preserved. Audit: `weekly_plan.unapprove`.
 
@@ -330,7 +340,7 @@ Until the spec is finalized, **manual creation via `POST /weekly-plans` is the o
 When `status = 'approved'`:
 
 - **Reconciliation updates** to items (`achieved_verses`, `status`): always allowed; the service path is internal, not user-facing.
-- **Manual item range edits** (`PATCH /weekly-plan-items/:id` changing range fields): allowed for principal/VP and primary teacher. Sets `is_manual_override = 1`. Triggers recompute of `total_verses` and re-runs reconciliation for that item.
+- **Manual item range edits** (`PATCH /weekly-plan-items/:id` changing range fields): allowed for anyone with halaqa scope. Sets `is_manual_override = 1`. Triggers recompute of `total_verses` and re-runs reconciliation for that item.
 - **Add new item to approved plan:** `POST /weekly-plans/:id/items` returns 400 `"Cannot add items to an approved plan. Unapprove first."`
 - **Delete item from approved plan:** `DELETE /weekly-plan-items/:id` returns 400 `"Cannot delete items from an approved plan. Unapprove first."`
 
@@ -345,7 +355,12 @@ The `is_manual_override` flag is **permanent** once set. It tracks "this item's 
 
 ### Plan deletion
 
-`DELETE /weekly-plans/:id` — soft delete. Allowed: principal, VP. (Primary teachers cannot delete plans, only edit their items.) Items are not soft-deleted (no `deleted_at` column); the soft-deleted plan being un-listable is sufficient.
+`DELETE /weekly-plans/:id` — **hard delete**. Allowed: anyone with halaqa scope. The row is
+removed permanently and its items cascade via `ON DELETE CASCADE`; nothing is recoverable.
+
+Note the entity still declares a `deleted_at` `@DeleteDateColumn`, but `hardDelete()` calls
+`repo.remove()`, so the column is never populated for plans. Achievements, by contrast, really
+are soft-deleted.
 
 Audit: `weekly_plan.delete`.
 
@@ -480,36 +495,19 @@ If/when bulk achievement endpoints are built, attendance is checked **per row** 
 
 ## Visibility — what each role sees
 
-Same response-mapper pattern as students. `AchievementDto.fromEntity(achievement, currentUser)` is the single point of truth.
+`AchievementDto.fromEntity(achievement, userMap, positions, studentMap)` is the single point of truth. It does **not** take the actor — the payload is identical for every role.
 
-### For principal, VP, supervisor in scope, teacher in scope
+### Visibility is scope-only, not field-level
 
-Full row. Every field present. `recorded_by` and `approved_by` are resolved to `{ id, name }` objects, not just IDs.
+Whoever can read an achievement reads all of it: the four error counts, every `recitation_positions[]` entry, and the itemized `errors[]` with their QUL word spans and surah/ayah/juz/hizb locations, plus `recorded_by_name`, `approved_by_name`, and `approved_at`.
 
-### For parent (own children only)
+Access control lives entirely in *which rows* a role can reach (see the scope rules above) — principal/VP see the school, supervisor sees supervised halaqat, teacher sees assigned halaqat, parent sees their linked students. Parents are read-only: they have no create/update/approve/unapprove/delete route.
 
-Stripped response. **Omitted fields** (not present as keys, not null):
-- `mistakes_count`
-- `warnings_count`
-- `tajweed_errors_count`
-- `harakat_errors_count`
-- the same four counts **and the itemized `errors[]`** inside every `recitation_positions[]` entry
-- `recorded_by`
-- `approved_by`
-- `approved_at`
+Do not reintroduce per-role field stripping here. A parent seeing where their child stumbled is the point of the feature.
 
-Visible fields: `id`, `student_id`, `halaqa_id`, `date`, `track_type`, range fields, `recitation_positions[]` (ranges only), `percentage_score`, `status`, `teacher_notes`, `created_at`, `updated_at`.
+### Filters
 
-The parent sees a clean "what my child did" view. They see the score, the verse range, the note. They don't see error breakdowns or which teacher handled it.
-
-### Search and filter constraints for parents
-
-Parents cannot filter or sort by fields they can't see. The query layer rejects:
-- `?recorded_by=...` → 400
-- `?approved_by=...` → 400
-- `sort=mistakes_count` etc. → 400
-
-This is the same side-channel-prevention rule as the `id_number` skill.
+All roles may use every filter, including `?recorded_by=` and `?approved_by=`. There is no side-channel to protect, since the corresponding names are in the response.
 
 ### Status filter
 

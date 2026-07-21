@@ -57,7 +57,7 @@ There are two underlying enum values (`approved` / `unapproved`) combined with `
 | State | Edit allowed by | Delete allowed by |
 |---|---|---|
 | NEW | anyone who can record in scope | anyone who can record in scope |
-| APPROVED | **nobody** (must unapprove first) | principal only |
+| APPROVED | **nobody** (must unapprove first) | anyone who can record in scope |
 | REVOKED | anyone who can record in scope | anyone who can record in scope |
 
 The REVOKED state is permission-equivalent to NEW — once a row has `status = 'unapproved'`, the system treats it the same regardless of whether `approved_at` is set. The audit log is what distinguishes the histories.
@@ -68,13 +68,11 @@ The REVOKED state is permission-equivalent to NEW — once a row has `status = '
 |---|---|---|---|
 | (none) → NEW | POST /achievements | record-in-scope | achievement.create |
 | NEW → APPROVED | POST /achievements/:id/approve OR POST with `approve: true` | approve-in-scope | achievement.approve |
-| APPROVED → REVOKED | POST /achievements/:id/unapprove | principal, VP | achievement.unapprove |
-| REVOKED → APPROVED | POST /achievements/:id/approve | approve-in-scope | achievement.approve |
-| any → deleted | DELETE /achievements/:id | (see Delete column above) | achievement.delete |
+| APPROVED → REVOKED | POST /achievements/:id/unapprove | in-scope | achievement.unapprove |
+| REVOKED → APPROVED | POST /achievements/:id/approve | in-scope | achievement.approve |
+| any → deleted | DELETE /achievements/:id | in-scope | achievement.delete |
 
-"Approve-in-scope" means: principal, VP, supervisor with the halaqa in `supervisor_halaqat`, or teacher with `is_primary = 1 OR acting_as_primary = 1` and active `halaqa_teachers` row.
-
-"Record-in-scope" means the same, minus the primary-authority requirement for teachers — any teacher with an active `halaqa_teachers` row can record.
+"In-scope" means: principal, VP, supervisor with the halaqa in `supervisor_halaqat`, or **any** teacher with an active `halaqa_teachers` row. Achievements have a single permission tier — record, approve, unapprove, edit and delete all use it. Primary/acting status is irrelevant here (it still matters for weekly plans).
 
 ## Weekly plan states
 
@@ -112,7 +110,7 @@ Plans are simpler — just `draft` ↔ `approved`.
                 │                                         │
                 └──────────┬──────────┘
                            │
-                           │ unapprove (principal/VP only)
+                           │ unapprove (anyone in scope)
                            ▼
                        back to DRAFT
 ```
@@ -121,10 +119,13 @@ Plans are simpler — just `draft` ↔ `approved`.
 
 | Transition | Trigger | Roles | Audit |
 |---|---|---|---|
-| (none) → DRAFT | POST /weekly-plans | principal, VP, primary teacher | weekly_plan.create |
-| DRAFT → APPROVED | POST /weekly-plans/:id/approve | principal, VP, primary teacher | weekly_plan.approve |
-| APPROVED → DRAFT | POST /weekly-plans/:id/unapprove | principal, VP | weekly_plan.unapprove |
-| any → deleted | DELETE /weekly-plans/:id | principal, VP | weekly_plan.delete |
+| (none) → DRAFT | POST /weekly-plans | in-scope | weekly_plan.create |
+| DRAFT → APPROVED | POST /weekly-plans/:id/approve | in-scope | weekly_plan.approve |
+| APPROVED → DRAFT | POST /weekly-plans/:id/unapprove | in-scope | weekly_plan.unapprove |
+| any → deleted (hard) | DELETE /weekly-plans/:id | in-scope | weekly_plan.delete |
+
+Plans use the same "in-scope" definition as achievements — see above. Parents can read
+plans for their own children but cannot mutate them.
 
 ## Plan item states
 
