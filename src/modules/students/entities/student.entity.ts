@@ -61,6 +61,10 @@ export class Student {
     asExpression: FULL_NAME_EXPRESSION,
     insert: false,
     update: false,
+    // Nullable in the catalog only: MariaDB rejects a NULL/NOT NULL clause on a
+    // generated column, so the migration emits none and both engines default to
+    // nullable. The expression itself can never yield NULL, hence `string`.
+    nullable: true,
   })
   name!: string;
 
