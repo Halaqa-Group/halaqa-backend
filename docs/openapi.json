@@ -1062,7 +1062,7 @@
             "access-token": []
           }
         ],
-        "summary": "Update own profile (name, phone, photo_url)",
+        "summary": "Update own profile (name parts, phone, photo_url)",
         "tags": [
           "Me"
         ]
@@ -3759,7 +3759,7 @@
     },
     "/attendance/students/{id}": {
       "patch": {
-        "description": "Changes the status of one attendance row, recording who changed it, why (`modification_reason`), and the value it had before the first correction (`original_status`). Out-of-scope or cross-school rows return 404.",
+        "description": "Changes the status and/or the ethics rating (تقييم الأخلاق) of one attendance row, recording who changed it, why (`modification_reason`), and the status it had before the first correction (`original_status`). Both `status` and `ethics_rating` are optional — send either or both, but at least one must differ from the current row. Out-of-scope or cross-school rows return 404.",
         "operationId": "StudentAttendanceController_correct",
         "parameters": [
           {
@@ -3777,7 +3777,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CorrectAttendanceDto"
+                "$ref": "#/components/schemas/CorrectStudentAttendanceDto"
               }
             }
           }
@@ -3794,7 +3794,7 @@
             }
           },
           "400": {
-            "description": "Status unchanged."
+            "description": "Neither status nor ethics_rating would change."
           },
           "404": {
             "description": "Not found or out of scope."
@@ -3973,7 +3973,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CorrectAttendanceDto"
+                "$ref": "#/components/schemas/CorrectTeacherAttendanceDto"
               }
             }
           }
@@ -5212,10 +5212,29 @@
       "CreateUserDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
-            "example": "أحمد المدير",
-            "maxLength": 100
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "id_number": {
             "type": "string",
@@ -5261,7 +5280,10 @@
           }
         },
         "required": [
-          "name",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "id_number",
           "email",
           "password"
@@ -5274,9 +5296,30 @@
             "type": "number",
             "example": 1
           },
+          "firstName": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "الاسم الأول"
+          },
+          "secondName": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "thirdName": {
+            "type": "string",
+            "example": "علي",
+            "description": "اسم الجد"
+          },
+          "familyName": {
+            "type": "string",
+            "example": "المدير",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "أحمد المدير"
+            "example": "أحمد محمد علي المدير",
+            "description": "Read-only display name derived from the four name parts."
           },
           "idNumber": {
             "type": "string",
@@ -5331,6 +5374,10 @@
         },
         "required": [
           "id",
+          "firstName",
+          "secondName",
+          "thirdName",
+          "familyName",
           "name",
           "idNumber",
           "email",
@@ -5431,10 +5478,29 @@
       "UpdateUserDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
             "example": "أحمد",
-            "maxLength": 100
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "phone": {
             "type": "string",
@@ -5703,9 +5769,30 @@
             "type": "number",
             "example": 1
           },
+          "firstName": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "الاسم الأول"
+          },
+          "secondName": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "thirdName": {
+            "type": "string",
+            "example": "علي",
+            "description": "اسم الجد"
+          },
+          "familyName": {
+            "type": "string",
+            "example": "المدير",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "أحمد المدير"
+            "example": "أحمد محمد علي المدير",
+            "description": "Read-only display name derived from the four name parts."
           },
           "idNumber": {
             "type": "string",
@@ -5739,6 +5826,10 @@
         },
         "required": [
           "id",
+          "firstName",
+          "secondName",
+          "thirdName",
+          "familyName",
           "name",
           "idNumber",
           "email",
@@ -5894,10 +5985,29 @@
       "UpdateMeDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
             "example": "أحمد",
-            "maxLength": 100
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "phone": {
             "type": "string",
@@ -6586,9 +6696,30 @@
             "type": "number",
             "example": 1
           },
+          "first_name": {
+            "type": "string",
+            "example": "يوسف",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "يوسف محمد"
+            "example": "يوسف محمد أحمد الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "gender": {
             "type": "string",
@@ -6652,6 +6783,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "gender",
           "dob",
@@ -6717,9 +6852,30 @@
             "type": "number",
             "example": 12
           },
+          "first_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "سالم",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "محمد أبو أحمد"
+            "example": "محمد أحمد سالم الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "email": {
             "type": "string",
@@ -6734,6 +6890,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "email",
           "phone"
@@ -6783,9 +6943,30 @@
             "type": "number",
             "example": 1
           },
+          "first_name": {
+            "type": "string",
+            "example": "يوسف",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "يوسف محمد"
+            "example": "يوسف محمد أحمد الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "gender": {
             "type": "string",
@@ -6855,6 +7036,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "gender",
           "dob",
@@ -6941,11 +7126,29 @@
       "CreateStudentDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
-            "example": "يوسف محمد",
-            "minLength": 2,
-            "maxLength": 100
+            "example": "يوسف",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "gender": {
             "type": "string",
@@ -7020,7 +7223,10 @@
           }
         },
         "required": [
-          "name",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "gender",
           "join_date",
           "id_number"
@@ -7055,11 +7261,29 @@
       "UpdateStudentDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
-            "example": "يوسف محمد",
-            "minLength": 2,
-            "maxLength": 100
+            "example": "يوسف",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "gender": {
             "type": "string",
@@ -7410,6 +7634,13 @@
             ],
             "example": "absent"
           },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 5,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Defaults to 5 when omitted on a new row; leaves an existing row unchanged."
+          },
           "excuse_note": {
             "type": "string",
             "nullable": true,
@@ -7556,6 +7787,13 @@
             ],
             "example": "present"
           },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 5,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Seeded rows carry 5."
+          },
           "excuse_note": {
             "type": "object",
             "nullable": true,
@@ -7592,6 +7830,7 @@
           "student_id",
           "date",
           "status",
+          "ethics_rating",
           "excuse_note",
           "recorded_by",
           "modified_by",
@@ -7629,7 +7868,7 @@
           "limit"
         ]
       },
-      "CorrectAttendanceDto": {
+      "CorrectStudentAttendanceDto": {
         "type": "object",
         "properties": {
           "status": {
@@ -7640,7 +7879,15 @@
               "excused",
               "late"
             ],
-            "example": "excused"
+            "example": "excused",
+            "description": "Omit to leave the status untouched and only change the rating."
+          },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 4,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Omit to leave unchanged."
           },
           "excuse_note": {
             "type": "string",
@@ -7653,7 +7900,6 @@
           }
         },
         "required": [
-          "status",
           "modification_reason"
         ]
       },
@@ -7890,6 +8136,34 @@
           "total",
           "page",
           "limit"
+        ]
+      },
+      "CorrectTeacherAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "excused"
+          },
+          "excuse_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "عذر طبي"
+          },
+          "modification_reason": {
+            "type": "string",
+            "example": "Marked present by mistake in the morning."
+          }
+        },
+        "required": [
+          "status",
+          "modification_reason"
         ]
       },
       "CreateSchoolScheduleDto": {
