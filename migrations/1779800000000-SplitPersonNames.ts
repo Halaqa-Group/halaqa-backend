@@ -55,22 +55,68 @@ function backfillSql(table: string): string {
       END`;
 }
 
+interface ColumnState {
+  exists: boolean;
+  generated: boolean;
+}
+
+/**
+ * MySQL and MariaDB both apply DDL outside the transaction, so the surrounding
+ * ROLLBACK cannot undo a half-finished migration. Re-running then dies on
+ * whichever step already succeeded — `Duplicate column name 'first_name'`, for
+ * one. Every step below is therefore guarded by the live schema so the
+ * migration resumes from wherever it stopped instead of needing manual repair
+ * SQL on each affected machine.
+ */
+async function columnState(
+  queryRunner: QueryRunner,
+  table: string,
+  column: string,
+): Promise<ColumnState> {
+  const rows = (await queryRunner.query(
+    `SELECT \`EXTRA\`, \`GENERATION_EXPRESSION\`
+       FROM \`INFORMATION_SCHEMA\`.\`COLUMNS\`
+      WHERE \`TABLE_SCHEMA\` = DATABASE()
+        AND \`TABLE_NAME\` = ? AND \`COLUMN_NAME\` = ?`,
+    [table, column],
+  )) as { EXTRA: string | null; GENERATION_EXPRESSION: string | null }[];
+  if (rows.length === 0) return { exists: false, generated: false };
+  const row = rows[0];
+  return {
+    exists: true,
+    // Both engines populate GENERATION_EXPRESSION; EXTRA is a belt-and-braces
+    // second signal ("STORED GENERATED").
+    generated:
+      (row.GENERATION_EXPRESSION ?? '') !== '' ||
+      /GENERATED/i.test(row.EXTRA ?? ''),
+  };
+}
+
 export class SplitPersonNames1779800000000 implements MigrationInterface {
   name = 'SplitPersonNames1779800000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     for (const table of ['users', 'students']) {
-      // Nullable first so the ALTER succeeds on a table with existing rows.
-      await queryRunner.query(
-        `ALTER TABLE \`${table}\`
-           ADD COLUMN \`first_name\`  VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`school_id\`,
-           ADD COLUMN \`second_name\` VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`first_name\`,
-           ADD COLUMN \`third_name\`  VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`second_name\`,
-           ADD COLUMN \`family_name\` VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`third_name\``,
-      );
+      const parts = await columnState(queryRunner, table, 'first_name');
+      if (!parts.exists) {
+        // Nullable first so the ALTER succeeds on a table with existing rows.
+        await queryRunner.query(
+          `ALTER TABLE \`${table}\`
+             ADD COLUMN \`first_name\`  VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`school_id\`,
+             ADD COLUMN \`second_name\` VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`first_name\`,
+             ADD COLUMN \`third_name\`  VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`second_name\`,
+             ADD COLUMN \`family_name\` VARCHAR(${NAME_PART_LENGTH}) NULL AFTER \`third_name\``,
+        );
+      }
 
-      await queryRunner.query(backfillSql(table));
+      // A plain `name` column is the only source the parts can be filled from,
+      // and its presence means the backfill has not happened yet.
+      const legacyName = await columnState(queryRunner, table, 'name');
+      if (legacyName.exists && !legacyName.generated) {
+        await queryRunner.query(backfillSql(table));
+      }
 
+      // Idempotent: a no-op when the columns are already NOT NULL.
       await queryRunner.query(
         `ALTER TABLE \`${table}\`
            MODIFY COLUMN \`first_name\`  VARCHAR(${NAME_PART_LENGTH}) NOT NULL,
@@ -89,12 +135,18 @@ export class SplitPersonNames1779800000000 implements MigrationInterface {
       // both engines and leaves the column nullable on both — hence
       // `nullable: true` on the entity, even though CONCAT_WS with a literal
       // separator can never actually produce NULL.
-      await queryRunner.query(`ALTER TABLE \`${table}\` DROP COLUMN \`name\``);
-      await queryRunner.query(
-        `ALTER TABLE \`${table}\`
-           ADD COLUMN \`name\` VARCHAR(${FULL_NAME_LENGTH})
-           AS (${FULL_NAME_EXPRESSION}) STORED`,
-      );
+      if (legacyName.exists && !legacyName.generated) {
+        await queryRunner.query(
+          `ALTER TABLE \`${table}\` DROP COLUMN \`name\``,
+        );
+      }
+      if (!legacyName.generated) {
+        await queryRunner.query(
+          `ALTER TABLE \`${table}\`
+             ADD COLUMN \`name\` VARCHAR(${FULL_NAME_LENGTH})
+             AS (${FULL_NAME_EXPRESSION}) STORED`,
+        );
+      }
       // addColumn would have registered the expression in `typeorm_metadata`;
       // doing it by hand keeps schema comparison working (TypeORM reads the
       // expression back from there, not from the engine's own catalog).
