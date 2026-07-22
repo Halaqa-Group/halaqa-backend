@@ -30,6 +30,73 @@
         ]
       }
     },
+    "/school": {
+      "get": {
+        "description": "Always resolved from the access token — there is no school id parameter, so a caller can never read another tenant.",
+        "operationId": "SchoolController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the caller's own school profile",
+        "tags": [
+          "School"
+        ]
+      },
+      "patch": {
+        "description": "Principal only. Partial update — omitted fields are left untouched. Blank `address` / `phone` are stored as null.",
+        "operationId": "SchoolController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a principal."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update the caller's own school profile",
+        "tags": [
+          "School"
+        ]
+      }
+    },
     "/users": {
       "post": {
         "description": "Hashes the password (bcrypt cost 12) and optionally assigns role slugs in the same transaction. Cannot create a user in another school — `school_id` is taken from the caller.",
@@ -5166,6 +5233,10 @@
       "description": "Login, refresh, logout, password reset"
     },
     {
+      "name": "School",
+      "description": "Read and update the caller's own school profile (name, address, phone, status). Reading is principal/vice-principal; updating is principal only."
+    },
+    {
       "name": "Sessions",
       "description": "List and revoke active devices"
     },
@@ -5209,6 +5280,82 @@
       }
     },
     "schemas": {
+      "SchoolResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "مدرسة الفرقان لتحفيظ القرآن"
+          },
+          "address": {
+            "type": "object",
+            "nullable": true,
+            "example": "الخليل - شارع عين سارة"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "022221234"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "example": "active"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Hebron"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone",
+          "status",
+          "timezone"
+        ]
+      },
+      "UpdateSchoolDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "مدرسة الفرقان لتحفيظ القرآن",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "address": {
+            "type": "object",
+            "nullable": true,
+            "example": "الخليل - شارع عين سارة",
+            "maxLength": 255,
+            "description": "Empty string is stored as null."
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "022221234",
+            "maxLength": 20,
+            "description": "Empty string is stored as null."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "example": "active"
+          }
+        }
+      },
       "CreateUserDto": {
         "type": "object",
         "properties": {
