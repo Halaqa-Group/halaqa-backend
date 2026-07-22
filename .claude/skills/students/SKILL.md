@@ -63,6 +63,7 @@ The teacher's "edit student" permission is a **field-level allow-list**, not a r
 - `daily_hifz_pages_capacity`
 - `daily_near_pages_capacity`
 - `daily_far_pages_capacity`
+- `memorization_direction`
 - `notes`
 
 Any other key in the body causes a 400 (`forbidNonWhitelisted: true` is already on globally).
@@ -202,6 +203,17 @@ const MAX_FAR  = 100;    // pages of distant review per day
 
 Out-of-range → 400 with the field name and allowed range. These constants live in `students/capacity.config.ts` so they can be tuned without touching service logic. The DECIMAL(5,2) column already permits up to 999.99; the service is the actual gatekeeper.
 
+## اتجاه الحفظ — `memorization_direction`
+
+`students.memorization_direction` is `ENUM('ascending','descending') NOT NULL DEFAULT 'descending'`:
+
+- `descending` (تنازلي) — starts at An-Nas and works backwards (Juz 30 first). The product default; the migration backfills every existing row to it.
+- `ascending` (تصاعدي) — starts at Al-Fatihah and works forwards.
+
+It is a **teaching-plan** field, not bio: writable by principal/VP via `UpdateStudentDto` **and** by a primary/acting-primary teacher via `UpdateStudentByTeacherDto`, exactly like the capacity fields. Everyone who can see the student reads it in `StudentResponse`.
+
+It does **not** affect the memorization bitmap — `memorized_ayat` is always indexed in mushaf order regardless of direction. Consumers (weekly-plan suggestions, next-range pickers) use it to decide which way to walk the mushaf.
+
 ## Soft delete vs status
 
 Two separate concepts that frequently get confused — keep them distinct:
@@ -235,6 +247,7 @@ Follow the existing global envelope (`{ code, data }` / `{ code, message }`). Sp
     "daily_hifz_pages_capacity": "1.00",
     "daily_near_pages_capacity": "5.00",
     "daily_far_pages_capacity": "10.00",
+    "memorization_direction": "descending",
     "notes": "...",
     "photo_url": null,
     "guardians": [

@@ -54,6 +54,26 @@ export class ErrorEnvelope {
   details?: string[];
 }
 
+/** 429 error envelope: same shape as {@link ErrorEnvelope} plus the retry hint. */
+export class ThrottledEnvelope {
+  @ApiProperty({ example: 429 })
+  code!: number;
+
+  @ApiProperty({
+    example: 'Too many attempts. Please try again later.',
+    description:
+      'Identical for every kind of block, so it never reveals which limit was hit.',
+  })
+  message!: string;
+
+  @ApiProperty({
+    example: 900,
+    description:
+      'Seconds to wait before retrying. Mirrors the `Retry-After` response header.',
+  })
+  retry_after_seconds!: number;
+}
+
 export class SessionResponse {
   @ApiProperty({ example: '42' })
   id!: string;

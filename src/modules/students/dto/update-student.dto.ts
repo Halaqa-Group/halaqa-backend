@@ -19,7 +19,11 @@ import {
 } from 'class-validator';
 import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
 import { CAPACITY_LIMITS } from '../capacity.config';
-import type { StudentGender, StudentStatus } from '../entities/student.entity';
+import type {
+  MemorizationDirection,
+  StudentGender,
+  StudentStatus,
+} from '../entities/student.entity';
 
 export class UpdateStudentDto {
   @ApiProperty({
@@ -132,6 +136,17 @@ export class UpdateStudentDto {
   @Min(CAPACITY_LIMITS.far.min)
   @Max(CAPACITY_LIMITS.far.max)
   daily_far_pages_capacity?: number;
+
+  @ApiProperty({
+    required: false,
+    enum: ['ascending', 'descending'],
+    example: 'descending',
+    description:
+      'اتجاه الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto).',
+  })
+  @IsOptional()
+  @IsEnum(['ascending', 'descending'])
+  memorization_direction?: MemorizationDirection;
 
   @ApiProperty({ required: false, example: 'Needs extra support on Juz 30.' })
   @IsOptional()

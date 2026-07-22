@@ -29,7 +29,7 @@ import {
 } from '../dto/student.responses';
 import { UpdateStudentByTeacherDto } from '../dto/update-student-by-teacher.dto';
 import { UpdateStudentDto } from '../dto/update-student.dto';
-import { Student } from '../entities/student.entity';
+import { MemorizationDirection, Student } from '../entities/student.entity';
 import { GuardiansService } from './guardians.service';
 import {
   ID_NUMBER_VALIDATOR,
@@ -92,6 +92,7 @@ export class StudentsService {
           dailyHifzPagesCapacity: dto.daily_hifz_pages_capacity ?? 1,
           dailyNearPagesCapacity: dto.daily_near_pages_capacity ?? 5,
           dailyFarPagesCapacity: dto.daily_far_pages_capacity ?? 10,
+          memorizationDirection: dto.memorization_direction ?? 'descending',
           notes: dto.notes ?? null,
           photoUrl: dto.photo_url ?? null,
         }),
@@ -304,6 +305,7 @@ export class StudentsService {
         'daily_hifz_pages_capacity',
         'daily_near_pages_capacity',
         'daily_far_pages_capacity',
+        'memorization_direction',
         'notes',
       ]);
       const forbidden = Object.keys(dto as Record<string, unknown>).filter(
@@ -336,6 +338,7 @@ export class StudentsService {
       dailyHifzPagesCapacity?: number;
       dailyNearPagesCapacity?: number;
       dailyFarPagesCapacity?: number;
+      memorizationDirection?: MemorizationDirection;
       notes?: string | null;
       idNumber?: string | null;
     } = {};
@@ -395,6 +398,14 @@ export class StudentsService {
       oldValues.dailyFarPagesCapacity = student.dailyFarPagesCapacity;
       newValues.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
       patch.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
+    }
+    if (
+      dto.memorization_direction !== undefined &&
+      dto.memorization_direction !== student.memorizationDirection
+    ) {
+      oldValues.memorizationDirection = student.memorizationDirection;
+      newValues.memorizationDirection = dto.memorization_direction;
+      patch.memorizationDirection = dto.memorization_direction;
     }
     if (dto.notes !== undefined) {
       oldValues.notes = student.notes;
@@ -652,6 +663,7 @@ export class StudentsService {
       daily_hifz_pages_capacity: String(student.dailyHifzPagesCapacity),
       daily_near_pages_capacity: String(student.dailyNearPagesCapacity),
       daily_far_pages_capacity: String(student.dailyFarPagesCapacity),
+      memorization_direction: student.memorizationDirection,
       notes: student.notes,
       photo_url: student.photoUrl,
       id_number: student.idNumber,

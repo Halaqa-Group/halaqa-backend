@@ -16,6 +16,7 @@ const BASE_STUDENT: Student = {
   dailyHifzPagesCapacity: 1,
   dailyNearPagesCapacity: 5,
   dailyFarPagesCapacity: 10,
+  memorizationDirection: 'descending',
   notes: null,
   memorizedAyat: null,
   photoUrl: null,

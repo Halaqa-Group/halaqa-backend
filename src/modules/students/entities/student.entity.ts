@@ -19,6 +19,12 @@ import { School } from '../../tenant/school.entity';
 
 export type StudentStatus = 'active' | 'inactive' | 'graduated';
 export type StudentGender = 'male' | 'female';
+/**
+ * اتجاه الحفظ — the order the student memorises the mushaf in.
+ * `descending` (تنازلي) starts at An-Nas and works backwards (Juz 30 first);
+ * `ascending` (تصاعدي) starts at Al-Fatihah and works forwards.
+ */
+export type MemorizationDirection = 'ascending' | 'descending';
 
 @Entity('students')
 @Index('idx_student_school_status', ['schoolId', 'status'])
@@ -61,6 +67,10 @@ export class Student {
     asExpression: FULL_NAME_EXPRESSION,
     insert: false,
     update: false,
+    // Nullable in the catalog only: MariaDB rejects a NULL/NOT NULL clause on a
+    // generated column, so the migration emits none and both engines default to
+    // nullable. The expression itself can never yield NULL, hence `string`.
+    nullable: true,
   })
   name!: string;
 
@@ -109,6 +119,14 @@ export class Student {
     default: 10,
   })
   dailyFarPagesCapacity!: number;
+
+  @Column({
+    name: 'memorization_direction',
+    type: 'enum',
+    enum: ['ascending', 'descending'],
+    default: 'descending',
+  })
+  memorizationDirection!: MemorizationDirection;
 
   // Bitmap of memorized ayat, one bit per ayah in mushaf order (see quran-bitmap.ts).
   // NULL = nothing memorized. Maintained by the memorization recompute worker

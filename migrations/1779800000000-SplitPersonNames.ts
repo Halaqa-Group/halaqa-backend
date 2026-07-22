@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Decouple `users.name` and `students.name` into the four-part Arabic name:
@@ -79,27 +79,48 @@ export class SplitPersonNames1779800000000 implements MigrationInterface {
            MODIFY COLUMN \`family_name\` VARCHAR(${NAME_PART_LENGTH}) NOT NULL`,
       );
 
-      // Drop + re-add: MySQL refuses to convert a plain column to STORED.
-      // addColumn (rather than raw SQL) is what registers the expression in
-      // `typeorm_metadata`, which is where TypeORM reads it back from.
-      await queryRunner.dropColumn(table, 'name');
-      await queryRunner.addColumn(
-        table,
-        new TableColumn({
-          name: 'name',
-          type: 'varchar',
-          length: FULL_NAME_LENGTH,
-          isNullable: false,
-          generatedType: 'STORED',
-          asExpression: FULL_NAME_EXPRESSION,
-        }),
+      // Drop + re-add: neither engine converts a plain column to STORED in place.
+      //
+      // Raw SQL rather than queryRunner.addColumn: TypeORM would append
+      // `NOT NULL` (or `NULL`) after `STORED`, which MariaDB rejects outright
+      // (ER_PARSE_ERROR 1064). It only omits that clause when the driver is
+      // configured as `mariadb`, and this project configures `mysql` even when
+      // pointed at MariaDB. Emitting no nullability clause at all is accepted by
+      // both engines and leaves the column nullable on both — hence
+      // `nullable: true` on the entity, even though CONCAT_WS with a literal
+      // separator can never actually produce NULL.
+      await queryRunner.query(`ALTER TABLE \`${table}\` DROP COLUMN \`name\``);
+      await queryRunner.query(
+        `ALTER TABLE \`${table}\`
+           ADD COLUMN \`name\` VARCHAR(${FULL_NAME_LENGTH})
+           AS (${FULL_NAME_EXPRESSION}) STORED`,
+      );
+      // addColumn would have registered the expression in `typeorm_metadata`;
+      // doing it by hand keeps schema comparison working (TypeORM reads the
+      // expression back from there, not from the engine's own catalog).
+      await queryRunner.query(
+        `DELETE FROM \`typeorm_metadata\`
+          WHERE \`type\` = 'GENERATED_COLUMN' AND \`schema\` = DATABASE()
+            AND \`table\` = ? AND \`name\` = 'name'`,
+        [table],
+      );
+      await queryRunner.query(
+        `INSERT INTO \`typeorm_metadata\` (\`type\`, \`schema\`, \`table\`, \`name\`, \`value\`)
+         VALUES ('GENERATED_COLUMN', DATABASE(), ?, 'name', ?)`,
+        [table, FULL_NAME_EXPRESSION],
       );
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     for (const table of ['users', 'students']) {
-      await queryRunner.dropColumn(table, 'name');
+      await queryRunner.query(`ALTER TABLE \`${table}\` DROP COLUMN \`name\``);
+      await queryRunner.query(
+        `DELETE FROM \`typeorm_metadata\`
+          WHERE \`type\` = 'GENERATED_COLUMN' AND \`schema\` = DATABASE()
+            AND \`table\` = ? AND \`name\` = 'name'`,
+        [table],
+      );
       await queryRunner.query(
         `ALTER TABLE \`${table}\` ADD COLUMN \`name\` VARCHAR(100) NOT NULL DEFAULT '' AFTER \`school_id\``,
       );
