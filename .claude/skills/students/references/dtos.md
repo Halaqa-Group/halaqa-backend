@@ -19,6 +19,7 @@ All DTOs use `class-validator` and the global `whitelist: true, forbidNonWhiteli
   daily_hifz_pages_capacity?: number;            // default 1, range MIN..MAX_HIFZ
   daily_near_pages_capacity?: number;            // default 5, range MIN..MAX_NEAR
   daily_far_pages_capacity?: number;             // default 10, range MIN..MAX_FAR
+  memorization_direction?: 'ascending' | 'descending'; // اتجاه الحفظ, default 'descending'
   notes?: string;
   photo_url?: string;
   guardians?: LinkGuardianDto[];                 // optional; if present, link in same tx
@@ -44,6 +45,7 @@ Partial of CreateStudentDto, **excluding** `guardians` (use the dedicated guardi
   daily_hifz_pages_capacity?: number;
   daily_near_pages_capacity?: number;
   daily_far_pages_capacity?: number;
+  memorization_direction?: 'ascending' | 'descending';
   notes?: string;
   photo_url?: string;
 }
@@ -60,6 +62,7 @@ The strict subset. Anything else in the body is a 400.
   daily_hifz_pages_capacity?: number;
   daily_near_pages_capacity?: number;
   daily_far_pages_capacity?: number;
+  memorization_direction?: 'ascending' | 'descending';
   notes?: string;
 }
 ```

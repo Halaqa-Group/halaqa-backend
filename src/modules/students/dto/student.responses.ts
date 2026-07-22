@@ -110,6 +110,15 @@ export class StudentResponse {
   })
   daily_far_pages_capacity!: string;
 
+  @ApiProperty({
+    enum: ['ascending', 'descending'],
+    example: 'descending',
+    description:
+      'اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, ' +
+      '`ascending` (تصاعدي) starts at Al-Fatihah.',
+  })
+  memorization_direction!: string;
+
   @ApiProperty({ nullable: true, example: 'Needs extra support on Juz 30.' })
   notes!: string | null;
 
@@ -236,6 +245,7 @@ export type StudentView = PersonNameView & {
   daily_hifz_pages_capacity: string;
   daily_near_pages_capacity: string;
   daily_far_pages_capacity: string;
+  memorization_direction: string;
   notes: string | null;
   photo_url: string | null;
   id_number: string | null;
