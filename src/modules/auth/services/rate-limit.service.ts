@@ -1,10 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Not, Repository } from 'typeorm';
-import { LoginAttempt } from '../entities/login-attempt.entity';
+import { In, MoreThan, Not, Repository } from 'typeorm';
+import {
+  LoginAttempt,
+  type LoginAttemptStatus,
+} from '../entities/login-attempt.entity';
 import { RATE_LIMIT } from '../rate-limit.config';
 
 export type RateLimitVerdict = 'ok' | 'rate_limited' | 'account_locked';
+
+/**
+ * Verdicts this service produced itself. `AuthService.login` records them for
+ * audit before rejecting, but they are not credential checks and must never
+ * feed back into the failure counters here.
+ *
+ * Counting them made the lockout self-perpetuating: every blocked retry became
+ * the newest attempt, pushing `lockoutEnd` another LOCKOUT_MIN into the future,
+ * so a client that kept retrying could never unlock — not even with the correct
+ * password, since login is rejected before the password is checked. Excluding
+ * them caps the penalty at exactly LOCKOUT_MIN from the last real failure.
+ */
+const THROTTLE_VERDICTS: LoginAttemptStatus[] = [
+  'rate_limited',
+  'account_locked',
+];
 
 @Injectable()
 export class RateLimitService {
@@ -28,6 +47,10 @@ export class RateLimitService {
     return new Date(Date.now() - RATE_LIMIT.WINDOW_MIN * 60 * 1000);
   }
 
+  /**
+   * Volume control: counts every attempt from the IP, successes included.
+   * That is deliberate — this cap is about request volume, not credentials.
+   */
   private async ipExceeded(ip: string, windowStart: Date): Promise<boolean> {
     const count = await this.attempts.count({
       where: { ipAddress: ip, attemptedAt: MoreThan(windowStart) },
@@ -42,7 +65,7 @@ export class RateLimitService {
     const count = await this.attempts.count({
       where: {
         email,
-        status: Not('success'),
+        status: Not(In([...THROTTLE_VERDICTS, 'success'])),
         attemptedAt: MoreThan(windowStart),
       },
     });
@@ -51,7 +74,7 @@ export class RateLimitService {
 
   private async accountLocked(email: string): Promise<boolean> {
     const recent = await this.attempts.find({
-      where: { email },
+      where: { email, status: Not(In(THROTTLE_VERDICTS)) },
       order: { attemptedAt: 'DESC' },
       take: RATE_LIMIT.LOCKOUT_THRESHOLD,
     });

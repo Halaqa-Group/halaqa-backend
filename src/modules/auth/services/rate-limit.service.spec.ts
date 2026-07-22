@@ -126,4 +126,100 @@ describe('RateLimitService', () => {
       expect(result).toBe('ok');
     });
   });
+
+  // The limiter records its own rejections (for audit) via AuthService. If those
+  // rows fed back into these counters the lockout would renew itself on every
+  // blocked retry and never expire. These tests use a repo mock that actually
+  // applies the `where.status` filter — a mock that ignored it would pass just
+  // as happily with the filter removed.
+  describe('self-perpetuating lockout regression', () => {
+    /** Minimal evaluator for the `Not(In([...]))` filter the service builds. */
+    function passesStatusFilter(row: LoginAttempt, status: unknown): boolean {
+      const op = status as
+        | { type?: string; child?: { type?: string; value?: string[] } }
+        | undefined;
+      if (op?.type !== 'not' || op.child?.type !== 'in') return true;
+      return !(op.child.value ?? []).includes(row.status);
+    }
+
+    function makeFilteringRepo(history: LoginAttempt[]): MockRepo {
+      return {
+        find: jest.fn((opts: { where: { status?: unknown }; take: number }) =>
+          Promise.resolve(
+            history
+              .filter((r) => passesStatusFilter(r, opts.where.status))
+              .slice(0, opts.take),
+          ),
+        ),
+        count: jest.fn(
+          (opts: { where: { status?: unknown; ipAddress?: string } }) =>
+            // The per-IP cap is volume-based and intentionally counts every
+            // row; these tests isolate the per-email failure cap, so the IP
+            // query answers 0 rather than double-counting the same history.
+            Promise.resolve(
+              opts.where.ipAddress !== undefined
+                ? 0
+                : history.filter((r) =>
+                    passesStatusFilter(r, opts.where.status),
+                  ).length,
+            ),
+        ),
+      };
+    }
+
+    it('expires the lockout 30 minutes after the last real failure, however many blocked retries followed', async () => {
+      const expired = (RATE_LIMIT.LOCKOUT_MIN + 1) * 60 * 1000;
+      const history = [
+        // A burst of retries while locked out — recorded, but not credentials.
+        ...Array.from({ length: 12 }, (_, i) =>
+          attempt(i * 1_000, 'account_locked'),
+        ),
+        // The streak that actually caused the lock, now past the window.
+        ...Array.from({ length: 5 }, (_, i) =>
+          attempt(expired + i * 60_000, 'wrong_password'),
+        ),
+      ];
+
+      const result = await makeService(makeFilteringRepo(history)).check(
+        'a@b.com',
+        '1.2.3.4',
+      );
+
+      expect(result).toBe('ok');
+    });
+
+    it('still locks while the last real failure is inside the 30-minute window', async () => {
+      const fresh = (RATE_LIMIT.LOCKOUT_MIN - 1) * 60 * 1000;
+      const history = [
+        ...Array.from({ length: 12 }, (_, i) =>
+          attempt(i * 1_000, 'account_locked'),
+        ),
+        ...Array.from({ length: 5 }, (_, i) =>
+          attempt(fresh + i * 60_000, 'wrong_password'),
+        ),
+      ];
+
+      const result = await makeService(makeFilteringRepo(history)).check(
+        'a@b.com',
+        '1.2.3.4',
+      );
+
+      expect(result).toBe('account_locked');
+    });
+
+    it('does not let blocked retries alone trip the per-email failure cap', async () => {
+      // Twice the cap, but every row is the limiter's own rejection.
+      const history = Array.from(
+        { length: RATE_LIMIT.EMAIL_FAIL_MAX_PER_WINDOW * 2 },
+        (_, i) => attempt(i * 1_000, 'rate_limited'),
+      );
+
+      const result = await makeService(makeFilteringRepo(history)).check(
+        'a@b.com',
+        '1.2.3.4',
+      );
+
+      expect(result).toBe('ok');
+    });
+  });
 });
