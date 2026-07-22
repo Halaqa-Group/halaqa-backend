@@ -10,6 +10,7 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { AuditService } from '../../audit/audit.service';
 import {
   AttendanceStatus,
+  ETHICS_RATING_DEFAULT,
   StudentAttendance,
 } from '../entities/student-attendance.entity';
 
@@ -17,6 +18,7 @@ export interface SyncAttendanceEntry {
   studentId: number;
   date: string;
   status: AttendanceStatus;
+  ethicsRating?: number | null;
   excuseNote?: string | null;
   clientUuid?: string | null;
   clientRecordedAt?: string | null;
@@ -42,7 +44,10 @@ export interface BulkSyncResult {
 }
 
 export interface CorrectAttendanceInput {
-  status: AttendanceStatus;
+  /** Omit to leave the status untouched (rating-only correction). */
+  status?: AttendanceStatus;
+  /** Omit to leave the rating untouched. */
+  ethicsRating?: number | null;
   excuseNote?: string | null;
   modificationReason: string;
 }
@@ -200,9 +205,11 @@ export class StudentAttendanceService {
 
     if (existing) {
       const previousStatus = existing.status;
+      const previousRating = existing.ethicsRating;
       const changed = previousStatus !== entry.status;
 
       existing.status = entry.status;
+      existing.ethicsRating = entry.ethicsRating ?? existing.ethicsRating;
       existing.excuseNote = entry.excuseNote ?? null;
       existing.clientUuid = entry.clientUuid ?? existing.clientUuid;
       existing.clientRecordedAt = clientRecordedAt ?? existing.clientRecordedAt;
@@ -220,8 +227,12 @@ export class StudentAttendanceService {
         action: 'student_attendance.sync_update',
         entityType: 'student_attendance',
         entityId: existing.id,
-        oldValues: { status: previousStatus },
-        newValues: { status: entry.status, via: 'bulk_sync' },
+        oldValues: { status: previousStatus, ethicsRating: previousRating },
+        newValues: {
+          status: entry.status,
+          ethicsRating: existing.ethicsRating,
+          via: 'bulk_sync',
+        },
       });
 
       return { outcome: 'updated', attendanceId: existing.id };
@@ -232,6 +243,8 @@ export class StudentAttendanceService {
       studentId: entry.studentId,
       attendanceDate: entry.date,
       status: entry.status,
+      // Omitted rating falls back to the column default (5), same as a seeded row.
+      ethicsRating: entry.ethicsRating ?? ETHICS_RATING_DEFAULT,
       excuseNote: entry.excuseNote ?? null,
       recordedBy: actor.id,
       clientUuid: entry.clientUuid ?? null,
@@ -247,6 +260,7 @@ export class StudentAttendanceService {
       entityId: row.id,
       newValues: {
         status: row.status,
+        ethicsRating: row.ethicsRating,
         date: row.attendanceDate,
         via: 'bulk_sync',
       },
@@ -274,16 +288,36 @@ export class StudentAttendanceService {
     }
 
     const previousStatus = row.status;
-    if (previousStatus === input.status) {
-      throw new BadRequestException('Attendance already has this status.');
+    const previousRating = row.ethicsRating;
+
+    let statusChanged = false;
+    if (input.status !== undefined && input.status !== previousStatus) {
+      row.status = input.status;
+      // Capture the pre-human value once (usually the seeded 'present').
+      if (row.originalStatus === null) row.originalStatus = previousStatus;
+      statusChanged = true;
     }
 
-    row.status = input.status;
+    let ratingChanged = false;
+    if (
+      input.ethicsRating !== undefined &&
+      input.ethicsRating !== null &&
+      input.ethicsRating !== previousRating
+    ) {
+      row.ethicsRating = input.ethicsRating;
+      ratingChanged = true;
+    }
+
+    if (!statusChanged && !ratingChanged) {
+      throw new BadRequestException(
+        'Attendance already has this status and ethics rating.',
+      );
+    }
+
     row.excuseNote = input.excuseNote ?? row.excuseNote;
     row.modifiedBy = actor.id;
     row.modifiedAt = new Date();
     row.modificationReason = input.modificationReason;
-    if (row.originalStatus === null) row.originalStatus = previousStatus;
     await this.repo.save(row);
 
     await this.auditService.log({
@@ -291,8 +325,12 @@ export class StudentAttendanceService {
       action: 'student_attendance.correct',
       entityType: 'student_attendance',
       entityId: row.id,
-      oldValues: { status: previousStatus },
-      newValues: { status: input.status, reason: input.modificationReason },
+      oldValues: { status: previousStatus, ethicsRating: previousRating },
+      newValues: {
+        status: row.status,
+        ethicsRating: row.ethicsRating,
+        reason: input.modificationReason,
+      },
     });
 
     return row;
