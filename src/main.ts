@@ -48,6 +48,12 @@ async function bootstrap() {
 }
 
 /**
+ * `Retry-After` is not a CORS-safelisted response header, so a browser on
+ * another origin cannot read it off a 429 unless it is exposed explicitly.
+ */
+const EXPOSED_HEADERS = ['Retry-After'];
+
+/**
  * Whitelist origins from CORS_ORIGINS. When unset: dev falls back to the local
  * frontend (Nuxt on :3000); production denies cross-origin.
  */
@@ -57,11 +63,18 @@ function buildCorsOptions(config: ConfigService, isProd: boolean) {
     .map((o) => o.trim())
     .filter(Boolean);
 
-  if (origins.length > 0) return { origin: origins, credentials: true };
+  if (origins.length > 0) {
+    return {
+      origin: origins,
+      credentials: true,
+      exposedHeaders: EXPOSED_HEADERS,
+    };
+  }
 
   return {
     origin: isProd ? false : ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
+    exposedHeaders: EXPOSED_HEADERS,
   };
 }
 

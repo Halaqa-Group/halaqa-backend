@@ -2,6 +2,10 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import {
+  THROTTLED_MESSAGE,
+  ThrottledException,
+} from '../../../common/exceptions/throttled.exception';
 import { LoginAttempt } from '../entities/login-attempt.entity';
 import { User } from '../../users/entities/user.entity';
 import { RequestContext } from '../request-context';
@@ -95,7 +99,10 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('issues tokens, records success, and bumps last_login_at on the happy path', async () => {
-      m.rateLimit.check.mockResolvedValue('ok');
+      m.rateLimit.check.mockResolvedValue({
+        verdict: 'ok',
+        retryAfterSeconds: 0,
+      });
       m.users.findOne.mockResolvedValue(ACTIVE_USER);
       mockedCompare.mockResolvedValue(true as never);
 
@@ -126,7 +133,10 @@ describe('AuthService', () => {
     });
 
     it('logs in via id_number: normalizes it, looks up by idNumber, records the identifier', async () => {
-      m.rateLimit.check.mockResolvedValue('ok');
+      m.rateLimit.check.mockResolvedValue({
+        verdict: 'ok',
+        retryAfterSeconds: 0,
+      });
       m.users.findOne.mockResolvedValue(ACTIVE_USER);
       mockedCompare.mockResolvedValue(true as never);
 
@@ -149,13 +159,27 @@ describe('AuthService', () => {
     });
 
     it.each<RateLimitVerdict>(['rate_limited', 'account_locked'])(
-      'returns Invalid credentials and records %s when rate-limit verdict is %s',
+      'throws 429 with a Retry-After hint and records %s when rate-limit verdict is %s',
       async (verdict) => {
-        m.rateLimit.check.mockResolvedValue(verdict);
+        m.rateLimit.check.mockResolvedValue({
+          verdict,
+          retryAfterSeconds: 900,
+        });
 
-        await expect(
-          service.login({ email: 'a@b.com', password: 'pw' }, CTX),
-        ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+        const err: unknown = await service
+          .login({ email: 'a@b.com', password: 'pw' }, CTX)
+          .catch((e: unknown) => e);
+
+        expect(err).toBeInstanceOf(ThrottledException);
+        const thrown = err as ThrottledException;
+        expect(thrown.getStatus()).toBe(429);
+        expect(thrown.retryAfterSeconds).toBe(900);
+        // Both verdicts must be indistinguishable to the caller: a different
+        // message for account_locked would hint that the account exists.
+        expect(thrown.getResponse()).toMatchObject({
+          message: THROTTLED_MESSAGE,
+          retry_after_seconds: 900,
+        });
 
         expect(m.attempts.insert).toHaveBeenCalledWith(
           expect.objectContaining({ status: verdict }),
@@ -165,7 +189,10 @@ describe('AuthService', () => {
     );
 
     it('returns Invalid credentials and records user_not_found for an unknown email', async () => {
-      m.rateLimit.check.mockResolvedValue('ok');
+      m.rateLimit.check.mockResolvedValue({
+        verdict: 'ok',
+        retryAfterSeconds: 0,
+      });
       m.users.findOne.mockResolvedValue(null);
 
       await expect(
@@ -179,7 +206,10 @@ describe('AuthService', () => {
     });
 
     it('returns Invalid credentials and records account_inactive when the user is not active', async () => {
-      m.rateLimit.check.mockResolvedValue('ok');
+      m.rateLimit.check.mockResolvedValue({
+        verdict: 'ok',
+        retryAfterSeconds: 0,
+      });
       m.users.findOne.mockResolvedValue({
         ...ACTIVE_USER,
         status: 'inactive',
@@ -196,7 +226,10 @@ describe('AuthService', () => {
     });
 
     it('returns Invalid credentials and records wrong_password when bcrypt mismatches', async () => {
-      m.rateLimit.check.mockResolvedValue('ok');
+      m.rateLimit.check.mockResolvedValue({
+        verdict: 'ok',
+        retryAfterSeconds: 0,
+      });
       m.users.findOne.mockResolvedValue(ACTIVE_USER);
       mockedCompare.mockResolvedValue(false as never);
 

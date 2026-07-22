@@ -31,6 +31,18 @@ function attempt(
   return { attemptedAt: new Date(NOW - msAgo), status } as LoginAttempt;
 }
 
+/**
+ * Shape of the lockout-streak lookup, as opposed to the single-row ASC lookup
+ * the Retry-After hint uses. Lets a caps test assert the streak query was
+ * short-circuited without also forbidding the retry-after query.
+ */
+function lockoutQuery() {
+  return expect.objectContaining({
+    order: { attemptedAt: 'DESC' },
+    take: RATE_LIMIT.LOCKOUT_THRESHOLD,
+  }) as unknown;
+}
+
 describe('RateLimitService', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(NOW);
@@ -46,7 +58,7 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
 
     it('returns rate_limited when the IP exceeds the per-IP cap', async () => {
@@ -55,8 +67,8 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('rate_limited');
-      expect(repo.find).not.toHaveBeenCalled();
+      expect(result.verdict).toBe('rate_limited');
+      expect(repo.find).not.toHaveBeenCalledWith(lockoutQuery());
     });
 
     it('returns rate_limited when the email failure count exceeds the cap', async () => {
@@ -67,8 +79,8 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('rate_limited');
-      expect(repo.find).not.toHaveBeenCalled();
+      expect(result.verdict).toBe('rate_limited');
+      expect(repo.find).not.toHaveBeenCalledWith(lockoutQuery());
     });
 
     it('returns account_locked when the last 5 attempts are all failures within the lockout window', async () => {
@@ -83,7 +95,7 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('account_locked');
+      expect(result.verdict).toBe('account_locked');
     });
 
     it('returns ok when a success appears among the last 5 attempts (streak reset)', async () => {
@@ -98,7 +110,7 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
 
     it('returns ok when the latest of 5 failures is older than the 30-min lockout window', async () => {
@@ -114,7 +126,7 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
 
     it('returns ok when fewer than 5 attempts exist for the email', async () => {
@@ -123,7 +135,7 @@ describe('RateLimitService', () => {
 
       const result = await makeService(repo).check('a@b.com', '1.2.3.4');
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
   });
 
@@ -185,7 +197,7 @@ describe('RateLimitService', () => {
         '1.2.3.4',
       );
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
 
     it('still locks while the last real failure is inside the 30-minute window', async () => {
@@ -204,7 +216,23 @@ describe('RateLimitService', () => {
         '1.2.3.4',
       );
 
-      expect(result).toBe('account_locked');
+      expect(result.verdict).toBe('account_locked');
+    });
+
+    it('reports the remaining lockout time, capped at LOCKOUT_MIN', async () => {
+      const tenMinutesAgo = 10 * 60 * 1000;
+      const history = Array.from({ length: 5 }, (_, i) =>
+        attempt(tenMinutesAgo + i * 60_000, 'wrong_password'),
+      );
+
+      const result = await makeService(makeFilteringRepo(history)).check(
+        'a@b.com',
+        '1.2.3.4',
+      );
+
+      expect(result.verdict).toBe('account_locked');
+      // 30-minute lockout, 10 minutes elapsed since the last real failure.
+      expect(result.retryAfterSeconds).toBe((RATE_LIMIT.LOCKOUT_MIN - 10) * 60);
     });
 
     it('does not let blocked retries alone trip the per-email failure cap', async () => {
@@ -219,7 +247,7 @@ describe('RateLimitService', () => {
         '1.2.3.4',
       );
 
-      expect(result).toBe('ok');
+      expect(result.verdict).toBe('ok');
     });
   });
 });

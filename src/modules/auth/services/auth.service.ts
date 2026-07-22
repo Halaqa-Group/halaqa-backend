@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { ThrottledException } from '../../../common/exceptions/throttled.exception';
 import {
   ID_NUMBER_VALIDATOR,
   type IdNumberValidator,
@@ -69,10 +70,19 @@ export class AuthService {
     // repeated attempts collapse onto one key regardless of formatting.
     const identifier = dto.email ?? this.idValidator.normalize(dto.id_number!);
 
-    const verdict = await this.rateLimit.check(identifier, ctx.ip);
-    if (verdict !== 'ok') {
-      await this.recordAttempt({ email: identifier, status: verdict, ctx });
-      throw new UnauthorizedException(INVALID_CREDENTIALS);
+    const decision = await this.rateLimit.check(identifier, ctx.ip);
+    if (decision.verdict !== 'ok') {
+      await this.recordAttempt({
+        email: identifier,
+        status: decision.verdict,
+        ctx,
+      });
+      // 429 rather than 401: the credentials were never examined. Safe to be
+      // explicit — `check()` runs before the user lookup and sees only the
+      // identifier and IP, and `user_not_found` attempts count toward the same
+      // streak, so an unknown identifier throttles exactly like a real one and
+      // the response reveals nothing about whether the account exists.
+      throw new ThrottledException(decision.retryAfterSeconds);
     }
 
     const user = await this.findUserForLogin(dto);
