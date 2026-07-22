@@ -525,7 +525,7 @@
     },
     "/auth/login": {
       "post": {
-        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
+        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`).\n\nCredential failures — bad password, unknown identifier, inactive account — all return the same `401 Invalid credentials` shape, so none of them reveals whether the account exists.\n\nBeing temporarily blocked (too many attempts from this IP or identifier, or a lockout after consecutive failures) returns `429` instead, because the credentials were never examined. Every kind of block returns the identical message — telling them apart would reveal which limit was hit — and an unknown identifier throttles exactly like a real one.",
         "operationId": "AuthController_login",
         "parameters": [],
         "requestBody": {
@@ -555,6 +555,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Temporarily blocked. `Retry-After` (seconds) is set as a header and mirrored in the body as `retry_after_seconds`; the header is exposed via CORS for browser clients.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThrottledEnvelope"
                 }
               }
             }
@@ -5720,6 +5730,30 @@
           "data"
         ]
       },
+      "ThrottledEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 429
+          },
+          "message": {
+            "type": "string",
+            "example": "Too many attempts. Please try again later.",
+            "description": "Identical for every kind of block, so it never reveals which limit was hit."
+          },
+          "retry_after_seconds": {
+            "type": "number",
+            "example": 900,
+            "description": "Seconds to wait before retrying. Mirrors the `Retry-After` response header."
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retry_after_seconds"
+        ]
+      },
       "ForgotPasswordDto": {
         "type": "object",
         "properties": {
@@ -6764,6 +6798,15 @@
             "example": "5.00",
             "description": "Daily far-review target in pages (0–100)."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah."
+          },
           "notes": {
             "type": "object",
             "nullable": true,
@@ -6795,6 +6838,7 @@
           "daily_hifz_pages_capacity",
           "daily_near_pages_capacity",
           "daily_far_pages_capacity",
+          "memorization_direction",
           "notes",
           "photo_url",
           "id_number"
@@ -7011,6 +7055,15 @@
             "example": "5.00",
             "description": "Daily far-review target in pages (0–100)."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah."
+          },
           "notes": {
             "type": "object",
             "nullable": true,
@@ -7048,6 +7101,7 @@
           "daily_hifz_pages_capacity",
           "daily_near_pages_capacity",
           "daily_far_pages_capacity",
+          "memorization_direction",
           "notes",
           "photo_url",
           "id_number",
@@ -7200,6 +7254,15 @@
             "maximum": 100,
             "description": "Daily far-review target in pages. Defaults to 5."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah. Defaults to `descending`."
+          },
           "notes": {
             "type": "string",
             "example": "Needs extra support on Juz 30."
@@ -7331,6 +7394,15 @@
             "example": 5,
             "minimum": 0,
             "maximum": 100
+          },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto)."
           },
           "notes": {
             "type": "string",
