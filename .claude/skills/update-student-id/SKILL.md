@@ -59,7 +59,7 @@ function fromEntity(student, currentUser) {
   return {
     id: student.id,
     id_number: student.id_number,   // always present (may be null for legacy)
-    name: student.name,
+    ...toNameFields(student),       // first_name/second_name/third_name/family_name + derived name
     // ...other fields
   };
 }

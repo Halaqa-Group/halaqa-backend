@@ -117,7 +117,22 @@ export class MeResponse {
   @ApiProperty({ example: 1 })
   id!: number;
 
-  @ApiProperty({ example: 'أحمد المدير' })
+  @ApiProperty({ example: 'أحمد', description: 'الاسم الأول' })
+  firstName!: string;
+
+  @ApiProperty({ example: 'محمد', description: 'اسم الأب' })
+  secondName!: string;
+
+  @ApiProperty({ example: 'علي', description: 'اسم الجد' })
+  thirdName!: string;
+
+  @ApiProperty({ example: 'المدير', description: 'اسم العائلة' })
+  familyName!: string;
+
+  @ApiProperty({
+    example: 'أحمد محمد علي المدير',
+    description: 'Read-only display name derived from the four name parts.',
+  })
   name!: string;
 
   @ApiProperty({ example: '400000006', description: 'National ID number.' })

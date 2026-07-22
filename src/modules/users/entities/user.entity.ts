@@ -13,6 +13,11 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  FULL_NAME_EXPRESSION,
+  FULL_NAME_MAX_LENGTH,
+  NAME_PART_MAX_LENGTH,
+} from '../../../common/person-name';
 import { UserRole } from '../../roles/user-role.entity';
 import { School } from '../../tenant/school.entity';
 
@@ -29,7 +34,38 @@ export class User {
   @Column({ name: 'school_id', type: 'int' })
   schoolId!: number;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ name: 'first_name', type: 'varchar', length: NAME_PART_MAX_LENGTH })
+  firstName!: string;
+
+  @Column({
+    name: 'second_name',
+    type: 'varchar',
+    length: NAME_PART_MAX_LENGTH,
+  })
+  secondName!: string;
+
+  @Column({ name: 'third_name', type: 'varchar', length: NAME_PART_MAX_LENGTH })
+  thirdName!: string;
+
+  @Column({
+    name: 'family_name',
+    type: 'varchar',
+    length: NAME_PART_MAX_LENGTH,
+  })
+  familyName!: string;
+
+  /**
+   * Read-only display name derived by MySQL from the four parts above.
+   * Never assign to it — write the parts instead. See `common/person-name.ts`.
+   */
+  @Column({
+    type: 'varchar',
+    length: FULL_NAME_MAX_LENGTH,
+    generatedType: 'STORED',
+    asExpression: FULL_NAME_EXPRESSION,
+    insert: false,
+    update: false,
+  })
   name!: string;
 
   /** National ID number (Palestinian: 9 digits), normalized. Unique per school. */

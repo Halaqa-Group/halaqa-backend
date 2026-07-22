@@ -43,6 +43,8 @@ ALTER TABLE students
 
 `VARCHAR(20)` (not `CHAR(9)`) so other countries' formats work without a migration. MySQL's `UNIQUE` allows multiple `NULL`s — that's required for "optional" to coexist with the unique index.
 
+> `students.name` (the `AFTER` anchor above) is now a **STORED generated column** derived from `first_name` / `second_name` / `third_name` / `family_name` — it is read-only. That doesn't affect `id_number` at all: the `name LIKE` search snippets below still work, because a stored generated column is a real, indexable column. Just never write to `name`.
+
 ## Validator architecture (the swap point)
 
 A single interface, one implementation per country. Bound by DI in `students.module.ts`. Swapping countries = changing one binding.

@@ -145,10 +145,22 @@ function makeService(m: Mocks): UsersService {
   );
 }
 
+/** The four required name parts, as a CreateUserDto sends them. */
+const NAME_DTO = {
+  first_name: 'X',
+  second_name: 'Y',
+  third_name: 'Z',
+  family_name: 'W',
+};
+
 const ACTIVE_USER_VIEW = {
   id: 99,
   schoolId: 1,
-  name: 'X',
+  firstName: 'X',
+  secondName: 'Y',
+  thirdName: 'Z',
+  familyName: 'W',
+  name: 'X Y Z W',
   idNumber: '400000006',
   email: 'x@s.com',
   password: '',
@@ -189,7 +201,7 @@ describe('UsersService', () => {
 
       await service.create(
         {
-          name: 'X',
+          ...NAME_DTO,
           id_number: '400-000-006',
           email: 'x@s.com',
           password: 'pw12345678',
@@ -217,7 +229,7 @@ describe('UsersService', () => {
       await expect(
         service.create(
           {
-            name: 'X',
+            ...NAME_DTO,
             id_number: '400000006',
             email: 'x@s.com',
             password: 'pw12345678',
@@ -237,7 +249,7 @@ describe('UsersService', () => {
       await expect(
         service.create(
           {
-            name: 'X',
+            ...NAME_DTO,
             id_number: 'not-an-id',
             email: 'x@s.com',
             password: 'pw12345678',
@@ -258,7 +270,7 @@ describe('UsersService', () => {
       await expect(
         service.create(
           {
-            name: 'X',
+            ...NAME_DTO,
             id_number: '400000006',
             email: 'x@s.com',
             password: 'pw12345678',
@@ -278,7 +290,7 @@ describe('UsersService', () => {
       await expect(
         service.create(
           {
-            name: 'X',
+            ...NAME_DTO,
             id_number: '400000006',
             email: 'x@s.com',
             password: 'pw12345678',
@@ -306,7 +318,11 @@ describe('UsersService', () => {
         .mockResolvedValueOnce({ ...ACTIVE_USER_VIEW, status: 'active' })
         .mockResolvedValueOnce(ACTIVE_USER_VIEW);
 
-      await service.update(99, { name: 'New Name' }, ACTOR);
+      await service.update(
+        99,
+        { first_name: 'New', family_name: 'Name' },
+        ACTOR,
+      );
 
       expect(m.txUsers.builder.execute).not.toHaveBeenCalled();
       expect(m.txRefreshTokens.update).not.toHaveBeenCalled();
@@ -478,14 +494,16 @@ describe('UsersService', () => {
       m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
 
       await service.updateMe(99, {
-        name: 'New Name',
+        first_name: 'New',
+        family_name: 'Name',
         phone: '+970599000000',
         photo_url: 'https://cdn/x.jpg',
       });
 
       const patch = m.users.update.mock.calls[0][1] as Record<string, unknown>;
       expect(patch).toEqual({
-        name: 'New Name',
+        firstName: 'New',
+        familyName: 'Name',
         phone: '+970599000000',
         photoUrl: 'https://cdn/x.jpg',
       });
@@ -494,10 +512,11 @@ describe('UsersService', () => {
     it('omits keys for fields the caller did not send', async () => {
       m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
 
-      await service.updateMe(99, { name: 'Solo' });
+      await service.updateMe(99, { first_name: 'Solo' });
 
       const patch = m.users.update.mock.calls[0][1] as Record<string, unknown>;
-      expect(patch).toEqual({ name: 'Solo' });
+      expect(patch).toEqual({ firstName: 'Solo' });
+      expect('secondName' in patch).toBe(false);
       expect('phone' in patch).toBe(false);
       expect('photoUrl' in patch).toBe(false);
     });
@@ -505,7 +524,7 @@ describe('UsersService', () => {
     it('throws NotFound when the user disappears between update and re-read', async () => {
       m.users.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.updateMe(99, { name: 'X' })).rejects.toThrow(
+      await expect(service.updateMe(99, { first_name: 'X' })).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -513,7 +532,7 @@ describe('UsersService', () => {
     it('does not bump tokenVersion or revoke any refresh tokens', async () => {
       m.users.findOne.mockResolvedValueOnce(ACTIVE_USER_VIEW);
 
-      await service.updateMe(99, { name: 'Quiet' });
+      await service.updateMe(99, { first_name: 'Quiet' });
 
       expect(m.users.builder.execute).not.toHaveBeenCalled();
       expect(m.refreshTokens.update).not.toHaveBeenCalled();

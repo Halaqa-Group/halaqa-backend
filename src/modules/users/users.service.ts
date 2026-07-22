@@ -22,6 +22,7 @@ import {
   ID_NUMBER_VALIDATOR,
   type IdNumberValidator,
 } from '../../common/validators/id-number-validator.interface';
+import { namePartsPatch } from '../../common/person-name';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Role, type RoleSlug } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
@@ -35,6 +36,11 @@ import { User } from './entities/user.entity';
 
 export interface UserView {
   id: number;
+  firstName: string;
+  secondName: string;
+  thirdName: string;
+  familyName: string;
+  /** Derived by the database from the four parts above; never written directly. */
   name: string;
   idNumber: string;
   email: string;
@@ -95,7 +101,10 @@ export class UsersService {
       const created = await userRepo.save(
         userRepo.create({
           schoolId: actor.schoolId,
-          name: dto.name,
+          firstName: dto.first_name,
+          secondName: dto.second_name,
+          thirdName: dto.third_name,
+          familyName: dto.family_name,
           idNumber,
           email: dto.email,
           password: passwordHash,
@@ -170,7 +179,7 @@ export class UsersService {
 
   async updateMe(userId: number, dto: UpdateMeDto): Promise<UserView> {
     await this.users.update(userId, {
-      ...(dto.name !== undefined && { name: dto.name }),
+      ...namePartsPatch(dto),
       ...(dto.phone !== undefined && { phone: dto.phone }),
       ...(dto.photo_url !== undefined && { photoUrl: dto.photo_url }),
     });
@@ -217,7 +226,7 @@ export class UsersService {
 
     await this.dataSource.transaction(async (manager) => {
       await manager.getRepository(User).update(id, {
-        ...(dto.name !== undefined && { name: dto.name }),
+        ...namePartsPatch(dto),
         ...(dto.phone !== undefined && { phone: dto.phone }),
         ...(dto.photo_url !== undefined && { photoUrl: dto.photo_url }),
         ...(dto.status !== undefined && { status: dto.status }),
@@ -415,6 +424,10 @@ export class UsersService {
   private toView(user: User): UserView {
     return {
       id: user.id,
+      firstName: user.firstName,
+      secondName: user.secondName,
+      thirdName: user.thirdName,
+      familyName: user.familyName,
       name: user.name,
       idNumber: user.idNumber,
       email: user.email,

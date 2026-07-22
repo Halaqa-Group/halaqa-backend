@@ -2,11 +2,16 @@
 
 All DTOs use `class-validator` and the global `whitelist: true, forbidNonWhitelisted: true` pipe. Any unlisted field in a request body is a 400.
 
+> **Names.** A person's name is four snake_case fields on every request DTO — `first_name` (الاسم الأول), `second_name` (اسم الأب), `third_name` (اسم الجد), `family_name` (اسم العائلة), each `1..NAME_PART_MAX_LENGTH` (50). The single `name` field is **no longer accepted on any request** — `students.name` is a stored generated column derived from the four parts, so sending `name` is a 400 by `forbidNonWhitelisted`. Responses still return the derived `name` alongside the four parts. Constants and helpers: `src/common/person-name.ts`.
+
 ## CreateStudentDto — principal, vice_principal
 
 ```ts
 {
-  name: string;                                  // required, 2..100
+  first_name: string;                            // required, 1..50 — الاسم الأول
+  second_name: string;                           // required, 1..50 — اسم الأب
+  third_name: string;                            // required, 1..50 — اسم الجد
+  family_name: string;                           // required, 1..50 — اسم العائلة
   gender: 'male' | 'female';                     // required
   dob?: string;                                  // ISO date, optional
   join_date: string;                             // ISO date, required
@@ -28,7 +33,10 @@ Partial of CreateStudentDto, **excluding** `guardians` (use the dedicated guardi
 
 ```ts
 {
-  name?: string;
+  first_name?: string;
+  second_name?: string;
+  third_name?: string;
+  family_name?: string;
   gender?: 'male' | 'female';
   dob?: string;
   join_date?: string;
@@ -64,7 +72,7 @@ Controller picks this DTO when `currentUser` is a teacher (and not principal/VP)
 {
   page?: number;       // default 1
   limit?: number;      // default 20, max 100
-  q?: string;          // matches name (LIKE)
+  q?: string;          // matches the derived `name` column (LIKE) — still works, it is a real stored column
   status?: 'active' | 'inactive' | 'graduated';
   gender?: 'male' | 'female';
   halaqa_id?: number;  // restrict to one halaqa (still passes scope filter)

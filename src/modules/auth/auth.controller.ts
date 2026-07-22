@@ -215,6 +215,10 @@ export class AuthController {
     const view = await this.users.findOne(actor.id, actor.schoolId);
     return {
       id: view.id,
+      firstName: view.firstName,
+      secondName: view.secondName,
+      thirdName: view.thirdName,
+      familyName: view.familyName,
       name: view.name,
       idNumber: view.idNumber,
       email: view.email,

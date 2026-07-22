@@ -47,10 +47,31 @@ async function loginAs(
 }
 
 interface StudentPayload {
-  name: string;
+  first_name: string;
+  second_name: string;
+  third_name: string;
+  family_name: string;
   gender: 'male' | 'female';
   join_date: string;
   id_number?: string;
+}
+
+/**
+ * All four name parts are required. Tests vary only the first name (it carries
+ * the unique RUN tag); the rest are fixed so the derived `name` is predictable.
+ */
+function nameParts(first: string) {
+  return {
+    first_name: first,
+    second_name: 'ثاني',
+    third_name: 'ثالث',
+    family_name: 'العائلة',
+  };
+}
+
+/** The `name` the database derives for a payload built by {@link nameParts}. */
+function fullName(first: string): string {
+  return `${first} ثاني ثالث العائلة`;
 }
 
 function post(app: INestApplication, token: string, body: StudentPayload) {
@@ -94,6 +115,8 @@ const RUN = `e2e-${Date.now()}`;
 /*
  * Valid Palestinian IDs used per suite (checksum verified):
  *   100000009  — POST suite
+ *   555555556  — POST suite (principal create)
+ *   666666664  — POST suite (VP create)
  *   111111118  — visibility suite
  *   222222226  — filter suite
  *   333333334  — search suite
@@ -141,13 +164,15 @@ describe('Students (e2e)', () => {
 
     it('201 — principal creates a student', async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-basic`,
+        ...nameParts(`${RUN}-basic`),
         gender: 'male',
         join_date: '2024-09-01',
+        id_number: '555555556',
       });
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
-        name: `${RUN}-basic`,
+        first_name: `${RUN}-basic`,
+        name: fullName(`${RUN}-basic`),
         gender: 'male',
       });
       ids.push(res.body.data.id as number);
@@ -155,9 +180,10 @@ describe('Students (e2e)', () => {
 
     it('201 — VP creates a student', async () => {
       const res = await post(app, vpToken, {
-        name: `${RUN}-by-vp`,
+        ...nameParts(`${RUN}-by-vp`),
         gender: 'female',
         join_date: '2024-09-01',
+        id_number: '666666664',
       });
       expect(res.status).toBe(201);
       ids.push(res.body.data.id as number);
@@ -165,7 +191,7 @@ describe('Students (e2e)', () => {
 
     it('403 — teacher cannot create a student', async () => {
       const res = await post(app, teacherToken, {
-        name: `${RUN}-by-teacher`,
+        ...nameParts(`${RUN}-by-teacher`),
         gender: 'male',
         join_date: '2024-09-01',
       });
@@ -174,7 +200,7 @@ describe('Students (e2e)', () => {
 
     it('403 — parent cannot create a student', async () => {
       const res = await post(app, parentToken, {
-        name: `${RUN}-by-parent`,
+        ...nameParts(`${RUN}-by-parent`),
         gender: 'male',
         join_date: '2024-09-01',
       });
@@ -183,7 +209,7 @@ describe('Students (e2e)', () => {
 
     it('403 — supervisor cannot create a student', async () => {
       const res = await post(app, supervisorToken, {
-        name: `${RUN}-by-supervisor`,
+        ...nameParts(`${RUN}-by-supervisor`),
         gender: 'male',
         join_date: '2024-09-01',
       });
@@ -194,7 +220,7 @@ describe('Students (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/students')
         .set('Authorization', `Bearer ${principalToken}`)
-        .send({ name: `${RUN}-no-gender`, join_date: '2024-09-01' });
+        .send({ ...nameParts(`${RUN}-no-gender`), join_date: '2024-09-01' });
       expect(res.status).toBe(400);
     });
 
@@ -203,7 +229,7 @@ describe('Students (e2e)', () => {
         .post('/api/students')
         .set('Authorization', `Bearer ${principalToken}`)
         .send({
-          name: `${RUN}-no-id`,
+          ...nameParts(`${RUN}-no-id`),
           gender: 'male',
           join_date: '2024-09-01',
         });
@@ -214,7 +240,7 @@ describe('Students (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/students')
         .send({
-          name: `${RUN}-unauth`,
+          ...nameParts(`${RUN}-unauth`),
           gender: 'male',
           join_date: '2024-09-01',
         });
@@ -225,7 +251,7 @@ describe('Students (e2e)', () => {
 
     it('201 — valid 9-digit id_number, no warnings', async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-valid-id`,
+        ...nameParts(`${RUN}-valid-id`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '100000009',
@@ -239,7 +265,7 @@ describe('Students (e2e)', () => {
     it('201 — bad checksum → stored with warnings in envelope', async () => {
       // 100000000: correct check digit is 9, not 0 → checksum_invalid warning
       const res = await post(app, principalToken, {
-        name: `${RUN}-bad-csum`,
+        ...nameParts(`${RUN}-bad-csum`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '100000000',
@@ -253,7 +279,7 @@ describe('Students (e2e)', () => {
     it('201 — Arabic-Indic digits normalized before storage', async () => {
       // ٣٠٠١٢٣٤٥٢ → 300123452 (valid checksum per validator spec)
       const res = await post(app, principalToken, {
-        name: `${RUN}-arabic`,
+        ...nameParts(`${RUN}-arabic`),
         gender: 'female',
         join_date: '2024-09-01',
         id_number: '٣٠٠١٢٣٤٥٢',
@@ -266,7 +292,7 @@ describe('Students (e2e)', () => {
 
     it('400 — 8-digit id_number is rejected (format invalid)', async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-8digit`,
+        ...nameParts(`${RUN}-8digit`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '12345678',
@@ -276,7 +302,7 @@ describe('Students (e2e)', () => {
 
     it('409 — duplicate id_number in the same school', async () => {
       const first = await post(app, principalToken, {
-        name: `${RUN}-dup-a`,
+        ...nameParts(`${RUN}-dup-a`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '200000002',
@@ -285,7 +311,7 @@ describe('Students (e2e)', () => {
       ids.push(first.body.data.id as number);
 
       const second = await post(app, principalToken, {
-        name: `${RUN}-dup-b`,
+        ...nameParts(`${RUN}-dup-b`),
         gender: 'female',
         join_date: '2024-09-01',
         id_number: '200000002',
@@ -301,7 +327,7 @@ describe('Students (e2e)', () => {
 
     beforeAll(async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-vis`,
+        ...nameParts(`${RUN}-vis`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '111111118',
@@ -349,7 +375,7 @@ describe('Students (e2e)', () => {
 
     beforeAll(async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-lock`,
+        ...nameParts(`${RUN}-lock`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '444444442',
@@ -416,7 +442,7 @@ describe('Students (e2e)', () => {
     it('409 — conflict: another student already owns the target id_number', async () => {
       // Create a sibling student with 333333334 to cause the conflict
       const sibling = await post(app, principalToken, {
-        name: `${RUN}-sibling`,
+        ...nameParts(`${RUN}-sibling`),
         gender: 'female',
         join_date: '2024-09-01',
         id_number: '333333334',
@@ -451,7 +477,7 @@ describe('Students (e2e)', () => {
 
     beforeAll(async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-filter`,
+        ...nameParts(`${RUN}-filter`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '222222226',
@@ -507,7 +533,7 @@ describe('Students (e2e)', () => {
 
     beforeAll(async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-srch`,
+        ...nameParts(`${RUN}-srch`),
         gender: 'male',
         join_date: '2024-09-01',
         id_number: '333333334',
@@ -560,7 +586,7 @@ describe('Students (e2e)', () => {
 
     beforeAll(async () => {
       const res = await post(app, principalToken, {
-        name: `${RUN}-lifecycle`,
+        ...nameParts(`${RUN}-lifecycle`),
         gender: 'female',
         join_date: '2024-09-01',
         id_number: '777777778',

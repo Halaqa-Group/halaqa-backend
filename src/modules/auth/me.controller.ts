@@ -23,7 +23,7 @@ export class MeController {
   @Patch()
   @Audit('user.update_self')
   @ApiOperation({
-    summary: 'Update own profile (name, phone, photo_url)',
+    summary: 'Update own profile (name parts, phone, photo_url)',
     description:
       'Whitelist enforced via DTO + global `forbidNonWhitelisted` — sending `email`, `school_id`, ' +
       '`status`, or `roles` returns 400 (BR-USR-06).',
