@@ -8,6 +8,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { toNameFields } from '../../../common/person-name';
 import { AuditService } from '../../audit/audit.service';
 import {
   NOTIFICATION_SERVICE,
@@ -314,7 +315,7 @@ export class GuardiansService {
     return {
       user: {
         id: sg.guardian.id,
-        name: sg.guardian.name,
+        ...toNameFields(sg.guardian),
         email: sg.guardian.email,
         phone: sg.guardian.phone,
       },

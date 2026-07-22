@@ -9,7 +9,11 @@ import {
 import { ATTENDANCE_STATUSES } from '../entities/student-attendance.entity';
 import type { AttendanceStatus } from '../entities/student-attendance.entity';
 
-export class CorrectAttendanceDto {
+/**
+ * Staff attendance corrections. Unlike the student variant this has no
+ * `ethics_rating` — the behaviour score is only tracked for students.
+ */
+export class CorrectTeacherAttendanceDto {
   @ApiProperty({ enum: ATTENDANCE_STATUSES, example: 'excused' })
   @IsEnum(ATTENDANCE_STATUSES)
   status!: AttendanceStatus;

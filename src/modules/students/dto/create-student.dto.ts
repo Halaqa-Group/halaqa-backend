@@ -13,22 +13,53 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
   Max,
   MaxLength,
   Min,
-  MinLength,
   ValidateNested,
 } from 'class-validator';
+import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
 import { CAPACITY_LIMITS } from '../capacity.config';
 import type { StudentGender, StudentStatus } from '../entities/student.entity';
 import { LinkGuardianDto } from './link-guardian.dto';
 
 export class CreateStudentDto {
-  @ApiProperty({ example: 'يوسف محمد', minLength: 2, maxLength: 100 })
+  @ApiProperty({
+    example: 'يوسف',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'الاسم الأول',
+  })
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
-  name!: string;
+  @Length(1, NAME_PART_MAX_LENGTH)
+  first_name!: string;
+
+  @ApiProperty({
+    example: 'محمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الأب',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  second_name!: string;
+
+  @ApiProperty({
+    example: 'أحمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الجد',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  third_name!: string;
+
+  @ApiProperty({
+    example: 'الحسني',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم العائلة',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  family_name!: string;
 
   @ApiProperty({ enum: ['male', 'female'], example: 'male' })
   @IsEnum(['male', 'female'])

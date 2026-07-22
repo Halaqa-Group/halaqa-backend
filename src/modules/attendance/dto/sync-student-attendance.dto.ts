@@ -9,10 +9,16 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
-import { ATTENDANCE_STATUSES } from '../entities/student-attendance.entity';
+import {
+  ATTENDANCE_STATUSES,
+  ETHICS_RATING_MAX,
+  ETHICS_RATING_MIN,
+} from '../entities/student-attendance.entity';
 import type { AttendanceStatus } from '../entities/student-attendance.entity';
 
 export class SyncAttendanceEntryDto {
@@ -27,6 +33,21 @@ export class SyncAttendanceEntryDto {
   @ApiProperty({ enum: ATTENDANCE_STATUSES, example: 'absent' })
   @IsEnum(ATTENDANCE_STATUSES)
   status!: AttendanceStatus;
+
+  @ApiProperty({
+    required: false,
+    minimum: ETHICS_RATING_MIN,
+    maximum: ETHICS_RATING_MAX,
+    example: 5,
+    description:
+      'تقييم الأخلاق — behaviour score 1..5. Defaults to 5 when omitted on a new row; ' +
+      'leaves an existing row unchanged.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(ETHICS_RATING_MIN)
+  @Max(ETHICS_RATING_MAX)
+  ethics_rating?: number;
 
   @ApiProperty({ required: false, nullable: true, example: 'مريض' })
   @IsOptional()

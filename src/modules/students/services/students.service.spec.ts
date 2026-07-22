@@ -38,10 +38,22 @@ const PARENT: AuthenticatedUser = {
   roles: [{ slug: 'parent', level: 10 }],
 };
 
+/** The four required name parts, as a create/update DTO sends them. */
+const NAME_DTO = {
+  first_name: 'محمد',
+  second_name: 'أحمد',
+  third_name: 'علي',
+  family_name: 'الحسني',
+};
+
 const BASE_STUDENT: Student = {
   id: 10,
   schoolId: 1,
-  name: 'محمد',
+  firstName: 'محمد',
+  secondName: 'أحمد',
+  thirdName: 'علي',
+  familyName: 'الحسني',
+  name: 'محمد أحمد علي الحسني',
   idNumber: null,
   gender: 'male',
   dob: null,
@@ -244,7 +256,7 @@ describe('StudentsService', () => {
       );
 
       await service.create(
-        { name: 'محمد', gender: 'male', join_date: '2023-09-01' },
+        { ...NAME_DTO, gender: 'male', join_date: '2023-09-01' },
         PRINCIPAL,
       );
 
@@ -293,7 +305,7 @@ describe('StudentsService', () => {
       );
       await service.create(
         {
-          name: 'محمد',
+          ...NAME_DTO,
           gender: 'male',
           join_date: '2023-09-01',
           guardians: [{ relation: 'father', guardian_user_id: 42 }],
@@ -338,7 +350,7 @@ describe('StudentsService', () => {
       const service = makeService(repo, makeGuardianRepo(), ds);
 
       await expect(
-        service.update(10, { name: 'new name' }, TEACHER, true),
+        service.update(10, { first_name: 'new' }, TEACHER, true),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -363,6 +375,45 @@ describe('StudentsService', () => {
         expect.objectContaining({
           action: 'student.update',
           newValues: expect.objectContaining({ notes: 'updated' }),
+        }),
+      );
+    });
+
+    it('patches only the name parts that changed and audits the new full name', async () => {
+      const repo = makeStudentRepo();
+      repo.update.mockResolvedValue({ affected: 1 });
+      const audit = makeAudit();
+      const ds = makeDataSource(jest.fn().mockResolvedValue([{ 1: 1 }]));
+      repo.findOne
+        .mockResolvedValueOnce(BASE_STUDENT)
+        .mockResolvedValueOnce(BASE_STUDENT);
+
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      // second_name is resent unchanged — it must not reach the patch.
+      await service.update(
+        10,
+        { family_name: 'القاسمي', second_name: 'أحمد' },
+        PRINCIPAL,
+        false,
+      );
+
+      const patch = repo.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(patch).toEqual(expect.objectContaining({ familyName: 'القاسمي' }));
+      expect('secondName' in patch).toBe(false);
+
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'student.update',
+          oldValues: expect.objectContaining({
+            name: 'محمد أحمد علي الحسني',
+          }),
+          // `name` is database-derived, so the audit records the recomputed value.
+          newValues: expect.objectContaining({
+            name: 'محمد أحمد علي القاسمي',
+          }),
         }),
       );
     });
@@ -424,7 +475,7 @@ describe('StudentsService', () => {
       await expect(
         service.create(
           {
-            name: 'x',
+            ...NAME_DTO,
             gender: 'male',
             join_date: '2023-01-01',
             daily_hifz_pages_capacity: 25,
@@ -565,7 +616,7 @@ describe('StudentsService', () => {
       );
       await service.create(
         {
-          name: 'x',
+          ...NAME_DTO,
           gender: 'male',
           join_date: '2023-01-01',
           id_number: '300-123-456',
@@ -595,7 +646,7 @@ describe('StudentsService', () => {
       await expect(
         service.create(
           {
-            name: 'x',
+            ...NAME_DTO,
             gender: 'male',
             join_date: '2023-01-01',
             id_number: 'bad',
@@ -623,7 +674,7 @@ describe('StudentsService', () => {
       await expect(
         service.create(
           {
-            name: 'x',
+            ...NAME_DTO,
             gender: 'male',
             join_date: '2023-01-01',
             id_number: '300123456',
@@ -671,7 +722,7 @@ describe('StudentsService', () => {
       );
       const result = await service.create(
         {
-          name: 'x',
+          ...NAME_DTO,
           gender: 'male',
           join_date: '2023-01-01',
           id_number: '100000000',

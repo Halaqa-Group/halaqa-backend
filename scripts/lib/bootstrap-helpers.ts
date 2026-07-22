@@ -19,7 +19,10 @@ const MIN_PASSWORD_LENGTH = 8; // matches the app's password DTOs
 const idValidator = new PalestinianIdValidator();
 
 export interface AdminInput {
-  name: string;
+  firstName: string;
+  secondName: string;
+  thirdName: string;
+  familyName: string;
   idNumber: string;
   email: string;
   password: string;
@@ -27,7 +30,10 @@ export interface AdminInput {
 
 /** Read + validate the admin details from environment variables. Throws on bad input. */
 export function readAdminInput(): AdminInput {
-  const name = required('BOOTSTRAP_ADMIN_NAME');
+  const firstName = required('BOOTSTRAP_ADMIN_FIRST_NAME');
+  const secondName = required('BOOTSTRAP_ADMIN_SECOND_NAME');
+  const thirdName = required('BOOTSTRAP_ADMIN_THIRD_NAME');
+  const familyName = required('BOOTSTRAP_ADMIN_FAMILY_NAME');
   const email = required('BOOTSTRAP_ADMIN_EMAIL');
   const password = required('BOOTSTRAP_ADMIN_PASSWORD');
   const rawId = required('BOOTSTRAP_ADMIN_ID_NUMBER');
@@ -51,7 +57,15 @@ export function readAdminInput(): AdminInput {
     );
   }
 
-  return { name, email, password, idNumber };
+  return {
+    firstName,
+    secondName,
+    thirdName,
+    familyName,
+    email,
+    password,
+    idNumber,
+  };
 }
 
 function required(key: string): string {
@@ -111,7 +125,10 @@ export async function ensureAdminUser(
     const created = await users.save(
       users.create({
         schoolId,
-        name: input.name,
+        firstName: input.firstName,
+        secondName: input.secondName,
+        thirdName: input.thirdName,
+        familyName: input.familyName,
         idNumber: input.idNumber,
         email: input.email,
         password: passwordHash,

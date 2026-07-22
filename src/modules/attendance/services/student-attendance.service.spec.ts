@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
@@ -133,6 +137,49 @@ describe('StudentAttendanceService.bulkSync', () => {
     expect(seeded.originalStatus).toBe('present');
     expect(seeded.modifiedBy).toBe(7);
   });
+
+  it('defaults a newly synced row to the full ethics rating', async () => {
+    const { service, m } = build();
+    m.query.mockResolvedValueOnce([{ student_id: 10 }]);
+    m.repo.findOne.mockResolvedValueOnce(null); // no existing (student, date) row
+
+    await service.bulkSync([entry()], teacher());
+
+    const created = m.repo.create.mock.calls[0][0] as StudentAttendance;
+    expect(created.ethicsRating).toBe(5);
+  });
+
+  it('carries a synced ethics rating onto an existing row', async () => {
+    const { service, m } = build();
+    m.query.mockResolvedValueOnce([{ student_id: 10 }]);
+    const seeded = {
+      id: 9,
+      status: 'present',
+      ethicsRating: 5,
+      originalStatus: null,
+    } as unknown as StudentAttendance;
+    m.repo.findOne.mockResolvedValueOnce(seeded);
+
+    await service.bulkSync([entry({ ethicsRating: 1 })], teacher());
+
+    expect(seeded.ethicsRating).toBe(1);
+  });
+
+  it('leaves an existing rating alone when the entry omits one', async () => {
+    const { service, m } = build();
+    m.query.mockResolvedValueOnce([{ student_id: 10 }]);
+    const seeded = {
+      id: 9,
+      status: 'present',
+      ethicsRating: 2,
+      originalStatus: null,
+    } as unknown as StudentAttendance;
+    m.repo.findOne.mockResolvedValueOnce(seeded);
+
+    await service.bulkSync([entry()], teacher());
+
+    expect(seeded.ethicsRating).toBe(2);
+  });
 });
 
 describe('StudentAttendanceService.correct', () => {
@@ -170,5 +217,75 @@ describe('StudentAttendanceService.correct', () => {
     expect(out.originalStatus).toBe('present');
     expect(out.modificationReason).toBe('medical note');
     expect(m.audit.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('lowers the ethics rating without touching the status', async () => {
+    const { service, m } = build();
+    const row = {
+      id: 3,
+      studentId: 10,
+      status: 'present',
+      ethicsRating: 5,
+      originalStatus: null,
+    } as unknown as StudentAttendance;
+    m.repo.findOne.mockResolvedValueOnce(row);
+    m.query.mockResolvedValueOnce([{ id: 10 }]);
+
+    const out = await service.correct(
+      3,
+      { ethicsRating: 2, modificationReason: 'disruptive in class' },
+      admin(),
+    );
+
+    expect(out.ethicsRating).toBe(2);
+    expect(out.status).toBe('present');
+    // Status never changed, so the pre-correction status stays uncaptured.
+    expect(out.originalStatus).toBeNull();
+    expect(out.modifiedBy).toBe(1);
+  });
+
+  it('applies a combined status and rating correction', async () => {
+    const { service, m } = build();
+    const row = {
+      id: 3,
+      studentId: 10,
+      status: 'present',
+      ethicsRating: 5,
+      originalStatus: null,
+    } as unknown as StudentAttendance;
+    m.repo.findOne.mockResolvedValueOnce(row);
+    m.query.mockResolvedValueOnce([{ id: 10 }]);
+
+    const out = await service.correct(
+      3,
+      { status: 'late', ethicsRating: 3, modificationReason: 'arrived late' },
+      admin(),
+    );
+
+    expect(out.status).toBe('late');
+    expect(out.originalStatus).toBe('present');
+    expect(out.ethicsRating).toBe(3);
+  });
+
+  it('400s when neither the status nor the rating would change', async () => {
+    const { service, m } = build();
+    const row = {
+      id: 3,
+      studentId: 10,
+      status: 'present',
+      ethicsRating: 5,
+      originalStatus: null,
+    } as unknown as StudentAttendance;
+    m.repo.findOne.mockResolvedValueOnce(row);
+    m.query.mockResolvedValueOnce([{ id: 10 }]);
+
+    await expect(
+      service.correct(
+        3,
+        { status: 'present', ethicsRating: 5, modificationReason: 'no-op' },
+        admin(),
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(m.repo.save).not.toHaveBeenCalled();
   });
 });

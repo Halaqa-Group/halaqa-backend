@@ -1,6 +1,6 @@
 ---
 name: attendance
-description: Implement, extend, or modify the attendance & scheduling module for the school management backend (NestJS + TypeORM + MySQL). Use this whenever the user asks to add or change anything under `/attendance/*` — recording/correcting student or staff attendance, bulk offline sync, the "present by default" seed cron, school operating days (`school_schedules`), or holidays. Trigger even when "attendance" isn't said explicitly — anything touching the `student_attendances`, `teacher_attendances`, `school_schedules`, or `holidays` tables; anything about حضور/غياب/دوام/عطل; `client_uuid` idempotent sync from an offline device; the midnight seeding job; the `present/absent/excused/late` status; who can mark whom present; or the `AttendanceQueryService` that the achievements module reads. Does NOT cover achievements/weekly plans (separate module that READS attendance via `AttendanceQueryService`), halaqa CRUD, or student/user CRUD — those are separate modules this one reads from.
+description: Implement, extend, or modify the attendance & scheduling module for the school management backend (NestJS + TypeORM + MySQL). Use this whenever the user asks to add or change anything under `/attendance/*` — recording/correcting student or staff attendance, bulk offline sync, the "present by default" seed cron, school operating days (`school_schedules`), or holidays. Trigger even when "attendance" isn't said explicitly — anything touching the `student_attendances`, `teacher_attendances`, `school_schedules`, or `holidays` tables; anything about حضور/غياب/دوام/عطل; `client_uuid` idempotent sync from an offline device; the midnight seeding job; the `present/absent/excused/late` status; the `ethics_rating` behaviour score (تقييم الأخلاق, 1..5, students only); who can mark whom present; or the `AttendanceQueryService` that the achievements module reads. Does NOT cover achievements/weekly plans (separate module that READS attendance via `AttendanceQueryService`), halaqa CRUD, or student/user CRUD — those are separate modules this one reads from.
 ---
 
 # Attendance & Scheduling Module
@@ -18,7 +18,7 @@ This module is **read** by achievements (one-way coupling — see "Attendance co
 ## Stack & non-negotiables
 
 - **Framework:** NestJS, same conventions as auth/users/students/achievements (`ResponseInterceptor` envelope, `HttpExceptionFilter`, global `JwtAuthGuard` + `ActiveUserGuard` + `RolesGuard` via `APP_GUARD`). Controllers just `return` payloads or `throw` Nest exceptions — never hand-craft envelopes. See the `api-envelopes` skill.
-- **ORM:** TypeORM, MySQL. Migrations only in prod; dev runs `DB_SYNCHRONIZE=true`. Migration: [migrations/1778700000000-AttendanceCreate.ts](../../../migrations/1778700000000-AttendanceCreate.ts).
+- **ORM:** TypeORM, MySQL. Migrations only in prod; dev runs `DB_SYNCHRONIZE=true`. Migrations: [migrations/1778900000000-AttendanceCreate.ts](../../../migrations/1778900000000-AttendanceCreate.ts), [migrations/1779700000000-AttendanceEthicsRating.ts](../../../migrations/1779700000000-AttendanceEthicsRating.ts).
 - **School scoping:** every query scopes by `school_id` from `CurrentUser`. Cross-school or out-of-scope is **404, never 403**.
 - **Audit:** every mutation writes an `audit_log` row via `AuditService`. Actions listed below.
 - **Cron:** `@nestjs/schedule`. One job: `AttendanceSeedService` nightly at `00:05` server tz + boot-time catch-up.
@@ -30,13 +30,15 @@ This module is **read** by achievements (one-way coupling — see "Attendance co
 src/modules/attendance/
 ├── entities/
 │   ├── student-attendance.entity.ts     # + AttendanceStatus type & ATTENDANCE_STATUSES const (the shared enum)
+│                                        # + ETHICS_RATING_MIN / _MAX / _DEFAULT (1 / 5 / 5)
 │   ├── teacher-attendance.entity.ts
 │   ├── school-schedule.entity.ts
 │   └── holiday.entity.ts
 ├── dto/
 │   ├── sync-student-attendance.dto.ts    # BulkSyncStudentAttendanceDto { records: [...] }
 │   ├── sync-teacher-attendance.dto.ts
-│   ├── correct-attendance.dto.ts         # shared by student & teacher correction
+│   ├── correct-student-attendance.dto.ts # CorrectStudentAttendanceDto (status optional, + ethics_rating)
+│   ├── correct-teacher-attendance.dto.ts # CorrectTeacherAttendanceDto (status required, no ethics_rating)
 │   ├── list-student-attendance.query.ts
 │   ├── list-teacher-attendance.query.ts
 │   ├── create-school-schedule.dto.ts
@@ -69,6 +71,7 @@ Day convention everywhere: **0 = Saturday … 6 = Friday**. Convert `WEEKDAY(d)`
 One row per `(student, date)` / `(user, date)` — enforced by a unique index. A student has **one** attendance row per day regardless of how many halaqat they're in. Columns of note:
 
 - `status` — `enum('present','absent','excused','late')`, default `'present'`.
+- `ethics_rating` — **`student_attendances` only**; staff rows have no equivalent. `TINYINT UNSIGNED NOT NULL DEFAULT 5`, with CHECK constraint `chk_sa_ethics_rating` (`BETWEEN 1 AND 5`). تقييم الأخلاق — a 1..5 behaviour score. Bounds live in `ETHICS_RATING_MIN` / `ETHICS_RATING_MAX` / `ETHICS_RATING_DEFAULT` on the entity; never hard-code them.
 - `recorded_by` — **nullable** (this deviates from the raw DDL on purpose). `NULL` = the row was auto-seeded by the cron. A non-null value is the user who first recorded it.
 - Offline-sync fields: `client_uuid` (unique, dedup key), `client_recorded_at`, `device_id`.
 - Modification tracking: `modified_by`, `modified_at`, `modification_reason`, `original_status`. `original_status` captures the value **before the first human change** (usually the seeded `'present'`) and is set **once**.
@@ -87,6 +90,7 @@ This is the core design decision. Instead of "no row = absent", the system **pre
 - `seedForDate` seeds **students and staff**: a single `INSERT … SELECT … WHERE NOT EXISTS` per subject type. Obligated = active + not soft-deleted + the date is a school day (`school_schedules`) + not a holiday + no existing row for that date.
 - **Staff seeding is restricted to staff roles** (`principal`, `vice_principal`, `supervisor`, `teacher`) via an `EXISTS` on `user_roles`/`roles` — parents are never seeded.
 - **Idempotent** by construction (`NOT EXISTS` on the attendance row), so the boot catch-up safely re-runs for a server that was down at midnight. Returns the count of rows created.
+- `ethics_rating` follows the same "by exception" model: the seed SQL does **not** mention the column — the `DEFAULT 5` does the work, so every seeded student row starts at a perfect 5 and teachers only lower it for exceptions.
 
 Consequences:
 - On a normal school day every obligated subject already has a row, so the achievements attendance gate passes for present students without any manual step.
@@ -96,7 +100,9 @@ Consequences:
 ## Student attendance
 
 ### Bulk offline sync — `POST /attendance/students/sync`
-Roles: **principal, vice_principal, teacher** (supervisors/parents → 403). Body: `{ records: SyncAttendanceEntryDto[] }` (≤ 500), each `{ student_id, date, status, excuse_note?, client_uuid?, client_recorded_at?, device_id? }`.
+Roles: **principal, vice_principal, teacher** (supervisors/parents → 403). Body: `{ records: SyncAttendanceEntryDto[] }` (≤ 500), each `{ student_id, date, status, ethics_rating?, excuse_note?, client_uuid?, client_recorded_at?, device_id? }`.
+
+`ethics_rating` is optional: omitted on a **new** row it falls back to `ETHICS_RATING_DEFAULT` (5); omitted on an **existing** row it leaves the stored rating alone.
 
 Service flow (`StudentAttendanceService.bulkSync`):
 1. Role gate (admin or teacher), else 403.
@@ -110,17 +116,21 @@ Service flow (`StudentAttendanceService.bulkSync`):
 Re-syncing the same batch is a no-op — that's the whole point of `client_uuid`.
 
 ### Correction — `PATCH /attendance/students/:id`
-Roles: **principal, vice_principal, teacher** (must have record scope over the student, else 404). Body `CorrectAttendanceDto { status, excuse_note?, modification_reason }` (reason required). Same-status → 400. Sets `modified_by/at`, `modification_reason`, and `original_status` (once). Audit `student_attendance.correct`.
+Roles: **principal, vice_principal, teacher** (must have record scope over the student, else 404). Body `CorrectStudentAttendanceDto { status?, ethics_rating?, excuse_note?, modification_reason }` — only `modification_reason` is required.
+
+**`status` is optional**: a teacher may correct the behaviour score alone (`{ ethics_rating: 3, modification_reason: '...' }`) without touching attendance. At least one of `status` / `ethics_rating` must actually **differ** from the stored row, otherwise 400 `Attendance already has this status and ethics rating.` Sets `modified_by/at`, `modification_reason`, and `original_status` (once). Audit `student_attendance.correct`.
 
 ### List — `GET /attendance/students`
 Roles: **principal, vice_principal, supervisor, teacher, parent**. Filters: `student_id`, `date`, `from`, `to`, `status`, `page`, `limit` (default 20, cap 100). Role scope:
 - admin → whole school; supervisor → students in supervised halaqat (read-only); teacher → students in their halaqat; parent → own children (via `student_guardians`); unknown role → nothing (`1=0`).
 - Parents get a **stripped** `AttendanceDto` (no `recorded_by`/`modified_by`/`modification_reason`/`original_status`) via the role-aware mapper `AttendanceDto.fromEntity(row, actor)`. Apply the mapper everywhere; never serialize the raw entity.
+- `ethics_rating` is **always** included, for every role — it is deliberately outside the parent/staff split, so parents see their child's behaviour score.
 
 ## Teacher (staff) attendance — `/attendance/teachers`
 
 Mirrors student attendance but:
 - **Recording (`POST /sync`) and correction (`PATCH /:id`) are principal/VP only** (supervisors excluded — matches the permission decision). `accessibleUserIds` = every non-deleted user in the actor's school.
+- Correction uses `CorrectTeacherAttendanceDto` — `status` is **required** and there is no `ethics_rating`. The behaviour score is a student-only concept; do not mirror it onto staff.
 - **List (`GET`)**: principal/VP see all staff in the school; any other staff role sees **only their own** rows.
 - Uses its own result/response DTOs (`TeacherAttendanceDto`, `TeacherBulkSyncResultDto`) keyed on `user_id`. No parent visibility.
 

@@ -11,15 +11,47 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
 import type { UserStatus } from '../entities/user.entity';
 
 const USER_STATUSES: UserStatus[] = ['active', 'inactive', 'suspended'];
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'أحمد المدير', maxLength: 100 })
+  @ApiProperty({
+    example: 'أحمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'الاسم الأول',
+  })
   @IsString()
-  @Length(1, 100)
-  name!: string;
+  @Length(1, NAME_PART_MAX_LENGTH)
+  first_name!: string;
+
+  @ApiProperty({
+    example: 'محمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الأب',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  second_name!: string;
+
+  @ApiProperty({
+    example: 'علي',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الجد',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  third_name!: string;
+
+  @ApiProperty({
+    example: 'المدير',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم العائلة',
+  })
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  family_name!: string;
 
   @ApiProperty({
     example: '400000006',

@@ -10,6 +10,11 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { DataWithWarnings } from '../../../common/data-with-warnings';
+import {
+  buildFullName,
+  namePartsPatch,
+  toNameFields,
+} from '../../../common/person-name';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { CAPACITY_LIMITS } from '../capacity.config';
@@ -75,7 +80,10 @@ export class StudentsService {
       const student = await repo.save(
         repo.create({
           schoolId: actor.schoolId,
-          name: dto.name,
+          firstName: dto.first_name,
+          secondName: dto.second_name,
+          thirdName: dto.third_name,
+          familyName: dto.family_name,
           idNumber: normalizedIdNumber ?? null,
           gender: dto.gender,
           dob: dto.dob ? new Date(dto.dob) : null,
@@ -107,7 +115,12 @@ export class StudentsService {
       entityType: 'student',
       entityId: studentId,
       newValues: {
-        name: dto.name,
+        name: buildFullName({
+          firstName: dto.first_name,
+          secondName: dto.second_name,
+          thirdName: dto.third_name,
+          familyName: dto.family_name,
+        }),
         gender: dto.gender,
         status: dto.status ?? 'active',
         ...(normalizedIdNumber !== undefined && {
@@ -242,7 +255,7 @@ export class StudentsService {
     const guardians: GuardianView[] = guardianLinks.map((sg) => ({
       user: {
         id: sg.guardian.id,
-        name: sg.guardian.name,
+        ...toNameFields(sg.guardian),
         email: sg.guardian.email,
         phone: sg.guardian.phone,
       },
@@ -311,7 +324,10 @@ export class StudentsService {
     const oldValues: Record<string, unknown> = {};
     const newValues: Record<string, unknown> = {};
     const patch: {
-      name?: string;
+      firstName?: string;
+      secondName?: string;
+      thirdName?: string;
+      familyName?: string;
       gender?: string;
       dob?: Date | null;
       joinDate?: Date;
@@ -325,10 +341,16 @@ export class StudentsService {
     } = {};
 
     if (!isTeacherOnly) {
-      if (dto.name !== undefined && dto.name !== student.name) {
+      const nameParts = namePartsPatch(dto);
+      const changedParts = Object.entries(nameParts).filter(
+        ([key, value]) => value !== student[key as keyof typeof nameParts],
+      );
+      if (changedParts.length > 0) {
+        // Audited as the full display name — `name` is derived, so compute the
+        // post-patch value rather than reading the stale entity.
         oldValues.name = student.name;
-        newValues.name = dto.name;
-        patch.name = dto.name;
+        newValues.name = buildFullName({ ...student, ...nameParts });
+        Object.assign(patch, Object.fromEntries(changedParts));
       }
       if (dto.gender !== undefined && dto.gender !== student.gender) {
         oldValues.gender = student.gender;
@@ -622,7 +644,7 @@ export class StudentsService {
 
     const base: StudentView = {
       id: student.id,
-      name: student.name,
+      ...toNameFields(student),
       gender: student.gender,
       dob: formatDate(student.dob),
       join_date: formatDate(student.joinDate) ?? '',

@@ -10,7 +10,10 @@ import { School } from '../tenant/school.entity';
 import { User } from '../users/entities/user.entity';
 
 interface UserSeed {
-  name: string;
+  firstName: string;
+  secondName: string;
+  thirdName: string;
+  familyName: string;
   /** National ID (Palestinian: 9 digits, valid checksum). Also a login identifier. */
   idNumber: string;
   email: string;
@@ -22,42 +25,60 @@ const SCHOOL_NAME = 'Halaqa Demo School';
 
 const USER_SEEDS: UserSeed[] = [
   {
-    name: 'أحمد المدير',
+    firstName: 'أحمد',
+    secondName: 'محمد',
+    thirdName: 'علي',
+    familyName: 'المدير',
     idNumber: '400000006',
     email: 'principal@school.com',
     password: 'Passw0rd!',
     roles: ['principal'],
   },
   {
-    name: 'محمد المدير',
+    firstName: 'محمد',
+    secondName: 'سعيد',
+    thirdName: 'حسن',
+    familyName: 'المدير',
     idNumber: '100000009',
     email: 'principal2@school.com',
     password: 'Password',
     roles: ['principal'],
   },
   {
-    name: 'سامي النائب',
+    firstName: 'سامي',
+    secondName: 'خالد',
+    thirdName: 'عمر',
+    familyName: 'النائب',
     idNumber: '200000008',
     email: 'vp@school.com',
     password: 'Passw0rd!',
     roles: ['vice_principal'],
   },
   {
-    name: 'خالد المشرف',
+    firstName: 'خالد',
+    secondName: 'يوسف',
+    thirdName: 'إبراهيم',
+    familyName: 'المشرف',
     idNumber: '300000007',
     email: 'supervisor@school.com',
     password: 'Passw0rd!',
     roles: ['supervisor'],
   },
   {
-    name: 'يوسف المعلم',
+    firstName: 'يوسف',
+    secondName: 'عبدالله',
+    thirdName: 'سالم',
+    familyName: 'المعلم',
     idNumber: '500000005',
     email: 'teacher@school.com',
     password: 'Passw0rd!',
     roles: ['teacher'],
   },
   {
-    name: 'محمد ولي الأمر',
+    firstName: 'محمد',
+    secondName: 'مصطفى',
+    thirdName: 'كامل',
+    familyName: 'الأمين',
     idNumber: '600000004',
     email: 'parent@school.com',
     password: 'Passw0rd!',
@@ -182,7 +203,10 @@ export class DevSeeder implements OnApplicationBootstrap {
       const created = await this.users.save(
         this.users.create({
           schoolId,
-          name: seed.name,
+          firstName: seed.firstName,
+          secondName: seed.secondName,
+          thirdName: seed.thirdName,
+          familyName: seed.familyName,
           idNumber: seed.idNumber,
           email: seed.email,
           password: passwordHash,

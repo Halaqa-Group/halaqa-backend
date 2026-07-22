@@ -13,6 +13,7 @@ Pure bio + relationship layer. Students are data only — they do not log in. Gu
 - **ORM:** TypeORM with MySQL. Migrations only; never `synchronize`.
 - **School scoping:** every query filters by `school_id` from `CurrentUser`. Cross-school reads/writes return **404**, never 403 — never leak existence.
 - **Soft delete:** `students.deleted_at`. Use TypeORM's `softDelete` + `restore`. Default queries exclude deleted rows.
+- **Names are four parts, `name` is derived:** `students` stores `first_name` (الاسم الأول), `second_name` (اسم الأب), `third_name` (اسم الجد), `family_name` (اسم العائلة) — each `VARCHAR(50) NOT NULL`, all four required on create. `students.name` is a **STORED generated column** (`VARCHAR(203)`, `CONCAT_WS(' ', NULLIF(first_name,''), …)`), so it is **read-only**: never write it, write the parts. Because it is still a real column, `name LIKE` search, `ORDER BY s.name`, and every denormalized `student_name` projection keep working untouched. Shared helpers live in `src/common/person-name.ts` (`NAME_PART_MAX_LENGTH`, `FULL_NAME_MAX_LENGTH`, `FULL_NAME_EXPRESSION`, `buildFullName`, `namePartsPatch`, `toNameFields`). Migration: `migrations/1779800000000-SplitPersonNames.ts`, which backfilled legacy rows by splitting the old single `name` on spaces and padding the missing parts with `''` — that padding is why the generated expression wraps each part in `NULLIF(part, '')`.
 - **Audit:** every mutation writes an `audit_log` row via the existing `AuditService`. Action names are listed below.
 - **Notifications:** when a side effect should notify someone (e.g. VPs when a student loses their last guardian), call `NotificationService.notifyRole(schoolId, roleSlug, payload)`. The service is a single-method interface this module depends on; its delivery is implemented elsewhere.
 
@@ -51,7 +52,7 @@ src/students/
 | `principal` | all in school | yes | yes | yes |
 | `vice_principal` | all in school | yes | yes | yes |
 | `supervisor` | only in own halaqat (read) | no | no | no |
-| `teacher` | only in own halaqat (read) | **no** name/dob/etc. | yes if **primary or acting_as_primary** for that halaqa | no |
+| `teacher` | only in own halaqat (read) | **no** name parts/dob/etc. | yes if **primary or acting_as_primary** for that halaqa | no |
 | `parent` | only own children (read) | no | no | no |
 
 The teacher's "edit student" permission is a **field-level allow-list**, not a row-level toggle. Two DTOs enforce this: `UpdateStudentDto` for principal/VP, `UpdateStudentByTeacherDto` for primary teachers. The controller picks which DTO to use based on the caller's role; you do not merge them.
@@ -222,7 +223,11 @@ Follow the existing global envelope (`{ code, data }` / `{ code, message }`). Sp
   "code": 200,
   "data": {
     "id": 17,
-    "name": "محمد أحمد",
+    "first_name": "محمد",
+    "second_name": "أحمد",
+    "third_name": "سالم",
+    "family_name": "الحسني",
+    "name": "محمد أحمد سالم الحسني",
     "gender": "male",
     "dob": "2014-03-12",
     "join_date": "2023-09-01",
@@ -234,7 +239,16 @@ Follow the existing global envelope (`{ code, data }` / `{ code, message }`). Sp
     "photo_url": null,
     "guardians": [
       {
-        "user": { "id": 42, "name": "أبو محمد", "email": "father@x.com", "phone": "..." },
+        "user": {
+          "id": 42,
+          "first_name": "أحمد",
+          "second_name": "سالم",
+          "third_name": "علي",
+          "family_name": "الحسني",
+          "name": "أحمد سالم علي الحسني",
+          "email": "father@x.com",
+          "phone": "..."
+        },
         "relation": "father",
         "is_primary": true,
         "can_pickup": true

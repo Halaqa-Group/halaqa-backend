@@ -15,6 +15,7 @@ This skill governs how authentication, authorization, user management, sessions,
 - **JWT:** HS256, single shared secret in env. Access token **15 min**, refresh token **30 days** (BR-AUTH-02).
 - **Refresh delivery:** httpOnly + Secure + SameSite=Strict cookie. Never put the refresh token in JSON responses or localStorage.
 - **Roles in JWT:** access tokens carry `sub` (user id), `school_id`, and a token version — **not** roles. Roles and permissions are fetched from DB on each protected request via the user's record (decoupled, see BR-AUTH and explicit user instruction).
+- **Names are four parts, `name` is derived:** `users` stores `first_name` (الاسم الأول), `second_name` (اسم الأب), `third_name` (اسم الجد), `family_name` (اسم العائلة) — each `VARCHAR(50) NOT NULL`, all four required on create. `users.name` is a **STORED generated column** (`VARCHAR(203)`, `CONCAT_WS(' ', NULLIF(first_name,''), …)`) and is therefore **read-only** — never write it, write the parts. Request DTOs (`CreateUserDto`, `UpdateUserDto`, `UpdateMeDto`) use the snake_case parts and no longer accept `name`; responses (`UserResponse`, `MeResponse`) use camelCase `firstName`/`secondName`/`thirdName`/`familyName` plus the derived `name`. Helpers live in `src/common/person-name.ts`; migration `migrations/1779800000000-SplitPersonNames.ts`. The bootstrap env vars are `BOOTSTRAP_ADMIN_FIRST_NAME`, `BOOTSTRAP_ADMIN_SECOND_NAME`, `BOOTSTRAP_ADMIN_THIRD_NAME`, `BOOTSTRAP_ADMIN_FAMILY_NAME` (the old `BOOTSTRAP_ADMIN_NAME` is gone).
 - **School scoping:** all queries are filtered by `school_id`. For now there is one default school (configurable via env `DEFAULT_SCHOOL_ID`), but every query must still pass `school_id` so multi-school works later without rewrites.
 - **Rate limiting:** DB-based, querying `login_attempts`. No Redis.
 - **Email:** Nodemailer behind a `MailService` interface so transport can be swapped.
@@ -120,6 +121,8 @@ Response 200:
   }
 }
 ```
+`AuthUserResponse` deliberately exposes only the derived `name` — the four name parts are not in the login payload. Clients that need them read `GET /auth/me`.
+
 Side effect: sets `refresh_token` cookie (HttpOnly, Secure, SameSite=Strict, Path=`/auth`). On failure, returns `401 { "code": 401, "message": "Invalid credentials" }` regardless of the actual reason (BR-AUTH-05).
 
 ### `POST /auth/refresh`
@@ -174,7 +177,11 @@ Response:
   "code": 200,
   "data": {
     "id": 1,
-    "name": "أحمد المدير",
+    "firstName": "أحمد",
+    "secondName": "محمد",
+    "thirdName": "علي",
+    "familyName": "المدير",
+    "name": "أحمد محمد علي المدير",
     "email": "admin@school.com",
     "phone": "+970599123456",
     "roles": ["principal"],
@@ -184,6 +191,7 @@ Response:
 ```
 
 Notes on the `me` payload:
+- The four name parts are camelCase here (`firstName`/`secondName`/`thirdName`/`familyName`); `name` is the read-only value MySQL derives from them. `PATCH /me` accepts the **snake_case** parts (`first_name`, …, all optional) — sending `name` is a 400.
 - `roles` is a **flat array of slugs**, not the role objects. Convert in the controller.
 - `permissions` follows this rule:
   - `"*"` if the user has the `principal` role.
