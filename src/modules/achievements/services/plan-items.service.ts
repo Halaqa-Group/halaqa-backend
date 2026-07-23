@@ -6,13 +6,23 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { DomainEvents } from '../../../common/events/domain-events';
+import { roundHalfUp } from '../../../common/rounding';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
+import { pageCoverage, verseToGlobal } from '../../../quran/page-coverage';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 import type { TrackType } from '../entities/achievement.entity';
 import { WeeklyPlanItem } from '../entities/weekly-plan-item.entity';
 import { WeeklyPlan } from '../entities/weekly-plan.entity';
 import { PlanReconciliationService } from './plan-reconciliation.service';
+
+/** UTC-safe date add on YYYY-MM-DD (v1 runs on UTC). */
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 export interface AddItemInput {
   trackType: TrackType;
@@ -45,7 +55,36 @@ export class PlanItemsService {
     private readonly auditService: AuditService,
     private readonly reconciliation: PlanReconciliationService,
     private readonly rangeValidator: QuranRangeValidator,
+    private readonly domainEvents: DomainEvents,
   ) {}
+
+  /**
+   * Recomputes the daily-report helper columns from the item's range (§10.2,
+   * §32): global ayah indices and the fractional planned page count. Kept in the
+   * backend so `planned_pages` never diverges from the page-coverage algorithm.
+   */
+  private applyPageFields(item: WeeklyPlanItem): void {
+    item.startGlobalAyah = verseToGlobal(item.startSurah, item.startVerse);
+    item.endGlobalAyah = verseToGlobal(item.endSurah, item.endVerse);
+    item.plannedPages = roundHalfUp(
+      pageCoverage({
+        startSurah: item.startSurah,
+        startVerse: item.startVerse,
+        endSurah: item.endSurah,
+        endVerse: item.endVerse,
+      }),
+      4,
+    );
+  }
+
+  /** Signals that an approved plan's items changed for a given weekday (§28.4). */
+  private emitForItemDay(plan: WeeklyPlan, dayOfWeek: number): void {
+    this.domainEvents.emitReportSourceChanged({
+      studentId: plan.studentId,
+      halaqaId: plan.halaqaId,
+      date: addDays(plan.weekStartDate, dayOfWeek),
+    });
+  }
 
   // ─── Authorization helpers ────────────────────────────────────────────────
 
@@ -153,6 +192,7 @@ export class PlanItemsService {
       status: 'due',
       isManualOverride: 0,
     });
+    this.applyPageFields(item);
 
     await this.planItems.save(item);
 
@@ -228,6 +268,7 @@ export class PlanItemsService {
       endSurah: item.endSurah,
       endVerse: item.endVerse,
     };
+    const oldDayOfWeek = item.dayOfWeek;
 
     // Determine which changes are happening
     const rangeChanged =
@@ -261,6 +302,9 @@ export class PlanItemsService {
       item.isManualOverride = 1; // permanent — never reset even after unapprove/re-approve
     }
 
+    // Recompute page helper columns whenever the range moved (§32).
+    if (rangeChanged) this.applyPageFields(item);
+
     await this.planItems.save(item);
 
     await this.auditService.log({
@@ -286,6 +330,14 @@ export class PlanItemsService {
       input.order !== undefined
     ) {
       await this.reconciliation.reconcileItem(itemId);
+    }
+
+    // Only approved plans feed the report (§7). Editing one may invalidate a
+    // saved report for the affected day(s) — old and new if the item moved.
+    if (plan.status === 'approved') {
+      this.emitForItemDay(plan, item.dayOfWeek);
+      if (item.dayOfWeek !== oldDayOfWeek)
+        this.emitForItemDay(plan, oldDayOfWeek);
     }
 
     return item;

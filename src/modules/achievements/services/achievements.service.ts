@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { DomainEvents } from '../../../common/events/domain-events';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
@@ -157,7 +158,21 @@ export class AchievementsService {
     private readonly reconciliation: PlanReconciliationService,
     private readonly rangeValidator: QuranRangeValidator,
     private readonly memorization: MemorizationService,
+    private readonly domainEvents: DomainEvents,
   ) {}
+
+  /**
+   * Signals that an approved achievement changed, so a saved daily report for
+   * that (halaqa, date) can be recalculated (§28.4). Fire-and-forget; the
+   * daily-reports listener skips days with no snapshot.
+   */
+  private emitReportChange(achievement: Achievement): void {
+    this.domainEvents.emitReportSourceChanged({
+      studentId: achievement.studentId,
+      halaqaId: achievement.halaqaId,
+      date: achievement.date,
+    });
+  }
 
   private readonly logger = new Logger(AchievementsService.name);
 
@@ -569,6 +584,7 @@ export class AchievementsService {
     if (shouldApprove) {
       await this.reconciliation.reconcileForAchievement(achievement.id);
       await this.enqueueMemorization(achievement);
+      this.emitReportChange(achievement);
     }
 
     return achievement;
@@ -785,6 +801,7 @@ export class AchievementsService {
     if (wasApproved) {
       await this.reconciliation.reconcileForAchievement(id);
       await this.enqueueMemorization(achievement);
+      this.emitReportChange(achievement);
     }
   }
 
@@ -819,6 +836,7 @@ export class AchievementsService {
 
     await this.reconciliation.reconcileForAchievement(id);
     await this.enqueueMemorization(achievement);
+    this.emitReportChange(achievement);
 
     return achievement;
   }
@@ -892,6 +910,7 @@ export class AchievementsService {
 
     await this.reconciliation.reconcileForAchievement(id);
     await this.enqueueMemorization(achievement);
+    this.emitReportChange(achievement);
 
     return achievement;
   }

@@ -65,12 +65,14 @@ function build(): { service: StudentAttendanceService; m: Mocks } {
   const dataSource = { manager: { query } } as unknown as DataSource;
   const audit = { log: jest.fn() } as unknown as Mocks['audit'];
 
+  const domainEvents = { emitReportSourceChanged: jest.fn() };
   const service = new StudentAttendanceService(
     repo as unknown as Repository<StudentAttendance>,
     dataSource,
     audit as unknown as AuditService,
+    domainEvents as never,
   );
-  return { service, m: { repo, query, audit } };
+  return { service, m: { repo, query, audit, domainEvents } };
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────

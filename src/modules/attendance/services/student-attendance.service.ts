@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { DomainEvents } from '../../../common/events/domain-events';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import {
@@ -49,6 +50,8 @@ export interface CorrectAttendanceInput {
   /** Omit to leave the rating untouched. */
   ethicsRating?: number | null;
   excuseNote?: string | null;
+  /** ملاحظة المحفّظ اليومية (§22). Omit to leave unchanged. */
+  dailyNote?: string | null;
   modificationReason: string;
 }
 
@@ -76,6 +79,7 @@ export class StudentAttendanceService {
     private readonly repo: Repository<StudentAttendance>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly domainEvents: DomainEvents,
   ) {}
 
   // ─── Role helpers ───────────────────────────────────────────────────────────
@@ -308,9 +312,15 @@ export class StudentAttendanceService {
       ratingChanged = true;
     }
 
-    if (!statusChanged && !ratingChanged) {
+    let noteChanged = false;
+    if (input.dailyNote !== undefined && input.dailyNote !== row.dailyNote) {
+      row.dailyNote = input.dailyNote;
+      noteChanged = true;
+    }
+
+    if (!statusChanged && !ratingChanged && !noteChanged) {
       throw new BadRequestException(
-        'Attendance already has this status and ethics rating.',
+        'Attendance already has this status, ethics rating, and note.',
       );
     }
 
@@ -331,6 +341,12 @@ export class StudentAttendanceService {
         ethicsRating: row.ethicsRating,
         reason: input.modificationReason,
       },
+    });
+
+    // A corrected attendance/ethics/note may invalidate a saved report (§28.4).
+    this.domainEvents.emitReportSourceChanged({
+      studentId: row.studentId,
+      date: row.attendanceDate,
     });
 
     return row;

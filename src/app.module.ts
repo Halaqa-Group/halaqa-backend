@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DomainEventsModule } from './common/events/domain-events';
 import { HealthController } from './common/health/health.controller';
 import { envValidationSchema } from './config/env.validation';
 import { buildTypeOrmOptions } from './config/typeorm.config';
@@ -12,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DevSeederModule } from './modules/dev/dev-seeder.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
+import { DailyReportsModule } from './modules/daily-reports/daily-reports.module';
 import { HalaqatModule } from './modules/halaqat/halaqat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -31,6 +33,7 @@ import { UsersModule } from './modules/users/users.module';
       useFactory: buildTypeOrmOptions,
     }),
     ScheduleModule.forRoot(),
+    DomainEventsModule,
     TenantModule,
     UsersModule,
     RolesModule,
@@ -41,6 +44,7 @@ import { UsersModule } from './modules/users/users.module';
     StudentsModule,
     AttendanceModule,
     AchievementsModule,
+    DailyReportsModule,
     DevSeederModule,
   ],
   controllers: [AppController, HealthController],

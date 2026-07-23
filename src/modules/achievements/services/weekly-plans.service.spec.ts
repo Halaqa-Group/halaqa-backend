@@ -87,6 +87,7 @@ const makePlansRepo = () => ({
 
 const makeItemsRepo = () => ({
   create: jest.fn().mockImplementation((x: unknown) => x),
+  find: jest.fn().mockResolvedValue([]),
 });
 
 /** Returns query results in call order; the last entry repeats once exhausted. */
@@ -129,6 +130,7 @@ const makeService = (
     overrides.audit ?? makeAudit(),
     overrides.recon ?? makeReconciliation(),
     new QuranRangeValidator(),
+    { emitReportSourceChanged: jest.fn() } as never,
   );
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

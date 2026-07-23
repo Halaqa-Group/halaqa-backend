@@ -127,6 +127,7 @@ const makeService = (
     overrides.audit ?? makeAudit(),
     overrides.recon ?? makeReconciliation(),
     new QuranRangeValidator(),
+    { emitReportSourceChanged: jest.fn() } as never,
   );
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
