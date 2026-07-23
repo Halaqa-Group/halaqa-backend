@@ -7,11 +7,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { ThrottledException } from '../exceptions/throttled.exception';
 
 interface ErrorEnvelope {
   code: number;
   message: string;
   details?: unknown;
+  /** Present on 429 only. Mirrors the `Retry-After` header. */
+  retry_after_seconds?: number;
 }
 
 @Catch()
@@ -22,6 +25,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
 
     if (exception instanceof HttpException) {
+      if (exception instanceof ThrottledException) {
+        response.setHeader('Retry-After', String(exception.retryAfterSeconds));
+      }
       response.status(exception.getStatus()).json(this.toEnvelope(exception));
       return;
     }
@@ -46,6 +52,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const envelope: ErrorEnvelope = { code: status, message };
     if (Array.isArray(obj.message) && obj.message.length > 1) {
       envelope.details = obj.message;
+    }
+    if (typeof obj.retry_after_seconds === 'number') {
+      envelope.retry_after_seconds = obj.retry_after_seconds;
     }
     return envelope;
   }

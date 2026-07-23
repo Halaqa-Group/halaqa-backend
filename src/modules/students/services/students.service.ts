@@ -10,6 +10,11 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { DataWithWarnings } from '../../../common/data-with-warnings';
+import {
+  buildFullName,
+  namePartsPatch,
+  toNameFields,
+} from '../../../common/person-name';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { CAPACITY_LIMITS } from '../capacity.config';
@@ -24,7 +29,7 @@ import {
 } from '../dto/student.responses';
 import { UpdateStudentByTeacherDto } from '../dto/update-student-by-teacher.dto';
 import { UpdateStudentDto } from '../dto/update-student.dto';
-import { Student } from '../entities/student.entity';
+import { MemorizationDirection, Student } from '../entities/student.entity';
 import { GuardiansService } from './guardians.service';
 import {
   ID_NUMBER_VALIDATOR,
@@ -75,7 +80,10 @@ export class StudentsService {
       const student = await repo.save(
         repo.create({
           schoolId: actor.schoolId,
-          name: dto.name,
+          firstName: dto.first_name,
+          secondName: dto.second_name,
+          thirdName: dto.third_name,
+          familyName: dto.family_name,
           idNumber: normalizedIdNumber ?? null,
           gender: dto.gender,
           dob: dto.dob ? new Date(dto.dob) : null,
@@ -84,6 +92,7 @@ export class StudentsService {
           dailyHifzPagesCapacity: dto.daily_hifz_pages_capacity ?? 1,
           dailyNearPagesCapacity: dto.daily_near_pages_capacity ?? 5,
           dailyFarPagesCapacity: dto.daily_far_pages_capacity ?? 10,
+          memorizationDirection: dto.memorization_direction ?? 'descending',
           notes: dto.notes ?? null,
           photoUrl: dto.photo_url ?? null,
         }),
@@ -107,7 +116,12 @@ export class StudentsService {
       entityType: 'student',
       entityId: studentId,
       newValues: {
-        name: dto.name,
+        name: buildFullName({
+          firstName: dto.first_name,
+          secondName: dto.second_name,
+          thirdName: dto.third_name,
+          familyName: dto.family_name,
+        }),
         gender: dto.gender,
         status: dto.status ?? 'active',
         ...(normalizedIdNumber !== undefined && {
@@ -242,7 +256,7 @@ export class StudentsService {
     const guardians: GuardianView[] = guardianLinks.map((sg) => ({
       user: {
         id: sg.guardian.id,
-        name: sg.guardian.name,
+        ...toNameFields(sg.guardian),
         email: sg.guardian.email,
         phone: sg.guardian.phone,
       },
@@ -291,6 +305,7 @@ export class StudentsService {
         'daily_hifz_pages_capacity',
         'daily_near_pages_capacity',
         'daily_far_pages_capacity',
+        'memorization_direction',
         'notes',
       ]);
       const forbidden = Object.keys(dto as Record<string, unknown>).filter(
@@ -311,7 +326,10 @@ export class StudentsService {
     const oldValues: Record<string, unknown> = {};
     const newValues: Record<string, unknown> = {};
     const patch: {
-      name?: string;
+      firstName?: string;
+      secondName?: string;
+      thirdName?: string;
+      familyName?: string;
       gender?: string;
       dob?: Date | null;
       joinDate?: Date;
@@ -320,15 +338,22 @@ export class StudentsService {
       dailyHifzPagesCapacity?: number;
       dailyNearPagesCapacity?: number;
       dailyFarPagesCapacity?: number;
+      memorizationDirection?: MemorizationDirection;
       notes?: string | null;
       idNumber?: string | null;
     } = {};
 
     if (!isTeacherOnly) {
-      if (dto.name !== undefined && dto.name !== student.name) {
+      const nameParts = namePartsPatch(dto);
+      const changedParts = Object.entries(nameParts).filter(
+        ([key, value]) => value !== student[key as keyof typeof nameParts],
+      );
+      if (changedParts.length > 0) {
+        // Audited as the full display name — `name` is derived, so compute the
+        // post-patch value rather than reading the stale entity.
         oldValues.name = student.name;
-        newValues.name = dto.name;
-        patch.name = dto.name;
+        newValues.name = buildFullName({ ...student, ...nameParts });
+        Object.assign(patch, Object.fromEntries(changedParts));
       }
       if (dto.gender !== undefined && dto.gender !== student.gender) {
         oldValues.gender = student.gender;
@@ -373,6 +398,14 @@ export class StudentsService {
       oldValues.dailyFarPagesCapacity = student.dailyFarPagesCapacity;
       newValues.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
       patch.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
+    }
+    if (
+      dto.memorization_direction !== undefined &&
+      dto.memorization_direction !== student.memorizationDirection
+    ) {
+      oldValues.memorizationDirection = student.memorizationDirection;
+      newValues.memorizationDirection = dto.memorization_direction;
+      patch.memorizationDirection = dto.memorization_direction;
     }
     if (dto.notes !== undefined) {
       oldValues.notes = student.notes;
@@ -622,7 +655,7 @@ export class StudentsService {
 
     const base: StudentView = {
       id: student.id,
-      name: student.name,
+      ...toNameFields(student),
       gender: student.gender,
       dob: formatDate(student.dob),
       join_date: formatDate(student.joinDate) ?? '',
@@ -630,6 +663,7 @@ export class StudentsService {
       daily_hifz_pages_capacity: String(student.dailyHifzPagesCapacity),
       daily_near_pages_capacity: String(student.dailyNearPagesCapacity),
       daily_far_pages_capacity: String(student.dailyFarPagesCapacity),
+      memorization_direction: student.memorizationDirection,
       notes: student.notes,
       photo_url: student.photoUrl,
       id_number: student.idNumber,

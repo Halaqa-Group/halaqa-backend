@@ -18,6 +18,7 @@ import { ErrorEnvelope } from '../../auth/dto/auth.responses';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { toNameFields } from '../../../common/person-name';
 import {
   GuardianView,
   StudentDetailEnvelope,
@@ -124,7 +125,7 @@ export class MyChildrenController {
     const guardians: GuardianView[] = guardianLinks.map((sg) => ({
       user: {
         id: sg.guardian.id,
-        name: sg.guardian.name,
+        ...toNameFields(sg.guardian),
         email: sg.guardian.email,
         phone: sg.guardian.phone,
       },

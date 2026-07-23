@@ -19,7 +19,7 @@ import {
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
-import { CorrectAttendanceDto } from '../dto/correct-attendance.dto';
+import { CorrectTeacherAttendanceDto } from '../dto/correct-teacher-attendance.dto';
 import { ListTeacherAttendanceQuery } from '../dto/list-teacher-attendance.query';
 import { BulkSyncTeacherAttendanceDto } from '../dto/sync-teacher-attendance.dto';
 import {
@@ -124,7 +124,7 @@ export class TeacherAttendanceController {
       'Principal / vice_principal only. Records who changed it, why, and the original status.',
   })
   @ApiParam({ name: 'id', description: 'Attendance row ID' })
-  @ApiBody({ type: CorrectAttendanceDto })
+  @ApiBody({ type: CorrectTeacherAttendanceDto })
   @ApiResponse({ status: 200, type: TeacherAttendanceDto })
   @ApiResponse({ status: 400, description: 'Status unchanged.' })
   @ApiResponse({
@@ -134,7 +134,7 @@ export class TeacherAttendanceController {
   @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async correct(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CorrectAttendanceDto,
+    @Body() dto: CorrectTeacherAttendanceDto,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<TeacherAttendanceDto> {
     const row = await this.service.correct(

@@ -20,6 +20,11 @@ export const ATTENDANCE_STATUSES: AttendanceStatus[] = [
   'late',
 ];
 
+/** تقييم الأخلاق — behaviour/manners score, 1 (worst) … 5 (best). */
+export const ETHICS_RATING_MIN = 1;
+export const ETHICS_RATING_MAX = 5;
+export const ETHICS_RATING_DEFAULT = 5;
+
 /**
  * One row per (student, date) regardless of how many halaqat the student is in.
  *
@@ -27,6 +32,9 @@ export const ATTENDANCE_STATUSES: AttendanceStatus[] = [
  * row for every obligated student, and teachers then mark the exceptions
  * (absent / excused / late) by correcting that row. A seeded row has
  * `recorded_by = NULL`; a human correction sets `modified_by` + `original_status`.
+ *
+ * `ethics_rating` (تقييم الأخلاق) follows the same shape: seeded rows carry the
+ * default 5 and teachers lower it only where warranted.
  */
 @Entity('student_attendances')
 @Index('uk_sa_student_date', ['studentId', 'attendanceDate'], { unique: true })
@@ -52,6 +60,19 @@ export class StudentAttendance {
     default: 'present',
   })
   status!: AttendanceStatus;
+
+  /**
+   * تقييم الأخلاق — behaviour score for the day, 1..5. Follows the same
+   * "default then correct" model as `status`: the seed cron leaves it at the
+   * column default (5) and teachers lower it for the exceptions.
+   */
+  @Column({
+    name: 'ethics_rating',
+    type: 'tinyint',
+    unsigned: true,
+    default: ETHICS_RATING_DEFAULT,
+  })
+  ethicsRating!: number;
 
   @Column({ name: 'excuse_note', type: 'text', nullable: true })
   excuseNote!: string | null;

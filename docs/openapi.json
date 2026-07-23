@@ -30,6 +30,73 @@
         ]
       }
     },
+    "/school": {
+      "get": {
+        "description": "Always resolved from the access token — there is no school id parameter, so a caller can never read another tenant.",
+        "operationId": "SchoolController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the caller's own school profile",
+        "tags": [
+          "School"
+        ]
+      },
+      "patch": {
+        "description": "Principal only. Partial update — omitted fields are left untouched. Blank `address` / `phone` are stored as null.",
+        "operationId": "SchoolController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchoolResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not a principal."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update the caller's own school profile",
+        "tags": [
+          "School"
+        ]
+      }
+    },
     "/users": {
       "post": {
         "description": "Hashes the password (bcrypt cost 12) and optionally assigns role slugs in the same transaction. Cannot create a user in another school — `school_id` is taken from the caller.",
@@ -525,7 +592,7 @@
     },
     "/auth/login": {
       "post": {
-        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.",
+        "description": "Supply exactly one of `email` or `id_number` together with `password`. On success, returns an access token and the user view, and sets the `refresh_token` cookie (HttpOnly, SameSite=Strict, Path=`/auth`).\n\nCredential failures — bad password, unknown identifier, inactive account — all return the same `401 Invalid credentials` shape, so none of them reveals whether the account exists.\n\nBeing temporarily blocked (too many attempts from this IP or identifier, or a lockout after consecutive failures) returns `429` instead, because the credentials were never examined. Every kind of block returns the identical message — telling them apart would reveal which limit was hit — and an unknown identifier throttles exactly like a real one.",
         "operationId": "AuthController_login",
         "parameters": [],
         "requestBody": {
@@ -555,6 +622,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Temporarily blocked. `Retry-After` (seconds) is set as a header and mirrored in the body as `retry_after_seconds`; the header is exposed via CORS for browser clients.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThrottledEnvelope"
                 }
               }
             }
@@ -1062,7 +1139,7 @@
             "access-token": []
           }
         ],
-        "summary": "Update own profile (name, phone, photo_url)",
+        "summary": "Update own profile (name parts, phone, photo_url)",
         "tags": [
           "Me"
         ]
@@ -3759,7 +3836,7 @@
     },
     "/attendance/students/{id}": {
       "patch": {
-        "description": "Changes the status of one attendance row, recording who changed it, why (`modification_reason`), and the value it had before the first correction (`original_status`). Out-of-scope or cross-school rows return 404.",
+        "description": "Changes the status and/or the ethics rating (تقييم الأخلاق) of one attendance row, recording who changed it, why (`modification_reason`), and the status it had before the first correction (`original_status`). Both `status` and `ethics_rating` are optional — send either or both, but at least one must differ from the current row. Out-of-scope or cross-school rows return 404.",
         "operationId": "StudentAttendanceController_correct",
         "parameters": [
           {
@@ -3777,7 +3854,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CorrectAttendanceDto"
+                "$ref": "#/components/schemas/CorrectStudentAttendanceDto"
               }
             }
           }
@@ -3794,7 +3871,7 @@
             }
           },
           "400": {
-            "description": "Status unchanged."
+            "description": "Neither status nor ethics_rating would change."
           },
           "404": {
             "description": "Not found or out of scope."
@@ -3973,7 +4050,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CorrectAttendanceDto"
+                "$ref": "#/components/schemas/CorrectTeacherAttendanceDto"
               }
             }
           }
@@ -5166,6 +5243,10 @@
       "description": "Login, refresh, logout, password reset"
     },
     {
+      "name": "School",
+      "description": "Read and update the caller's own school profile (name, address, phone, status). Reading is principal/vice-principal; updating is principal only."
+    },
+    {
       "name": "Sessions",
       "description": "List and revoke active devices"
     },
@@ -5209,13 +5290,108 @@
       }
     },
     "schemas": {
-      "CreateUserDto": {
+      "SchoolResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "مدرسة الفرقان لتحفيظ القرآن"
+          },
+          "address": {
+            "type": "object",
+            "nullable": true,
+            "example": "الخليل - شارع عين سارة"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "022221234"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "example": "active"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Hebron"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone",
+          "status",
+          "timezone"
+        ]
+      },
+      "UpdateSchoolDto": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "example": "أحمد المدير",
-            "maxLength": 100
+            "example": "مدرسة الفرقان لتحفيظ القرآن",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "address": {
+            "type": "object",
+            "nullable": true,
+            "example": "الخليل - شارع عين سارة",
+            "maxLength": 255,
+            "description": "Empty string is stored as null."
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "022221234",
+            "maxLength": 20,
+            "description": "Empty string is stored as null."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "example": "active"
+          }
+        }
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "id_number": {
             "type": "string",
@@ -5261,7 +5437,10 @@
           }
         },
         "required": [
-          "name",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "id_number",
           "email",
           "password"
@@ -5274,9 +5453,30 @@
             "type": "number",
             "example": 1
           },
+          "firstName": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "الاسم الأول"
+          },
+          "secondName": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "thirdName": {
+            "type": "string",
+            "example": "علي",
+            "description": "اسم الجد"
+          },
+          "familyName": {
+            "type": "string",
+            "example": "المدير",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "أحمد المدير"
+            "example": "أحمد محمد علي المدير",
+            "description": "Read-only display name derived from the four name parts."
           },
           "idNumber": {
             "type": "string",
@@ -5331,6 +5531,10 @@
         },
         "required": [
           "id",
+          "firstName",
+          "secondName",
+          "thirdName",
+          "familyName",
           "name",
           "idNumber",
           "email",
@@ -5431,10 +5635,29 @@
       "UpdateUserDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
             "example": "أحمد",
-            "maxLength": 100
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "phone": {
             "type": "string",
@@ -5654,6 +5877,30 @@
           "data"
         ]
       },
+      "ThrottledEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "example": 429
+          },
+          "message": {
+            "type": "string",
+            "example": "Too many attempts. Please try again later.",
+            "description": "Identical for every kind of block, so it never reveals which limit was hit."
+          },
+          "retry_after_seconds": {
+            "type": "number",
+            "example": 900,
+            "description": "Seconds to wait before retrying. Mirrors the `Retry-After` response header."
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retry_after_seconds"
+        ]
+      },
       "ForgotPasswordDto": {
         "type": "object",
         "properties": {
@@ -5703,9 +5950,30 @@
             "type": "number",
             "example": 1
           },
+          "firstName": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "الاسم الأول"
+          },
+          "secondName": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "thirdName": {
+            "type": "string",
+            "example": "علي",
+            "description": "اسم الجد"
+          },
+          "familyName": {
+            "type": "string",
+            "example": "المدير",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "أحمد المدير"
+            "example": "أحمد محمد علي المدير",
+            "description": "Read-only display name derived from the four name parts."
           },
           "idNumber": {
             "type": "string",
@@ -5739,6 +6007,10 @@
         },
         "required": [
           "id",
+          "firstName",
+          "secondName",
+          "thirdName",
+          "familyName",
           "name",
           "idNumber",
           "email",
@@ -5894,10 +6166,29 @@
       "UpdateMeDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
             "example": "أحمد",
-            "maxLength": 100
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "علي",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "المدير",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "phone": {
             "type": "string",
@@ -6586,9 +6877,30 @@
             "type": "number",
             "example": 1
           },
+          "first_name": {
+            "type": "string",
+            "example": "يوسف",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "يوسف محمد"
+            "example": "يوسف محمد أحمد الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "gender": {
             "type": "string",
@@ -6633,6 +6945,15 @@
             "example": "5.00",
             "description": "Daily far-review target in pages (0–100)."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah."
+          },
           "notes": {
             "type": "object",
             "nullable": true,
@@ -6652,6 +6973,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "gender",
           "dob",
@@ -6660,6 +6985,7 @@
           "daily_hifz_pages_capacity",
           "daily_near_pages_capacity",
           "daily_far_pages_capacity",
+          "memorization_direction",
           "notes",
           "photo_url",
           "id_number"
@@ -6717,9 +7043,30 @@
             "type": "number",
             "example": 12
           },
+          "first_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "سالم",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "محمد أبو أحمد"
+            "example": "محمد أحمد سالم الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "email": {
             "type": "string",
@@ -6734,6 +7081,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "email",
           "phone"
@@ -6783,9 +7134,30 @@
             "type": "number",
             "example": 1
           },
+          "first_name": {
+            "type": "string",
+            "example": "يوسف",
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "description": "اسم العائلة"
+          },
           "name": {
             "type": "string",
-            "example": "يوسف محمد"
+            "example": "يوسف محمد أحمد الحسني",
+            "description": "Read-only display name derived from the four name parts."
           },
           "gender": {
             "type": "string",
@@ -6830,6 +7202,15 @@
             "example": "5.00",
             "description": "Daily far-review target in pages (0–100)."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah."
+          },
           "notes": {
             "type": "object",
             "nullable": true,
@@ -6855,6 +7236,10 @@
         },
         "required": [
           "id",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "name",
           "gender",
           "dob",
@@ -6863,6 +7248,7 @@
           "daily_hifz_pages_capacity",
           "daily_near_pages_capacity",
           "daily_far_pages_capacity",
+          "memorization_direction",
           "notes",
           "photo_url",
           "id_number",
@@ -6941,11 +7327,29 @@
       "CreateStudentDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
-            "example": "يوسف محمد",
-            "minLength": 2,
-            "maxLength": 100
+            "example": "يوسف",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "gender": {
             "type": "string",
@@ -6997,6 +7401,15 @@
             "maximum": 100,
             "description": "Daily far-review target in pages. Defaults to 5."
           },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah. Defaults to `descending`."
+          },
           "notes": {
             "type": "string",
             "example": "Needs extra support on Juz 30."
@@ -7020,7 +7433,10 @@
           }
         },
         "required": [
-          "name",
+          "first_name",
+          "second_name",
+          "third_name",
+          "family_name",
           "gender",
           "join_date",
           "id_number"
@@ -7055,11 +7471,29 @@
       "UpdateStudentDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "first_name": {
             "type": "string",
-            "example": "يوسف محمد",
-            "minLength": 2,
-            "maxLength": 100
+            "example": "يوسف",
+            "maxLength": 50,
+            "description": "الاسم الأول"
+          },
+          "second_name": {
+            "type": "string",
+            "example": "محمد",
+            "maxLength": 50,
+            "description": "اسم الأب"
+          },
+          "third_name": {
+            "type": "string",
+            "example": "أحمد",
+            "maxLength": 50,
+            "description": "اسم الجد"
+          },
+          "family_name": {
+            "type": "string",
+            "example": "الحسني",
+            "maxLength": 50,
+            "description": "اسم العائلة"
           },
           "gender": {
             "type": "string",
@@ -7107,6 +7541,15 @@
             "example": 5,
             "minimum": 0,
             "maximum": 100
+          },
+          "memorization_direction": {
+            "type": "string",
+            "enum": [
+              "ascending",
+              "descending"
+            ],
+            "example": "descending",
+            "description": "اتجاه الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto)."
           },
           "notes": {
             "type": "string",
@@ -7410,6 +7853,13 @@
             ],
             "example": "absent"
           },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 5,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Defaults to 5 when omitted on a new row; leaves an existing row unchanged."
+          },
           "excuse_note": {
             "type": "string",
             "nullable": true,
@@ -7556,6 +8006,13 @@
             ],
             "example": "present"
           },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 5,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Seeded rows carry 5."
+          },
           "excuse_note": {
             "type": "object",
             "nullable": true,
@@ -7592,6 +8049,7 @@
           "student_id",
           "date",
           "status",
+          "ethics_rating",
           "excuse_note",
           "recorded_by",
           "modified_by",
@@ -7629,7 +8087,7 @@
           "limit"
         ]
       },
-      "CorrectAttendanceDto": {
+      "CorrectStudentAttendanceDto": {
         "type": "object",
         "properties": {
           "status": {
@@ -7640,7 +8098,15 @@
               "excused",
               "late"
             ],
-            "example": "excused"
+            "example": "excused",
+            "description": "Omit to leave the status untouched and only change the rating."
+          },
+          "ethics_rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 4,
+            "description": "تقييم الأخلاق — behaviour score 1..5. Omit to leave unchanged."
           },
           "excuse_note": {
             "type": "string",
@@ -7653,7 +8119,6 @@
           }
         },
         "required": [
-          "status",
           "modification_reason"
         ]
       },
@@ -7890,6 +8355,34 @@
           "total",
           "page",
           "limit"
+        ]
+      },
+      "CorrectTeacherAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "excused",
+              "late"
+            ],
+            "example": "excused"
+          },
+          "excuse_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "عذر طبي"
+          },
+          "modification_reason": {
+            "type": "string",
+            "example": "Marked present by mistake in the morning."
+          }
+        },
+        "required": [
+          "status",
+          "modification_reason"
         ]
       },
       "CreateSchoolScheduleDto": {

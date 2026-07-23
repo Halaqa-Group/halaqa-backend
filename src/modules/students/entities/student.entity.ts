@@ -10,10 +10,21 @@ import {
   type Relation,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  FULL_NAME_EXPRESSION,
+  FULL_NAME_MAX_LENGTH,
+  NAME_PART_MAX_LENGTH,
+} from '../../../common/person-name';
 import { School } from '../../tenant/school.entity';
 
 export type StudentStatus = 'active' | 'inactive' | 'graduated';
 export type StudentGender = 'male' | 'female';
+/**
+ * اتجاه الحفظ — the order the student memorises the mushaf in.
+ * `descending` (تنازلي) starts at An-Nas and works backwards (Juz 30 first);
+ * `ascending` (تصاعدي) starts at Al-Fatihah and works forwards.
+ */
+export type MemorizationDirection = 'ascending' | 'descending';
 
 @Entity('students')
 @Index('idx_student_school_status', ['schoolId', 'status'])
@@ -25,7 +36,42 @@ export class Student {
   @Column({ name: 'school_id', type: 'int' })
   schoolId!: number;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ name: 'first_name', type: 'varchar', length: NAME_PART_MAX_LENGTH })
+  firstName!: string;
+
+  @Column({
+    name: 'second_name',
+    type: 'varchar',
+    length: NAME_PART_MAX_LENGTH,
+  })
+  secondName!: string;
+
+  @Column({ name: 'third_name', type: 'varchar', length: NAME_PART_MAX_LENGTH })
+  thirdName!: string;
+
+  @Column({
+    name: 'family_name',
+    type: 'varchar',
+    length: NAME_PART_MAX_LENGTH,
+  })
+  familyName!: string;
+
+  /**
+   * Read-only display name derived by MySQL from the four parts above.
+   * Never assign to it — write the parts instead. See `common/person-name.ts`.
+   */
+  @Column({
+    type: 'varchar',
+    length: FULL_NAME_MAX_LENGTH,
+    generatedType: 'STORED',
+    asExpression: FULL_NAME_EXPRESSION,
+    insert: false,
+    update: false,
+    // Nullable in the catalog only: MariaDB rejects a NULL/NOT NULL clause on a
+    // generated column, so the migration emits none and both engines default to
+    // nullable. The expression itself can never yield NULL, hence `string`.
+    nullable: true,
+  })
   name!: string;
 
   @Column({ name: 'id_number', type: 'varchar', length: 20, nullable: true })
@@ -73,6 +119,14 @@ export class Student {
     default: 10,
   })
   dailyFarPagesCapacity!: number;
+
+  @Column({
+    name: 'memorization_direction',
+    type: 'enum',
+    enum: ['ascending', 'descending'],
+    default: 'descending',
+  })
+  memorizationDirection!: MemorizationDirection;
 
   // Bitmap of memorized ayat, one bit per ayah in mushaf order (see quran-bitmap.ts).
   // NULL = nothing memorized. Maintained by the memorization recompute worker

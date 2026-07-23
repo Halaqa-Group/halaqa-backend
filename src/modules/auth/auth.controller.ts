@@ -29,6 +29,7 @@ import { UsersService } from '../users/users.service';
 import {
   AuthSuccessEnvelope,
   ErrorEnvelope,
+  ThrottledEnvelope,
   MeEnvelope,
   MessageEnvelope,
   ValidateResetTokenEnvelope,
@@ -66,8 +67,13 @@ export class AuthController {
     description:
       'Supply exactly one of `email` or `id_number` together with `password`. On success, returns ' +
       'an access token and the user view, and sets the `refresh_token` cookie ' +
-      '(HttpOnly, SameSite=Strict, Path=`/auth`). All failure paths — bad password, unknown ' +
-      'identifier, inactive account, rate-limited, lockout — return the same `401 Invalid credentials` shape.',
+      '(HttpOnly, SameSite=Strict, Path=`/auth`).\n\n' +
+      'Credential failures — bad password, unknown identifier, inactive account — all return the ' +
+      'same `401 Invalid credentials` shape, so none of them reveals whether the account exists.\n\n' +
+      'Being temporarily blocked (too many attempts from this IP or identifier, or a lockout after ' +
+      'consecutive failures) returns `429` instead, because the credentials were never examined. ' +
+      'Every kind of block returns the identical message — telling them apart would reveal which ' +
+      'limit was hit — and an unknown identifier throttles exactly like a real one.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, type: AuthSuccessEnvelope })
@@ -75,6 +81,13 @@ export class AuthController {
     status: 401,
     description: 'Invalid credentials',
     type: ErrorEnvelope,
+  })
+  @ApiResponse({
+    status: 429,
+    description:
+      'Temporarily blocked. `Retry-After` (seconds) is set as a header and mirrored in the body ' +
+      'as `retry_after_seconds`; the header is exposed via CORS for browser clients.',
+    type: ThrottledEnvelope,
   })
   async login(
     @Body() dto: LoginDto,
@@ -215,6 +228,10 @@ export class AuthController {
     const view = await this.users.findOne(actor.id, actor.schoolId);
     return {
       id: view.id,
+      firstName: view.firstName,
+      secondName: view.secondName,
+      thirdName: view.thirdName,
+      familyName: view.familyName,
       name: view.name,
       idNumber: view.idNumber,
       email: view.email,

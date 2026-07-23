@@ -4,7 +4,22 @@ export class GuardianUserResponse {
   @ApiProperty({ example: 12 })
   id!: number;
 
-  @ApiProperty({ example: 'محمد أبو أحمد' })
+  @ApiProperty({ example: 'محمد', description: 'الاسم الأول' })
+  first_name!: string;
+
+  @ApiProperty({ example: 'أحمد', description: 'اسم الأب' })
+  second_name!: string;
+
+  @ApiProperty({ example: 'سالم', description: 'اسم الجد' })
+  third_name!: string;
+
+  @ApiProperty({ example: 'الحسني', description: 'اسم العائلة' })
+  family_name!: string;
+
+  @ApiProperty({
+    example: 'محمد أحمد سالم الحسني',
+    description: 'Read-only display name derived from the four name parts.',
+  })
   name!: string;
 
   @ApiProperty({ example: 'parent@example.com', format: 'email' })
@@ -47,7 +62,22 @@ export class StudentResponse {
   @ApiProperty({ example: 1 })
   id!: number;
 
-  @ApiProperty({ example: 'يوسف محمد' })
+  @ApiProperty({ example: 'يوسف', description: 'الاسم الأول' })
+  first_name!: string;
+
+  @ApiProperty({ example: 'محمد', description: 'اسم الأب' })
+  second_name!: string;
+
+  @ApiProperty({ example: 'أحمد', description: 'اسم الجد' })
+  third_name!: string;
+
+  @ApiProperty({ example: 'الحسني', description: 'اسم العائلة' })
+  family_name!: string;
+
+  @ApiProperty({
+    example: 'يوسف محمد أحمد الحسني',
+    description: 'Read-only display name derived from the four name parts.',
+  })
   name!: string;
 
   @ApiProperty({ enum: ['male', 'female'], example: 'male' })
@@ -79,6 +109,15 @@ export class StudentResponse {
     description: 'Daily far-review target in pages (0–100).',
   })
   daily_far_pages_capacity!: string;
+
+  @ApiProperty({
+    enum: ['ascending', 'descending'],
+    example: 'descending',
+    description:
+      'اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, ' +
+      '`ascending` (تصاعدي) starts at Al-Fatihah.',
+  })
+  memorization_direction!: string;
 
   @ApiProperty({ nullable: true, example: 'Needs extra support on Juz 30.' })
   notes!: string | null;
@@ -177,16 +216,28 @@ export class GuardianListEnvelope {
 }
 
 // Plain interfaces kept for service-layer compatibility
+export type PersonNameView = {
+  first_name: string;
+  second_name: string;
+  third_name: string;
+  family_name: string;
+  /** Derived by the database from the four parts above; never written directly. */
+  name: string;
+};
+
 export type GuardianView = {
-  user: { id: number; name: string; email: string; phone: string | null };
+  user: PersonNameView & {
+    id: number;
+    email: string;
+    phone: string | null;
+  };
   relation: string;
   is_primary: boolean;
   can_pickup: boolean;
 };
 
-export type StudentView = {
+export type StudentView = PersonNameView & {
   id: number;
-  name: string;
   gender: string;
   dob: string | null;
   join_date: string;
@@ -194,6 +245,7 @@ export type StudentView = {
   daily_hifz_pages_capacity: string;
   daily_near_pages_capacity: string;
   daily_far_pages_capacity: string;
+  memorization_direction: string;
   notes: string | null;
   photo_url: string | null;
   id_number: string | null;

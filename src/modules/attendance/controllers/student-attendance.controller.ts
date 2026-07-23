@@ -19,7 +19,7 @@ import {
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
-import { CorrectAttendanceDto } from '../dto/correct-attendance.dto';
+import { CorrectStudentAttendanceDto } from '../dto/correct-student-attendance.dto';
 import { ListStudentAttendanceQuery } from '../dto/list-student-attendance.query';
 import { BulkSyncStudentAttendanceDto } from '../dto/sync-student-attendance.dto';
 import {
@@ -60,6 +60,7 @@ export class StudentAttendanceController {
         studentId: r.student_id,
         date: r.date,
         status: r.status,
+        ethicsRating: r.ethics_rating,
         excuseNote: r.excuse_note,
         clientUuid: r.client_uuid,
         clientRecordedAt: r.client_recorded_at,
@@ -129,24 +130,30 @@ export class StudentAttendanceController {
   @ApiOperation({
     summary: 'Correct a single attendance row',
     description:
-      'Changes the status of one attendance row, recording who changed it, why ' +
-      '(`modification_reason`), and the value it had before the first correction ' +
-      '(`original_status`). Out-of-scope or cross-school rows return 404.',
+      'Changes the status and/or the ethics rating (تقييم الأخلاق) of one attendance ' +
+      'row, recording who changed it, why (`modification_reason`), and the status it ' +
+      'had before the first correction (`original_status`). Both `status` and ' +
+      '`ethics_rating` are optional — send either or both, but at least one must ' +
+      'differ from the current row. Out-of-scope or cross-school rows return 404.',
   })
   @ApiParam({ name: 'id', description: 'Attendance row ID' })
-  @ApiBody({ type: CorrectAttendanceDto })
+  @ApiBody({ type: CorrectStudentAttendanceDto })
   @ApiResponse({ status: 200, type: AttendanceDto })
-  @ApiResponse({ status: 400, description: 'Status unchanged.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Neither status nor ethics_rating would change.',
+  })
   @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async correct(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CorrectAttendanceDto,
+    @Body() dto: CorrectStudentAttendanceDto,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<AttendanceDto> {
     const row = await this.service.correct(
       id,
       {
         status: dto.status,
+        ethicsRating: dto.ethics_rating,
         excuseNote: dto.excuse_note,
         modificationReason: dto.modification_reason,
       },

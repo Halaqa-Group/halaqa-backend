@@ -11,27 +11,64 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
   Max,
   MaxLength,
   Min,
-  MinLength,
   ValidateIf,
 } from 'class-validator';
+import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
 import { CAPACITY_LIMITS } from '../capacity.config';
-import type { StudentGender, StudentStatus } from '../entities/student.entity';
+import type {
+  MemorizationDirection,
+  StudentGender,
+  StudentStatus,
+} from '../entities/student.entity';
 
 export class UpdateStudentDto {
   @ApiProperty({
     required: false,
-    example: 'يوسف محمد',
-    minLength: 2,
-    maxLength: 100,
+    example: 'يوسف',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'الاسم الأول',
   })
   @IsOptional()
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
-  name?: string;
+  @Length(1, NAME_PART_MAX_LENGTH)
+  first_name?: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'محمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الأب',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  second_name?: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'أحمد',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم الجد',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  third_name?: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'الحسني',
+    maxLength: NAME_PART_MAX_LENGTH,
+    description: 'اسم العائلة',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, NAME_PART_MAX_LENGTH)
+  family_name?: string;
 
   @ApiProperty({ required: false, enum: ['male', 'female'], example: 'male' })
   @IsOptional()
@@ -99,6 +136,17 @@ export class UpdateStudentDto {
   @Min(CAPACITY_LIMITS.far.min)
   @Max(CAPACITY_LIMITS.far.max)
   daily_far_pages_capacity?: number;
+
+  @ApiProperty({
+    required: false,
+    enum: ['ascending', 'descending'],
+    example: 'descending',
+    description:
+      'اتجاه الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto).',
+  })
+  @IsOptional()
+  @IsEnum(['ascending', 'descending'])
+  memorization_direction?: MemorizationDirection;
 
   @ApiProperty({ required: false, example: 'Needs extra support on Juz 30.' })
   @IsOptional()

@@ -18,6 +18,11 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     )
     .addCookieAuth('refresh_token', { type: 'apiKey', in: 'cookie' })
     .addTag('Auth', 'Login, refresh, logout, password reset')
+    .addTag(
+      'School',
+      "Read and update the caller's own school profile (name, address, phone, status). " +
+        'Reading is principal/vice-principal; updating is principal only.',
+    )
     .addTag('Sessions', 'List and revoke active devices')
     .addTag(
       'Students',

@@ -2,6 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import {
   ATTENDANCE_STATUSES,
+  ETHICS_RATING_DEFAULT,
+  ETHICS_RATING_MAX,
+  ETHICS_RATING_MIN,
   StudentAttendance,
 } from '../entities/student-attendance.entity';
 import type { AttendanceStatus } from '../entities/student-attendance.entity';
@@ -35,6 +38,14 @@ export class AttendanceDto {
   @ApiProperty({ enum: ATTENDANCE_STATUSES, example: 'present' })
   status!: AttendanceStatus;
 
+  @ApiProperty({
+    minimum: ETHICS_RATING_MIN,
+    maximum: ETHICS_RATING_MAX,
+    example: ETHICS_RATING_DEFAULT,
+    description: 'تقييم الأخلاق — behaviour score 1..5. Seeded rows carry 5.',
+  })
+  ethics_rating!: number;
+
   @ApiProperty({ nullable: true, example: 'مريض' })
   excuse_note!: string | null;
 
@@ -66,6 +77,7 @@ export class AttendanceDto {
     dto.student_id = a.studentId;
     dto.date = a.attendanceDate;
     dto.status = a.status;
+    dto.ethics_rating = a.ethicsRating;
     dto.excuse_note = a.excuseNote;
     dto.created_at = a.createdAt;
 
