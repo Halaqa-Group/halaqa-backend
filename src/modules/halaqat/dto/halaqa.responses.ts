@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EvaluationSettingsDto } from './evaluation-settings.dto';
 import type { EvaluationSettings } from './evaluation-settings.dto';
+import { ReportWeightsDto } from './report-weights.dto';
+import type { ReportWeights } from './report-weights.dto';
 import type { HalaqaActivityAction } from '../entities/halaqa-activity-log.entity';
 import type { HalaqaStatus, HalaqaType } from '../entities/halaqa.entity';
 import type { EndReason, TeacherRole } from '../entities/halaqa-teacher.entity';
@@ -61,6 +63,11 @@ export class HalaqaCreatedResponse {
       'Always fully populated — unset weights are returned as their defaults.',
   })
   evaluation_settings!: EvaluationSettings;
+  @ApiProperty({
+    type: ReportWeightsDto,
+    description: 'Daily-report track weights; the four always sum to 100.',
+  })
+  report_weights!: ReportWeights;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })
   status!: HalaqaStatus;
   @ApiProperty({ example: '2026-05-08T05:00:00.000Z' }) created_at!: Date;
@@ -108,6 +115,11 @@ export class HalaqaDetailResponse {
       'Always fully populated — unset weights are returned as their defaults.',
   })
   evaluation_settings!: EvaluationSettings;
+  @ApiProperty({
+    type: ReportWeightsDto,
+    description: 'Daily-report track weights; the four always sum to 100.',
+  })
+  report_weights!: ReportWeights;
   @ApiProperty({ enum: ['active', 'archived', 'completed'], example: 'active' })
   status!: HalaqaStatus;
   @ApiProperty({ type: [TeacherAssignmentResponse] })

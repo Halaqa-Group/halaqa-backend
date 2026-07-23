@@ -19,6 +19,10 @@ import type {
   TeacherAssignmentResponse,
 } from '../dto/halaqa.responses';
 import { ListHalaqatQuery } from '../dto/list-halaqat.query';
+import {
+  REPORT_WEIGHTS_DEFAULTS,
+  type ReportWeights,
+} from '../dto/report-weights.dto';
 import { UpdateHalaqaDto } from '../dto/update-halaqa.dto';
 import { HalaqaTeacher } from '../entities/halaqa-teacher.entity';
 import { Halaqa } from '../entities/halaqa.entity';
@@ -45,6 +49,16 @@ export class HalaqatService {
     return actor.roles.some(
       (r) => r.slug === 'principal' || r.slug === 'vice_principal',
     );
+  }
+
+  /** Maps the four DECIMAL weight columns (returned as strings) to numbers. */
+  private toReportWeights(halaqa: Halaqa): ReportWeights {
+    return {
+      hifz_weight: Number(halaqa.hifzWeight),
+      near_weight: Number(halaqa.nearWeight),
+      far_weight: Number(halaqa.farWeight),
+      ethics_weight: Number(halaqa.ethicsWeight),
+    };
   }
 
   /** Verify that userId exists in the school and holds the given role slug. */
@@ -237,6 +251,7 @@ export class HalaqatService {
       name: halaqa.name,
       type: halaqa.type,
       evaluation_settings: resolveEvaluationSettings(halaqa.evaluationSettings),
+      report_weights: this.toReportWeights(halaqa),
       status: halaqa.status,
       teachers: detail.teachers,
       supervisors: detail.supervisors,
@@ -260,6 +275,8 @@ export class HalaqatService {
       );
     }
 
+    const weights = dto.report_weights ?? REPORT_WEIGHTS_DEFAULTS;
+
     return this.dataSource.transaction(async (em) => {
       const halaqa = await em.getRepository(Halaqa).save(
         em.getRepository(Halaqa).create({
@@ -267,6 +284,10 @@ export class HalaqatService {
           name: dto.name,
           type: dto.type,
           evaluationSettings: dto.evaluation_settings ?? null,
+          hifzWeight: weights.hifz_weight,
+          nearWeight: weights.near_weight,
+          farWeight: weights.far_weight,
+          ethicsWeight: weights.ethics_weight,
           status: 'active',
         }),
       );
@@ -302,6 +323,7 @@ export class HalaqatService {
         evaluation_settings: resolveEvaluationSettings(
           halaqa.evaluationSettings,
         ),
+        report_weights: this.toReportWeights(halaqa),
         status: halaqa.status,
         created_at: halaqa.createdAt,
       };
@@ -436,11 +458,25 @@ export class HalaqatService {
       }
     }
 
+    // Track weights are principal/vice_principal only (daily-report spec §30),
+    // unlike evaluation_settings which any active teacher may edit.
+    if (dto.report_weights !== undefined && !this.isAdmin(actor)) {
+      throw new ForbiddenException(
+        'Only principal or vice_principal can change halaqa report weights.',
+      );
+    }
+
     const changes: Record<string, unknown> = {};
     if (dto.name !== undefined) changes['name'] = dto.name;
     if (dto.type !== undefined) changes['type'] = dto.type;
     if ('evaluation_settings' in dto)
       changes['evaluationSettings'] = dto.evaluation_settings ?? null;
+    if (dto.report_weights !== undefined) {
+      changes['hifzWeight'] = dto.report_weights.hifz_weight;
+      changes['nearWeight'] = dto.report_weights.near_weight;
+      changes['farWeight'] = dto.report_weights.far_weight;
+      changes['ethicsWeight'] = dto.report_weights.ethics_weight;
+    }
 
     if (Object.keys(changes).length > 0) {
       await this.halaqat.update(id, changes);

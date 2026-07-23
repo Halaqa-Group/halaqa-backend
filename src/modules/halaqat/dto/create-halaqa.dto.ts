@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import type { HalaqaType } from '../entities/halaqa.entity';
 import { EvaluationSettingsDto } from './evaluation-settings.dto';
+import { ReportWeightsDto } from './report-weights.dto';
 
 export class CreateHalaqaDto {
   @ApiProperty({ example: 'حلقة الفجر للحفظ', minLength: 1, maxLength: 100 })
@@ -41,6 +42,19 @@ export class CreateHalaqaDto {
   @ValidateNested()
   @Type(() => EvaluationSettingsDto)
   evaluation_settings?: EvaluationSettingsDto | null;
+
+  @ApiProperty({
+    required: false,
+    type: ReportWeightsDto,
+    description:
+      'Daily-report track weights (hifz/near/far/ethics). The four must sum to 100. ' +
+      'Omitted → defaults 40/25/30/5.',
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ReportWeightsDto)
+  report_weights?: ReportWeightsDto;
 
   @ApiProperty({
     required: false,

@@ -39,6 +39,45 @@ export class Halaqa {
   @Column({ name: 'evaluation_settings', type: 'json', nullable: true })
   evaluationSettings!: Partial<EvaluationSettings> | null;
 
+  // Daily-report track weights (§5). Always present; the four sum to 100.00.
+  // Ethics is independent and never redistributed. Stored as DECIMAL — the MySQL
+  // driver returns these as strings, so convert with Number() before arithmetic.
+  @Column({
+    name: 'hifz_weight',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 40,
+  })
+  hifzWeight!: number;
+
+  @Column({
+    name: 'near_weight',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 25,
+  })
+  nearWeight!: number;
+
+  @Column({
+    name: 'far_weight',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 30,
+  })
+  farWeight!: number;
+
+  @Column({
+    name: 'ethics_weight',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 5,
+  })
+  ethicsWeight!: number;
+
   @Column({
     type: 'enum',
     enum: ['active', 'archived', 'completed'],

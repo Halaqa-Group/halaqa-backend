@@ -11,6 +11,7 @@ import { HalaqaActivityLog } from './entities/halaqa-activity-log.entity';
 import { HalaqaTeacher } from './entities/halaqa-teacher.entity';
 import { Halaqa } from './entities/halaqa.entity';
 import { StudentHalaqa } from './entities/student-halaqa.entity';
+import { StudentHalaqaEnrollment } from './entities/student-halaqa-enrollment.entity';
 import { SupervisorHalaqa } from './entities/supervisor-halaqa.entity';
 import {
   HalaqaAccessGuard,
@@ -31,6 +32,7 @@ import { TeacherAssignmentService } from './services/teacher-assignment.service'
       Halaqa,
       HalaqaTeacher,
       StudentHalaqa,
+      StudentHalaqaEnrollment,
       SupervisorHalaqa,
       HalaqaActivityLog,
     ]),

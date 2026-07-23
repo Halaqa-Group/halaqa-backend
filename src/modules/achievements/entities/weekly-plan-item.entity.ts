@@ -52,6 +52,36 @@ export class WeeklyPlanItem {
   @Column({ name: 'total_verses', type: 'int', unsigned: true })
   totalVerses!: number;
 
+  // Global (mushaf-order) ayah indices of the planned range, and the fractional
+  // page count of that range. Helper columns for the daily evaluation report
+  // (§10.1). `planned_pages` is recomputed in the backend from the range using
+  // the same page-coverage algorithm as the frontend; the surah/verse fields
+  // remain the source of truth. Populated by the report's page module.
+  @Column({
+    name: 'start_global_ayah',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+  })
+  startGlobalAyah!: number | null;
+
+  @Column({
+    name: 'end_global_ayah',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+  })
+  endGlobalAyah!: number | null;
+
+  @Column({
+    name: 'planned_pages',
+    type: 'decimal',
+    precision: 8,
+    scale: 4,
+    default: 0,
+  })
+  plannedPages!: number;
+
   @Column({ name: 'achieved_verses', type: 'int', unsigned: true, default: 0 })
   achievedVerses!: number;
 
