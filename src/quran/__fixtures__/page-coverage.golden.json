@@ -1,0 +1,4761 @@
+{
+  "generatedFrom": "halaqa-frontend useVerseToPage.ts + quran.ts",
+  "totalVerses": 6236,
+  "pageCount": 604,
+  "coverage": [
+    {
+      "startSurah": 1,
+      "startVerse": 1,
+      "endSurah": 1,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 1,
+      "endSurah": 1,
+      "endVerse": 7,
+      "expected": 1
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 1,
+      "endSurah": 1,
+      "endVerse": 5,
+      "expected": 0.7142857142857143
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 7,
+      "endSurah": 1,
+      "endVerse": 7,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 286,
+      "expected": 48
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 3,
+      "endSurah": 2,
+      "endVerse": 8,
+      "expected": 0.8727272727272727
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 286,
+      "endSurah": 2,
+      "endVerse": 286,
+      "expected": 0.25
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 1,
+      "endSurah": 3,
+      "endVerse": 1,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 1,
+      "endSurah": 3,
+      "endVerse": 200,
+      "expected": 27
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 1,
+      "endSurah": 3,
+      "endVerse": 5,
+      "expected": 0.5555555555555556
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 3,
+      "endSurah": 3,
+      "endVerse": 8,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 200,
+      "endSurah": 3,
+      "endVerse": 200,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 1,
+      "endSurah": 4,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 1,
+      "endSurah": 4,
+      "endVerse": 176,
+      "expected": 29.333333333333332
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 1,
+      "endSurah": 4,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 3,
+      "endSurah": 4,
+      "endVerse": 8,
+      "expected": 1.0666666666666667
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 176,
+      "endSurah": 4,
+      "endVerse": 176,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 1,
+      "endSurah": 5,
+      "endVerse": 1,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 1,
+      "endSurah": 5,
+      "endVerse": 120,
+      "expected": 21.666666666666664
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 1,
+      "endSurah": 5,
+      "endVerse": 5,
+      "expected": 1.6666666666666665
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 3,
+      "endSurah": 5,
+      "endVerse": 8,
+      "expected": 1.75
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 120,
+      "endSurah": 5,
+      "endVerse": 120,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 1,
+      "endSurah": 6,
+      "endVerse": 1,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 1,
+      "endSurah": 6,
+      "endVerse": 165,
+      "expected": 23
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 1,
+      "endSurah": 6,
+      "endVerse": 5,
+      "expected": 0.625
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 3,
+      "endSurah": 6,
+      "endVerse": 8,
+      "expected": 0.75
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 165,
+      "endSurah": 6,
+      "endVerse": 165,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 1,
+      "endSurah": 7,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 1,
+      "endSurah": 7,
+      "endVerse": 206,
+      "expected": 26
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 1,
+      "endSurah": 7,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 3,
+      "endSurah": 7,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 206,
+      "endSurah": 7,
+      "endVerse": 206,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 1,
+      "endSurah": 8,
+      "endVerse": 1,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 1,
+      "endSurah": 8,
+      "endVerse": 75,
+      "expected": 10
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 1,
+      "endSurah": 8,
+      "endVerse": 5,
+      "expected": 0.625
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 3,
+      "endSurah": 8,
+      "endVerse": 8,
+      "expected": 0.75
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 75,
+      "endSurah": 8,
+      "endVerse": 75,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 1,
+      "endSurah": 9,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 1,
+      "endSurah": 9,
+      "endVerse": 129,
+      "expected": 21
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 1,
+      "endSurah": 9,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 3,
+      "endSurah": 9,
+      "endVerse": 8,
+      "expected": 0.9523809523809523
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 129,
+      "endSurah": 9,
+      "endVerse": 129,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 1,
+      "endSurah": 10,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 1,
+      "endSurah": 10,
+      "endVerse": 109,
+      "expected": 13.375
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 1,
+      "endSurah": 10,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 3,
+      "endSurah": 10,
+      "endVerse": 8,
+      "expected": 0.9166666666666666
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 109,
+      "endSurah": 10,
+      "endVerse": 109,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 1,
+      "endSurah": 11,
+      "endVerse": 1,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 1,
+      "endSurah": 11,
+      "endVerse": 123,
+      "expected": 14.225
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 1,
+      "endSurah": 11,
+      "endVerse": 5,
+      "expected": 0.625
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 3,
+      "endSurah": 11,
+      "endVerse": 8,
+      "expected": 0.8035714285714286
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 123,
+      "endSurah": 11,
+      "endVerse": 123,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 1,
+      "endSurah": 12,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 1,
+      "endSurah": 12,
+      "endVerse": 111,
+      "expected": 13.4
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 1,
+      "endSurah": 12,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 3,
+      "endSurah": 12,
+      "endVerse": 8,
+      "expected": 0.6000000000000001
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 111,
+      "endSurah": 12,
+      "endVerse": 111,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 1,
+      "endSurah": 13,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 1,
+      "endSurah": 13,
+      "endVerse": 43,
+      "expected": 6.166666666666667
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 1,
+      "endSurah": 13,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 3,
+      "endSurah": 13,
+      "endVerse": 8,
+      "expected": 0.975
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 43,
+      "endSurah": 13,
+      "endVerse": 43,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 1,
+      "endSurah": 14,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 1,
+      "endSurah": 14,
+      "endVerse": 52,
+      "expected": 6.833333333333334
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 1,
+      "endSurah": 14,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 3,
+      "endSurah": 14,
+      "endVerse": 8,
+      "expected": 1.1
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 52,
+      "endSurah": 14,
+      "endVerse": 52,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 1,
+      "endSurah": 15,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 1,
+      "endSurah": 15,
+      "endVerse": 99,
+      "expected": 5.6
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 1,
+      "endSurah": 15,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 3,
+      "endSurah": 15,
+      "endVerse": 8,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 99,
+      "endSurah": 15,
+      "endVerse": 99,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 1,
+      "endSurah": 16,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 1,
+      "endSurah": 16,
+      "endVerse": 128,
+      "expected": 14.4
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 1,
+      "endSurah": 16,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 3,
+      "endSurah": 16,
+      "endVerse": 8,
+      "expected": 0.5166666666666666
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 128,
+      "endSurah": 16,
+      "endVerse": 128,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 1,
+      "endSurah": 17,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 1,
+      "endSurah": 17,
+      "endVerse": 111,
+      "expected": 11.636363636363637
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 1,
+      "endSurah": 17,
+      "endVerse": 5,
+      "expected": 0.7142857142857143
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 3,
+      "endSurah": 17,
+      "endVerse": 8,
+      "expected": 0.8142857142857143
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 111,
+      "endSurah": 17,
+      "endVerse": 111,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 1,
+      "endSurah": 18,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 1,
+      "endSurah": 18,
+      "endVerse": 110,
+      "expected": 11.363636363636363
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 1,
+      "endSurah": 18,
+      "endVerse": 5,
+      "expected": 0.4545454545454546
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 3,
+      "endSurah": 18,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 110,
+      "endSurah": 18,
+      "endVerse": 110,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 1,
+      "endSurah": 19,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 1,
+      "endSurah": 19,
+      "endVerse": 98,
+      "expected": 7.2
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 1,
+      "endSurah": 19,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 3,
+      "endSurah": 19,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 98,
+      "endSurah": 19,
+      "endVerse": 98,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 1,
+      "endSurah": 20,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 1,
+      "endSurah": 20,
+      "endVerse": 135,
+      "expected": 9.8
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 1,
+      "endSurah": 20,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 3,
+      "endSurah": 20,
+      "endVerse": 8,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 135,
+      "endSurah": 20,
+      "endVerse": 135,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 1,
+      "endSurah": 21,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 1,
+      "endSurah": 21,
+      "endVerse": 112,
+      "expected": 10
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 1,
+      "endSurah": 21,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 3,
+      "endSurah": 21,
+      "endVerse": 8,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 112,
+      "endSurah": 21,
+      "endVerse": 112,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 1,
+      "endSurah": 22,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 1,
+      "endSurah": 22,
+      "endVerse": 78,
+      "expected": 10
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 1,
+      "endSurah": 22,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 3,
+      "endSurah": 22,
+      "endVerse": 8,
+      "expected": 0.8999999999999999
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 78,
+      "endSurah": 22,
+      "endVerse": 78,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 1,
+      "endSurah": 23,
+      "endVerse": 1,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 1,
+      "endSurah": 23,
+      "endVerse": 118,
+      "expected": 8
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 1,
+      "endSurah": 23,
+      "endVerse": 5,
+      "expected": 0.29411764705882354
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 3,
+      "endSurah": 23,
+      "endVerse": 8,
+      "expected": 0.35294117647058826
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 118,
+      "endSurah": 23,
+      "endVerse": 118,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 1,
+      "endSurah": 24,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 1,
+      "endSurah": 24,
+      "endVerse": 64,
+      "expected": 9.6
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 1,
+      "endSurah": 24,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 3,
+      "endSurah": 24,
+      "endVerse": 8,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 64,
+      "endSurah": 24,
+      "endVerse": 64,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 1,
+      "endSurah": 25,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 1,
+      "endSurah": 25,
+      "endVerse": 77,
+      "expected": 7.4
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 1,
+      "endSurah": 25,
+      "endVerse": 5,
+      "expected": 0.7333333333333334
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 3,
+      "endSurah": 25,
+      "endVerse": 8,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 77,
+      "endSurah": 25,
+      "endVerse": 77,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 1,
+      "endSurah": 26,
+      "endVerse": 1,
+      "expected": 0.05263157894736842
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 1,
+      "endSurah": 26,
+      "endVerse": 227,
+      "expected": 10
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 1,
+      "endSurah": 26,
+      "endVerse": 5,
+      "expected": 0.2631578947368421
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 3,
+      "endSurah": 26,
+      "endVerse": 8,
+      "expected": 0.3157894736842105
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 227,
+      "endSurah": 26,
+      "endVerse": 227,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 1,
+      "endSurah": 27,
+      "endVerse": 1,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 1,
+      "endSurah": 27,
+      "endVerse": 93,
+      "expected": 8.5
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 1,
+      "endSurah": 27,
+      "endVerse": 5,
+      "expected": 0.38461538461538464
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 3,
+      "endSurah": 27,
+      "endVerse": 8,
+      "expected": 0.46153846153846156
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 93,
+      "endSurah": 27,
+      "endVerse": 93,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 1,
+      "endSurah": 28,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 1,
+      "endSurah": 28,
+      "endVerse": 88,
+      "expected": 10.9
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 1,
+      "endSurah": 28,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 3,
+      "endSurah": 28,
+      "endVerse": 8,
+      "expected": 0.675
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 88,
+      "endSurah": 28,
+      "endVerse": 88,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 1,
+      "endSurah": 29,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 1,
+      "endSurah": 29,
+      "endVerse": 69,
+      "expected": 8.145454545454545
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 1,
+      "endSurah": 29,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 3,
+      "endSurah": 29,
+      "endVerse": 8,
+      "expected": 0.65
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 69,
+      "endSurah": 29,
+      "endVerse": 69,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 1,
+      "endSurah": 30,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 1,
+      "endSurah": 30,
+      "endVerse": 60,
+      "expected": 6.454545454545455
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 1,
+      "endSurah": 30,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 3,
+      "endSurah": 30,
+      "endVerse": 8,
+      "expected": 0.5727272727272728
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 60,
+      "endSurah": 30,
+      "endVerse": 60,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 1,
+      "endSurah": 31,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 1,
+      "endSurah": 31,
+      "endVerse": 34,
+      "expected": 4
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 1,
+      "endSurah": 31,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 3,
+      "endSurah": 31,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 34,
+      "endSurah": 31,
+      "endVerse": 34,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 1,
+      "endSurah": 32,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 1,
+      "endSurah": 32,
+      "endVerse": 30,
+      "expected": 3
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 1,
+      "endSurah": 32,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 3,
+      "endSurah": 32,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 30,
+      "endSurah": 32,
+      "endVerse": 30,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 1,
+      "endSurah": 33,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 1,
+      "endSurah": 33,
+      "endVerse": 73,
+      "expected": 10
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 1,
+      "endSurah": 33,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 3,
+      "endSurah": 33,
+      "endVerse": 8,
+      "expected": 0.8888888888888888
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 73,
+      "endSurah": 33,
+      "endVerse": 73,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 1,
+      "endSurah": 34,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 1,
+      "endSurah": 34,
+      "endVerse": 54,
+      "expected": 6.666666666666667
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 1,
+      "endSurah": 34,
+      "endVerse": 5,
+      "expected": 0.7142857142857143
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 3,
+      "endSurah": 34,
+      "endVerse": 8,
+      "expected": 0.8571428571428572
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 54,
+      "endSurah": 34,
+      "endVerse": 54,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 1,
+      "endSurah": 35,
+      "endVerse": 1,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 1,
+      "endSurah": 35,
+      "endVerse": 45,
+      "expected": 5.41025641025641
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 1,
+      "endSurah": 35,
+      "endVerse": 5,
+      "expected": 0.5833333333333333
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 3,
+      "endSurah": 35,
+      "endVerse": 8,
+      "expected": 0.7361111111111112
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 45,
+      "endSurah": 35,
+      "endVerse": 45,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 1,
+      "endSurah": 36,
+      "endVerse": 1,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 1,
+      "endSurah": 36,
+      "endVerse": 83,
+      "expected": 5.923076923076923
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 1,
+      "endSurah": 36,
+      "endVerse": 5,
+      "expected": 0.38461538461538464
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 3,
+      "endSurah": 36,
+      "endVerse": 8,
+      "expected": 0.46153846153846156
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 83,
+      "endSurah": 36,
+      "endVerse": 83,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 1,
+      "endSurah": 37,
+      "endVerse": 1,
+      "expected": 0.041666666666666664
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 1,
+      "endSurah": 37,
+      "endVerse": 182,
+      "expected": 7
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 1,
+      "endSurah": 37,
+      "endVerse": 5,
+      "expected": 0.20833333333333334
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 3,
+      "endSurah": 37,
+      "endVerse": 8,
+      "expected": 0.25
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 182,
+      "endSurah": 37,
+      "endVerse": 182,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 1,
+      "endSurah": 38,
+      "endVerse": 1,
+      "expected": 0.0625
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 1,
+      "endSurah": 38,
+      "endVerse": 88,
+      "expected": 5.5
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 1,
+      "endSurah": 38,
+      "endVerse": 5,
+      "expected": 0.3125
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 3,
+      "endSurah": 38,
+      "endVerse": 8,
+      "expected": 0.375
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 88,
+      "endSurah": 38,
+      "endVerse": 88,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 1,
+      "endSurah": 39,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 1,
+      "endSurah": 39,
+      "endVerse": 75,
+      "expected": 8.625
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 1,
+      "endSurah": 39,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 3,
+      "endSurah": 39,
+      "endVerse": 8,
+      "expected": 0.8999999999999999
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 75,
+      "endSurah": 39,
+      "endVerse": 75,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 1,
+      "endSurah": 40,
+      "endVerse": 1,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 1,
+      "endSurah": 40,
+      "endVerse": 85,
+      "expected": 9.875
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 1,
+      "endSurah": 40,
+      "endVerse": 5,
+      "expected": 0.625
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 3,
+      "endSurah": 40,
+      "endVerse": 8,
+      "expected": 0.7361111111111112
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 85,
+      "endSurah": 40,
+      "endVerse": 85,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 1,
+      "endSurah": 41,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 1,
+      "endSurah": 41,
+      "endVerse": 54,
+      "expected": 6
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 1,
+      "endSurah": 41,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 3,
+      "endSurah": 41,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 54,
+      "endSurah": 41,
+      "endVerse": 54,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 1,
+      "endSurah": 42,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 1,
+      "endSurah": 42,
+      "endVerse": 53,
+      "expected": 6.166666666666667
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 1,
+      "endSurah": 42,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 3,
+      "endSurah": 42,
+      "endVerse": 8,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 53,
+      "endSurah": 42,
+      "endVerse": 53,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 1,
+      "endSurah": 43,
+      "endVerse": 1,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 1,
+      "endSurah": 43,
+      "endVerse": 89,
+      "expected": 6.833333333333334
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 1,
+      "endSurah": 43,
+      "endVerse": 5,
+      "expected": 0.4166666666666667
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 3,
+      "endSurah": 43,
+      "endVerse": 8,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 89,
+      "endSurah": 43,
+      "endVerse": 89,
+      "expected": 0.0625
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 1,
+      "endSurah": 44,
+      "endVerse": 1,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 1,
+      "endSurah": 44,
+      "endVerse": 59,
+      "expected": 3
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 1,
+      "endSurah": 44,
+      "endVerse": 5,
+      "expected": 0.2777777777777778
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 3,
+      "endSurah": 44,
+      "endVerse": 8,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 59,
+      "endSurah": 44,
+      "endVerse": 59,
+      "expected": 0.05
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 1,
+      "endSurah": 45,
+      "endVerse": 1,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 1,
+      "endSurah": 45,
+      "endVerse": 37,
+      "expected": 3.5
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 1,
+      "endSurah": 45,
+      "endVerse": 5,
+      "expected": 0.38461538461538464
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 3,
+      "endSurah": 45,
+      "endVerse": 8,
+      "expected": 0.46153846153846156
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 37,
+      "endSurah": 45,
+      "endVerse": 37,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 1,
+      "endSurah": 46,
+      "endVerse": 1,
+      "expected": 0.1
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 1,
+      "endSurah": 46,
+      "endVerse": 35,
+      "expected": 4.5
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 1,
+      "endSurah": 46,
+      "endVerse": 5,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 3,
+      "endSurah": 46,
+      "endVerse": 8,
+      "expected": 0.6333333333333333
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 35,
+      "endSurah": 46,
+      "endVerse": 35,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 1,
+      "endSurah": 47,
+      "endVerse": 1,
+      "expected": 0.09090909090909091
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 1,
+      "endSurah": 47,
+      "endVerse": 38,
+      "expected": 4
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 1,
+      "endSurah": 47,
+      "endVerse": 5,
+      "expected": 0.45454545454545453
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 3,
+      "endSurah": 47,
+      "endVerse": 8,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 38,
+      "endSurah": 47,
+      "endVerse": 38,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 1,
+      "endSurah": 48,
+      "endVerse": 1,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 1,
+      "endSurah": 48,
+      "endVerse": 29,
+      "expected": 4.2
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 1,
+      "endSurah": 48,
+      "endVerse": 5,
+      "expected": 0.5555555555555556
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 3,
+      "endSurah": 48,
+      "endVerse": 8,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 29,
+      "endSurah": 48,
+      "endVerse": 29,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 1,
+      "endSurah": 49,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 1,
+      "endSurah": 49,
+      "endVerse": 18,
+      "expected": 2.8
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 1,
+      "endSurah": 49,
+      "endVerse": 5,
+      "expected": 0.9428571428571428
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 3,
+      "endSurah": 49,
+      "endVerse": 8,
+      "expected": 0.9714285714285714
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 18,
+      "endSurah": 49,
+      "endVerse": 18,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 1,
+      "endSurah": 50,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 1,
+      "endSurah": 50,
+      "endVerse": 45,
+      "expected": 2.625
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 1,
+      "endSurah": 50,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 3,
+      "endSurah": 50,
+      "endVerse": 8,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 45,
+      "endSurah": 50,
+      "endVerse": 45,
+      "expected": 0.0625
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 1,
+      "endSurah": 51,
+      "endVerse": 1,
+      "expected": 0.0625
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 1,
+      "endSurah": 51,
+      "endVerse": 60,
+      "expected": 2.766304347826087
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 1,
+      "endSurah": 51,
+      "endVerse": 5,
+      "expected": 0.3125
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 3,
+      "endSurah": 51,
+      "endVerse": 8,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 60,
+      "endSurah": 51,
+      "endVerse": 60,
+      "expected": 0.043478260869565216
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 1,
+      "endSurah": 52,
+      "endVerse": 1,
+      "expected": 0.043478260869565216
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 1,
+      "endSurah": 52,
+      "endVerse": 49,
+      "expected": 2.608695652173913
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 1,
+      "endSurah": 52,
+      "endVerse": 5,
+      "expected": 0.21739130434782608
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 3,
+      "endSurah": 52,
+      "endVerse": 8,
+      "expected": 0.2608695652173913
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 49,
+      "endSurah": 52,
+      "endVerse": 49,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 1,
+      "endSurah": 53,
+      "endVerse": 1,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 1,
+      "endSurah": 53,
+      "endVerse": 62,
+      "expected": 2.75
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 1,
+      "endSurah": 53,
+      "endVerse": 5,
+      "expected": 0.19230769230769232
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 3,
+      "endSurah": 53,
+      "endVerse": 8,
+      "expected": 0.23076923076923078
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 62,
+      "endSurah": 53,
+      "endVerse": 62,
+      "expected": 0.041666666666666664
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 1,
+      "endSurah": 54,
+      "endVerse": 1,
+      "expected": 0.041666666666666664
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 1,
+      "endSurah": 54,
+      "endVerse": 55,
+      "expected": 2.5227272727272725
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 1,
+      "endSurah": 54,
+      "endVerse": 5,
+      "expected": 0.20833333333333334
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 3,
+      "endSurah": 54,
+      "endVerse": 8,
+      "expected": 0.26190476190476186
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 55,
+      "endSurah": 54,
+      "endVerse": 55,
+      "expected": 0.045454545454545456
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 1,
+      "endSurah": 55,
+      "endVerse": 1,
+      "expected": 0.045454545454545456
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 1,
+      "endSurah": 55,
+      "endVerse": 78,
+      "expected": 3.134680134680135
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 1,
+      "endSurah": 55,
+      "endVerse": 5,
+      "expected": 0.22727272727272727
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 3,
+      "endSurah": 55,
+      "endVerse": 8,
+      "expected": 0.2727272727272727
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 78,
+      "endSurah": 55,
+      "endVerse": 78,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 1,
+      "endSurah": 56,
+      "endVerse": 1,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 1,
+      "endSurah": 56,
+      "endVerse": 96,
+      "expected": 3.4621578099838968
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 1,
+      "endSurah": 56,
+      "endVerse": 5,
+      "expected": 0.18518518518518517
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 3,
+      "endSurah": 56,
+      "endVerse": 8,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 96,
+      "endSurah": 56,
+      "endVerse": 96,
+      "expected": 0.043478260869565216
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 1,
+      "endSurah": 57,
+      "endVerse": 1,
+      "expected": 0.043478260869565216
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 1,
+      "endSurah": 57,
+      "endVerse": 29,
+      "expected": 4.130434782608695
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 1,
+      "endSurah": 57,
+      "endVerse": 5,
+      "expected": 0.3804347826086957
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 3,
+      "endSurah": 57,
+      "endVerse": 8,
+      "expected": 0.6684782608695652
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 29,
+      "endSurah": 57,
+      "endVerse": 29,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 1,
+      "endSurah": 58,
+      "endVerse": 1,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 1,
+      "endSurah": 58,
+      "endVerse": 22,
+      "expected": 3.25
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 1,
+      "endSurah": 58,
+      "endVerse": 5,
+      "expected": 0.8333333333333334
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 3,
+      "endSurah": 58,
+      "endVerse": 8,
+      "expected": 1.0666666666666667
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 22,
+      "endSurah": 58,
+      "endVerse": 22,
+      "expected": 0.25
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 1,
+      "endSurah": 59,
+      "endVerse": 1,
+      "expected": 0.25
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 1,
+      "endSurah": 59,
+      "endVerse": 24,
+      "expected": 3.75
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 1,
+      "endSurah": 59,
+      "endVerse": 5,
+      "expected": 1.0833333333333333
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 3,
+      "endSurah": 59,
+      "endVerse": 8,
+      "expected": 1.0833333333333335
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 24,
+      "endSurah": 59,
+      "endVerse": 24,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 1,
+      "endSurah": 60,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 1,
+      "endSurah": 60,
+      "endVerse": 13,
+      "expected": 2.2857142857142856
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 1,
+      "endSurah": 60,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 3,
+      "endSurah": 60,
+      "endVerse": 8,
+      "expected": 1.1
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 13,
+      "endSurah": 60,
+      "endVerse": 13,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 1,
+      "endSurah": 61,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 1,
+      "endSurah": 61,
+      "endVerse": 14,
+      "expected": 1.7142857142857144
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 1,
+      "endSurah": 61,
+      "endVerse": 5,
+      "expected": 0.7142857142857143
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 3,
+      "endSurah": 61,
+      "endVerse": 8,
+      "expected": 0.7619047619047619
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 14,
+      "endSurah": 61,
+      "endVerse": 14,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 1,
+      "endSurah": 62,
+      "endVerse": 1,
+      "expected": 0.125
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 1,
+      "endSurah": 62,
+      "endVerse": 11,
+      "expected": 1.4285714285714286
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 1,
+      "endSurah": 62,
+      "endVerse": 5,
+      "expected": 0.625
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 3,
+      "endSurah": 62,
+      "endVerse": 8,
+      "expected": 0.75
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 11,
+      "endSurah": 62,
+      "endVerse": 11,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 1,
+      "endSurah": 63,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 1,
+      "endSurah": 63,
+      "endVerse": 11,
+      "expected": 1.5714285714285714
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 1,
+      "endSurah": 63,
+      "endVerse": 5,
+      "expected": 0.7142857142857142
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 3,
+      "endSurah": 63,
+      "endVerse": 8,
+      "expected": 0.8571428571428571
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 11,
+      "endSurah": 63,
+      "endVerse": 11,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 1,
+      "endSurah": 64,
+      "endVerse": 1,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 1,
+      "endSurah": 64,
+      "endVerse": 18,
+      "expected": 2
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 1,
+      "endSurah": 64,
+      "endVerse": 5,
+      "expected": 0.5555555555555556
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 3,
+      "endSurah": 64,
+      "endVerse": 8,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 18,
+      "endSurah": 64,
+      "endVerse": 18,
+      "expected": 0.1111111111111111
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 1,
+      "endSurah": 65,
+      "endVerse": 1,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 1,
+      "endSurah": 65,
+      "endVerse": 12,
+      "expected": 2
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 1,
+      "endSurah": 65,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 3,
+      "endSurah": 65,
+      "endVerse": 8,
+      "expected": 1.0285714285714285
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 12,
+      "endSurah": 65,
+      "endVerse": 12,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 1,
+      "endSurah": 66,
+      "endVerse": 1,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 1,
+      "endSurah": 66,
+      "endVerse": 12,
+      "expected": 2
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 1,
+      "endSurah": 66,
+      "endVerse": 5,
+      "expected": 0.7142857142857143
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 3,
+      "endSurah": 66,
+      "endVerse": 8,
+      "expected": 0.9142857142857144
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 12,
+      "endSurah": 66,
+      "endVerse": 12,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 1,
+      "endSurah": 67,
+      "endVerse": 1,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 1,
+      "endSurah": 67,
+      "endVerse": 30,
+      "expected": 2.2105263157894735
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 1,
+      "endSurah": 67,
+      "endVerse": 5,
+      "expected": 0.4166666666666667
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 3,
+      "endSurah": 67,
+      "endVerse": 8,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 30,
+      "endSurah": 67,
+      "endVerse": 30,
+      "expected": 0.05263157894736842
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 1,
+      "endSurah": 68,
+      "endVerse": 1,
+      "expected": 0.05263157894736842
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 1,
+      "endSurah": 68,
+      "endVerse": 52,
+      "expected": 2.345029239766082
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 1,
+      "endSurah": 68,
+      "endVerse": 5,
+      "expected": 0.2631578947368421
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 3,
+      "endSurah": 68,
+      "endVerse": 8,
+      "expected": 0.3157894736842105
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 52,
+      "endSurah": 68,
+      "endVerse": 52,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 1,
+      "endSurah": 69,
+      "endVerse": 1,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 1,
+      "endSurah": 69,
+      "endVerse": 52,
+      "expected": 2.0873015873015874
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 1,
+      "endSurah": 69,
+      "endVerse": 5,
+      "expected": 0.2777777777777778
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 3,
+      "endSurah": 69,
+      "endVerse": 8,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 52,
+      "endSurah": 69,
+      "endVerse": 52,
+      "expected": 0.03571428571428571
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 1,
+      "endSurah": 70,
+      "endVerse": 1,
+      "expected": 0.03571428571428571
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 1,
+      "endSurah": 70,
+      "endVerse": 44,
+      "expected": 1.6904761904761905
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 1,
+      "endSurah": 70,
+      "endVerse": 5,
+      "expected": 0.17857142857142858
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 3,
+      "endSurah": 70,
+      "endVerse": 8,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 44,
+      "endSurah": 70,
+      "endVerse": 44,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 1,
+      "endSurah": 71,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 1,
+      "endSurah": 71,
+      "endVerse": 28,
+      "expected": 1.6666666666666665
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 1,
+      "endSurah": 71,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 3,
+      "endSurah": 71,
+      "endVerse": 8,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 28,
+      "endSurah": 71,
+      "endVerse": 28,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 1,
+      "endSurah": 72,
+      "endVerse": 1,
+      "expected": 0.07692307692307693
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 1,
+      "endSurah": 72,
+      "endVerse": 28,
+      "expected": 2
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 1,
+      "endSurah": 72,
+      "endVerse": 5,
+      "expected": 0.38461538461538464
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 3,
+      "endSurah": 72,
+      "endVerse": 8,
+      "expected": 0.46153846153846156
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 28,
+      "endSurah": 72,
+      "endVerse": 28,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 1,
+      "endSurah": 73,
+      "endVerse": 1,
+      "expected": 0.05263157894736842
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 1,
+      "endSurah": 73,
+      "endVerse": 20,
+      "expected": 1.0555555555555556
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 1,
+      "endSurah": 73,
+      "endVerse": 5,
+      "expected": 0.2631578947368421
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 3,
+      "endSurah": 73,
+      "endVerse": 8,
+      "expected": 0.3157894736842105
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 20,
+      "endSurah": 73,
+      "endVerse": 20,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 1,
+      "endSurah": 74,
+      "endVerse": 1,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 1,
+      "endSurah": 74,
+      "endVerse": 56,
+      "expected": 2.265873015873016
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 1,
+      "endSurah": 74,
+      "endVerse": 5,
+      "expected": 0.2777777777777778
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 3,
+      "endSurah": 74,
+      "endVerse": 8,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 56,
+      "endSurah": 74,
+      "endVerse": 56,
+      "expected": 0.03571428571428571
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 1,
+      "endSurah": 75,
+      "endVerse": 1,
+      "expected": 0.03571428571428571
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 1,
+      "endSurah": 75,
+      "endVerse": 40,
+      "expected": 1.4862637362637363
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 1,
+      "endSurah": 75,
+      "endVerse": 5,
+      "expected": 0.17857142857142858
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 3,
+      "endSurah": 75,
+      "endVerse": 8,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 40,
+      "endSurah": 75,
+      "endVerse": 40,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 1,
+      "endSurah": 76,
+      "endVerse": 1,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 1,
+      "endSurah": 76,
+      "endVerse": 31,
+      "expected": 1.4323076923076923
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 1,
+      "endSurah": 76,
+      "endVerse": 5,
+      "expected": 0.19230769230769232
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 3,
+      "endSurah": 76,
+      "endVerse": 8,
+      "expected": 0.2653846153846154
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 31,
+      "endSurah": 76,
+      "endVerse": 31,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 1,
+      "endSurah": 77,
+      "endVerse": 1,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 1,
+      "endSurah": 77,
+      "endVerse": 50,
+      "expected": 1.76
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 1,
+      "endSurah": 77,
+      "endVerse": 5,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 3,
+      "endSurah": 77,
+      "endVerse": 8,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 50,
+      "endSurah": 77,
+      "endVerse": 50,
+      "expected": 0.03225806451612903
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 1,
+      "endSurah": 78,
+      "endVerse": 1,
+      "expected": 0.03333333333333333
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 1,
+      "endSurah": 78,
+      "endVerse": 40,
+      "expected": 1.4
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 1,
+      "endSurah": 78,
+      "endVerse": 5,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 3,
+      "endSurah": 78,
+      "endVerse": 8,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 40,
+      "endSurah": 78,
+      "endVerse": 40,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 1,
+      "endSurah": 79,
+      "endVerse": 1,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 1,
+      "endSurah": 79,
+      "endVerse": 46,
+      "expected": 1.6
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 1,
+      "endSurah": 79,
+      "endVerse": 5,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 3,
+      "endSurah": 79,
+      "endVerse": 8,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 46,
+      "endSurah": 79,
+      "endVerse": 46,
+      "expected": 0.03225806451612903
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 1,
+      "endSurah": 80,
+      "endVerse": 1,
+      "expected": 0.023809523809523808
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 1,
+      "endSurah": 80,
+      "endVerse": 42,
+      "expected": 1
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 1,
+      "endSurah": 80,
+      "endVerse": 5,
+      "expected": 0.11904761904761904
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 3,
+      "endSurah": 80,
+      "endVerse": 8,
+      "expected": 0.14285714285714285
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 42,
+      "endSurah": 80,
+      "endVerse": 42,
+      "expected": 0.023809523809523808
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 1,
+      "endSurah": 81,
+      "endVerse": 1,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 1,
+      "endSurah": 81,
+      "endVerse": 29,
+      "expected": 1
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 1,
+      "endSurah": 81,
+      "endVerse": 5,
+      "expected": 0.1724137931034483
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 3,
+      "endSurah": 81,
+      "endVerse": 8,
+      "expected": 0.20689655172413793
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 29,
+      "endSurah": 81,
+      "endVerse": 29,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 1,
+      "endSurah": 82,
+      "endVerse": 1,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 1,
+      "endSurah": 82,
+      "endVerse": 19,
+      "expected": 0.76
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 1,
+      "endSurah": 82,
+      "endVerse": 5,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 3,
+      "endSurah": 82,
+      "endVerse": 8,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 19,
+      "endSurah": 82,
+      "endVerse": 19,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 1,
+      "endSurah": 83,
+      "endVerse": 1,
+      "expected": 0.04
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 1,
+      "endSurah": 83,
+      "endVerse": 36,
+      "expected": 1.3140740740740742
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 1,
+      "endSurah": 83,
+      "endVerse": 5,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 3,
+      "endSurah": 83,
+      "endVerse": 8,
+      "expected": 0.23142857142857143
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 36,
+      "endSurah": 83,
+      "endVerse": 36,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 1,
+      "endSurah": 84,
+      "endVerse": 1,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 1,
+      "endSurah": 84,
+      "endVerse": 25,
+      "expected": 0.9259259259259259
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 1,
+      "endSurah": 84,
+      "endVerse": 5,
+      "expected": 0.18518518518518517
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 3,
+      "endSurah": 84,
+      "endVerse": 8,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 25,
+      "endSurah": 84,
+      "endVerse": 25,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 1,
+      "endSurah": 85,
+      "endVerse": 1,
+      "expected": 0.045454545454545456
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 1,
+      "endSurah": 85,
+      "endVerse": 22,
+      "expected": 1
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 1,
+      "endSurah": 85,
+      "endVerse": 5,
+      "expected": 0.22727272727272727
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 3,
+      "endSurah": 85,
+      "endVerse": 8,
+      "expected": 0.2727272727272727
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 22,
+      "endSurah": 85,
+      "endVerse": 22,
+      "expected": 0.045454545454545456
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 1,
+      "endSurah": 86,
+      "endVerse": 1,
+      "expected": 0.03125
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 1,
+      "endSurah": 86,
+      "endVerse": 17,
+      "expected": 0.53125
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 1,
+      "endSurah": 86,
+      "endVerse": 5,
+      "expected": 0.15625
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 3,
+      "endSurah": 86,
+      "endVerse": 8,
+      "expected": 0.1875
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 17,
+      "endSurah": 86,
+      "endVerse": 17,
+      "expected": 0.03125
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 1,
+      "endSurah": 87,
+      "endVerse": 1,
+      "expected": 0.03125
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 1,
+      "endSurah": 87,
+      "endVerse": 19,
+      "expected": 0.6020833333333333
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 1,
+      "endSurah": 87,
+      "endVerse": 5,
+      "expected": 0.15625
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 3,
+      "endSurah": 87,
+      "endVerse": 8,
+      "expected": 0.1875
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 19,
+      "endSurah": 87,
+      "endVerse": 19,
+      "expected": 0.03333333333333333
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 1,
+      "endSurah": 88,
+      "endVerse": 1,
+      "expected": 0.03333333333333333
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 1,
+      "endSurah": 88,
+      "endVerse": 26,
+      "expected": 0.8666666666666667
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 1,
+      "endSurah": 88,
+      "endVerse": 5,
+      "expected": 0.16666666666666666
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 3,
+      "endSurah": 88,
+      "endVerse": 8,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 26,
+      "endSurah": 88,
+      "endVerse": 26,
+      "expected": 0.03333333333333333
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 1,
+      "endSurah": 89,
+      "endVerse": 1,
+      "expected": 0.043478260869565216
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 1,
+      "endSurah": 89,
+      "endVerse": 30,
+      "expected": 1.2592592592592593
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 1,
+      "endSurah": 89,
+      "endVerse": 5,
+      "expected": 0.21739130434782608
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 3,
+      "endSurah": 89,
+      "endVerse": 8,
+      "expected": 0.2608695652173913
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 30,
+      "endSurah": 89,
+      "endVerse": 30,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 1,
+      "endSurah": 90,
+      "endVerse": 1,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 1,
+      "endSurah": 90,
+      "endVerse": 20,
+      "expected": 0.7407407407407407
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 1,
+      "endSurah": 90,
+      "endVerse": 5,
+      "expected": 0.18518518518518517
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 3,
+      "endSurah": 90,
+      "endVerse": 8,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 20,
+      "endSurah": 90,
+      "endVerse": 20,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 1,
+      "endSurah": 91,
+      "endVerse": 1,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 1,
+      "endSurah": 91,
+      "endVerse": 15,
+      "expected": 0.5172413793103449
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 1,
+      "endSurah": 91,
+      "endVerse": 5,
+      "expected": 0.1724137931034483
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 3,
+      "endSurah": 91,
+      "endVerse": 8,
+      "expected": 0.20689655172413793
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 15,
+      "endSurah": 91,
+      "endVerse": 15,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 1,
+      "endSurah": 92,
+      "endVerse": 1,
+      "expected": 0.034482758620689655
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 1,
+      "endSurah": 92,
+      "endVerse": 21,
+      "expected": 0.7519893899204244
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 1,
+      "endSurah": 92,
+      "endVerse": 5,
+      "expected": 0.1724137931034483
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 3,
+      "endSurah": 92,
+      "endVerse": 8,
+      "expected": 0.20689655172413793
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 21,
+      "endSurah": 92,
+      "endVerse": 21,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 1,
+      "endSurah": 93,
+      "endVerse": 1,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 1,
+      "endSurah": 93,
+      "endVerse": 11,
+      "expected": 0.4230769230769231
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 1,
+      "endSurah": 93,
+      "endVerse": 5,
+      "expected": 0.19230769230769232
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 3,
+      "endSurah": 93,
+      "endVerse": 8,
+      "expected": 0.23076923076923078
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 11,
+      "endSurah": 93,
+      "endVerse": 11,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 94,
+      "startVerse": 1,
+      "endSurah": 94,
+      "endVerse": 1,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 94,
+      "startVerse": 1,
+      "endSurah": 94,
+      "endVerse": 8,
+      "expected": 0.3076923076923077
+    },
+    {
+      "startSurah": 94,
+      "startVerse": 1,
+      "endSurah": 94,
+      "endVerse": 5,
+      "expected": 0.19230769230769232
+    },
+    {
+      "startSurah": 94,
+      "startVerse": 8,
+      "endSurah": 94,
+      "endVerse": 8,
+      "expected": 0.038461538461538464
+    },
+    {
+      "startSurah": 95,
+      "startVerse": 1,
+      "endSurah": 95,
+      "endVerse": 1,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 95,
+      "startVerse": 1,
+      "endSurah": 95,
+      "endVerse": 8,
+      "expected": 0.2962962962962963
+    },
+    {
+      "startSurah": 95,
+      "startVerse": 1,
+      "endSurah": 95,
+      "endVerse": 5,
+      "expected": 0.18518518518518517
+    },
+    {
+      "startSurah": 95,
+      "startVerse": 8,
+      "endSurah": 95,
+      "endVerse": 8,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 1,
+      "endSurah": 96,
+      "endVerse": 1,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 1,
+      "endSurah": 96,
+      "endVerse": 19,
+      "expected": 0.7037037037037037
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 1,
+      "endSurah": 96,
+      "endVerse": 5,
+      "expected": 0.18518518518518517
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 3,
+      "endSurah": 96,
+      "endVerse": 8,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 19,
+      "endSurah": 96,
+      "endVerse": 19,
+      "expected": 0.037037037037037035
+    },
+    {
+      "startSurah": 97,
+      "startVerse": 1,
+      "endSurah": 97,
+      "endVerse": 1,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 97,
+      "startVerse": 1,
+      "endSurah": 97,
+      "endVerse": 5,
+      "expected": 0.4166666666666667
+    },
+    {
+      "startSurah": 97,
+      "startVerse": 1,
+      "endSurah": 97,
+      "endVerse": 5,
+      "expected": 0.4166666666666667
+    },
+    {
+      "startSurah": 97,
+      "startVerse": 5,
+      "endSurah": 97,
+      "endVerse": 5,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 98,
+      "startVerse": 1,
+      "endSurah": 98,
+      "endVerse": 1,
+      "expected": 0.08333333333333333
+    },
+    {
+      "startSurah": 98,
+      "startVerse": 1,
+      "endSurah": 98,
+      "endVerse": 8,
+      "expected": 0.638888888888889
+    },
+    {
+      "startSurah": 98,
+      "startVerse": 1,
+      "endSurah": 98,
+      "endVerse": 5,
+      "expected": 0.4166666666666667
+    },
+    {
+      "startSurah": 98,
+      "startVerse": 8,
+      "endSurah": 98,
+      "endVerse": 8,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 99,
+      "startVerse": 1,
+      "endSurah": 99,
+      "endVerse": 1,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 99,
+      "startVerse": 1,
+      "endSurah": 99,
+      "endVerse": 8,
+      "expected": 0.4444444444444444
+    },
+    {
+      "startSurah": 99,
+      "startVerse": 1,
+      "endSurah": 99,
+      "endVerse": 5,
+      "expected": 0.2777777777777778
+    },
+    {
+      "startSurah": 99,
+      "startVerse": 8,
+      "endSurah": 99,
+      "endVerse": 8,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 1,
+      "endSurah": 100,
+      "endVerse": 1,
+      "expected": 0.05555555555555555
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 1,
+      "endSurah": 100,
+      "endVerse": 11,
+      "expected": 0.5952380952380952
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 1,
+      "endSurah": 100,
+      "endVerse": 5,
+      "expected": 0.2777777777777778
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 3,
+      "endSurah": 100,
+      "endVerse": 8,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 11,
+      "endSurah": 100,
+      "endVerse": 11,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 1,
+      "endSurah": 101,
+      "endVerse": 1,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 1,
+      "endSurah": 101,
+      "endVerse": 11,
+      "expected": 0.5238095238095238
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 1,
+      "endSurah": 101,
+      "endVerse": 5,
+      "expected": 0.23809523809523808
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 3,
+      "endSurah": 101,
+      "endVerse": 8,
+      "expected": 0.2857142857142857
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 11,
+      "endSurah": 101,
+      "endVerse": 11,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 102,
+      "startVerse": 1,
+      "endSurah": 102,
+      "endVerse": 1,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 102,
+      "startVerse": 1,
+      "endSurah": 102,
+      "endVerse": 8,
+      "expected": 0.38095238095238093
+    },
+    {
+      "startSurah": 102,
+      "startVerse": 1,
+      "endSurah": 102,
+      "endVerse": 5,
+      "expected": 0.23809523809523808
+    },
+    {
+      "startSurah": 102,
+      "startVerse": 8,
+      "endSurah": 102,
+      "endVerse": 8,
+      "expected": 0.047619047619047616
+    },
+    {
+      "startSurah": 103,
+      "startVerse": 1,
+      "endSurah": 103,
+      "endVerse": 1,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 103,
+      "startVerse": 1,
+      "endSurah": 103,
+      "endVerse": 3,
+      "expected": 0.17647058823529413
+    },
+    {
+      "startSurah": 103,
+      "startVerse": 3,
+      "endSurah": 103,
+      "endVerse": 3,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 104,
+      "startVerse": 1,
+      "endSurah": 104,
+      "endVerse": 1,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 104,
+      "startVerse": 1,
+      "endSurah": 104,
+      "endVerse": 9,
+      "expected": 0.5294117647058824
+    },
+    {
+      "startSurah": 104,
+      "startVerse": 1,
+      "endSurah": 104,
+      "endVerse": 5,
+      "expected": 0.29411764705882354
+    },
+    {
+      "startSurah": 104,
+      "startVerse": 9,
+      "endSurah": 104,
+      "endVerse": 9,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 105,
+      "startVerse": 1,
+      "endSurah": 105,
+      "endVerse": 1,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 105,
+      "startVerse": 1,
+      "endSurah": 105,
+      "endVerse": 5,
+      "expected": 0.29411764705882354
+    },
+    {
+      "startSurah": 105,
+      "startVerse": 1,
+      "endSurah": 105,
+      "endVerse": 5,
+      "expected": 0.29411764705882354
+    },
+    {
+      "startSurah": 105,
+      "startVerse": 5,
+      "endSurah": 105,
+      "endVerse": 5,
+      "expected": 0.058823529411764705
+    },
+    {
+      "startSurah": 106,
+      "startVerse": 1,
+      "endSurah": 106,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 106,
+      "startVerse": 1,
+      "endSurah": 106,
+      "endVerse": 4,
+      "expected": 0.2857142857142857
+    },
+    {
+      "startSurah": 106,
+      "startVerse": 4,
+      "endSurah": 106,
+      "endVerse": 4,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 107,
+      "startVerse": 1,
+      "endSurah": 107,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 107,
+      "startVerse": 1,
+      "endSurah": 107,
+      "endVerse": 7,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 107,
+      "startVerse": 1,
+      "endSurah": 107,
+      "endVerse": 5,
+      "expected": 0.35714285714285715
+    },
+    {
+      "startSurah": 107,
+      "startVerse": 7,
+      "endSurah": 107,
+      "endVerse": 7,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 108,
+      "startVerse": 1,
+      "endSurah": 108,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 108,
+      "startVerse": 1,
+      "endSurah": 108,
+      "endVerse": 3,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 108,
+      "startVerse": 3,
+      "endSurah": 108,
+      "endVerse": 3,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 109,
+      "startVerse": 1,
+      "endSurah": 109,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 109,
+      "startVerse": 1,
+      "endSurah": 109,
+      "endVerse": 6,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 109,
+      "startVerse": 1,
+      "endSurah": 109,
+      "endVerse": 5,
+      "expected": 0.35714285714285715
+    },
+    {
+      "startSurah": 109,
+      "startVerse": 6,
+      "endSurah": 109,
+      "endVerse": 6,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 110,
+      "startVerse": 1,
+      "endSurah": 110,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 110,
+      "startVerse": 1,
+      "endSurah": 110,
+      "endVerse": 3,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 110,
+      "startVerse": 3,
+      "endSurah": 110,
+      "endVerse": 3,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 111,
+      "startVerse": 1,
+      "endSurah": 111,
+      "endVerse": 1,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 111,
+      "startVerse": 1,
+      "endSurah": 111,
+      "endVerse": 5,
+      "expected": 0.35714285714285715
+    },
+    {
+      "startSurah": 111,
+      "startVerse": 1,
+      "endSurah": 111,
+      "endVerse": 5,
+      "expected": 0.35714285714285715
+    },
+    {
+      "startSurah": 111,
+      "startVerse": 5,
+      "endSurah": 111,
+      "endVerse": 5,
+      "expected": 0.07142857142857142
+    },
+    {
+      "startSurah": 112,
+      "startVerse": 1,
+      "endSurah": 112,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 112,
+      "startVerse": 1,
+      "endSurah": 112,
+      "endVerse": 4,
+      "expected": 0.26666666666666666
+    },
+    {
+      "startSurah": 112,
+      "startVerse": 4,
+      "endSurah": 112,
+      "endVerse": 4,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 113,
+      "startVerse": 1,
+      "endSurah": 113,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 113,
+      "startVerse": 1,
+      "endSurah": 113,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 113,
+      "startVerse": 1,
+      "endSurah": 113,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 113,
+      "startVerse": 5,
+      "endSurah": 113,
+      "endVerse": 5,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 114,
+      "startVerse": 1,
+      "endSurah": 114,
+      "endVerse": 1,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 114,
+      "startVerse": 1,
+      "endSurah": 114,
+      "endVerse": 6,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 114,
+      "startVerse": 1,
+      "endSurah": 114,
+      "endVerse": 5,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 114,
+      "startVerse": 6,
+      "endSurah": 114,
+      "endVerse": 6,
+      "expected": 0.06666666666666667
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 5,
+      "endSurah": 2,
+      "endVerse": 3,
+      "expected": 1.0285714285714285
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 284,
+      "endSurah": 3,
+      "endVerse": 3,
+      "expected": 1.0833333333333333
+    },
+    {
+      "startSurah": 3,
+      "startVerse": 198,
+      "endSurah": 4,
+      "endVerse": 3,
+      "expected": 1
+    },
+    {
+      "startSurah": 4,
+      "startVerse": 174,
+      "endSurah": 5,
+      "endVerse": 3,
+      "expected": 1.7333333333333332
+    },
+    {
+      "startSurah": 5,
+      "startVerse": 118,
+      "endSurah": 6,
+      "endVerse": 3,
+      "expected": 0.8035714285714286
+    },
+    {
+      "startSurah": 6,
+      "startVerse": 163,
+      "endSurah": 7,
+      "endVerse": 3,
+      "expected": 0.6477272727272727
+    },
+    {
+      "startSurah": 7,
+      "startVerse": 204,
+      "endSurah": 8,
+      "endVerse": 3,
+      "expected": 0.6477272727272727
+    },
+    {
+      "startSurah": 8,
+      "startVerse": 73,
+      "endSurah": 9,
+      "endVerse": 3,
+      "expected": 1
+    },
+    {
+      "startSurah": 9,
+      "startVerse": 127,
+      "endSurah": 10,
+      "endVerse": 3,
+      "expected": 0.9285714285714286
+    },
+    {
+      "startSurah": 10,
+      "startVerse": 107,
+      "endSurah": 11,
+      "endVerse": 3,
+      "expected": 0.75
+    },
+    {
+      "startSurah": 11,
+      "startVerse": 121,
+      "endSurah": 12,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 12,
+      "startVerse": 109,
+      "endSurah": 13,
+      "endVerse": 3,
+      "expected": 0.975
+    },
+    {
+      "startSurah": 13,
+      "startVerse": 41,
+      "endSurah": 14,
+      "endVerse": 3,
+      "expected": 0.9166666666666666
+    },
+    {
+      "startSurah": 14,
+      "startVerse": 50,
+      "endSurah": 15,
+      "endVerse": 3,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 15,
+      "startVerse": 97,
+      "endSurah": 16,
+      "endVerse": 3,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 16,
+      "startVerse": 126,
+      "endSurah": 17,
+      "endVerse": 3,
+      "expected": 0.7285714285714285
+    },
+    {
+      "startSurah": 17,
+      "startVerse": 109,
+      "endSurah": 18,
+      "endVerse": 3,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 18,
+      "startVerse": 108,
+      "endSurah": 19,
+      "endVerse": 3,
+      "expected": 0.5034965034965035
+    },
+    {
+      "startSurah": 19,
+      "startVerse": 96,
+      "endSurah": 20,
+      "endVerse": 3,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 20,
+      "startVerse": 133,
+      "endSurah": 21,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 21,
+      "startVerse": 110,
+      "endSurah": 22,
+      "endVerse": 3,
+      "expected": 0.8727272727272727
+    },
+    {
+      "startSurah": 22,
+      "startVerse": 76,
+      "endSurah": 23,
+      "endVerse": 3,
+      "expected": 0.6764705882352942
+    },
+    {
+      "startSurah": 23,
+      "startVerse": 116,
+      "endSurah": 24,
+      "endVerse": 3,
+      "expected": 0.5142857142857142
+    },
+    {
+      "startSurah": 24,
+      "startVerse": 62,
+      "endSurah": 25,
+      "endVerse": 3,
+      "expected": 1.1111111111111112
+    },
+    {
+      "startSurah": 25,
+      "startVerse": 75,
+      "endSurah": 26,
+      "endVerse": 3,
+      "expected": 0.45789473684210524
+    },
+    {
+      "startSurah": 26,
+      "startVerse": 225,
+      "endSurah": 27,
+      "endVerse": 3,
+      "expected": 0.37362637362637363
+    },
+    {
+      "startSurah": 27,
+      "startVerse": 91,
+      "endSurah": 28,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 28,
+      "startVerse": 86,
+      "endSurah": 29,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 29,
+      "startVerse": 67,
+      "endSurah": 30,
+      "endVerse": 3,
+      "expected": 0.5454545454545454
+    },
+    {
+      "startSurah": 30,
+      "startVerse": 58,
+      "endSurah": 31,
+      "endVerse": 3,
+      "expected": 0.5727272727272728
+    },
+    {
+      "startSurah": 31,
+      "startVerse": 32,
+      "endSurah": 32,
+      "endVerse": 3,
+      "expected": 0.7727272727272727
+    },
+    {
+      "startSurah": 32,
+      "startVerse": 28,
+      "endSurah": 33,
+      "endVerse": 3,
+      "expected": 0.8
+    },
+    {
+      "startSurah": 33,
+      "startVerse": 71,
+      "endSurah": 34,
+      "endVerse": 3,
+      "expected": 0.7012987012987013
+    },
+    {
+      "startSurah": 34,
+      "startVerse": 52,
+      "endSurah": 35,
+      "endVerse": 3,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 35,
+      "startVerse": 43,
+      "endSurah": 36,
+      "endVerse": 3,
+      "expected": 0.641025641025641
+    },
+    {
+      "startSurah": 36,
+      "startVerse": 81,
+      "endSurah": 37,
+      "endVerse": 3,
+      "expected": 0.3557692307692308
+    },
+    {
+      "startSurah": 37,
+      "startVerse": 180,
+      "endSurah": 38,
+      "endVerse": 3,
+      "expected": 0.29094827586206895
+    },
+    {
+      "startSurah": 38,
+      "startVerse": 86,
+      "endSurah": 39,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 39,
+      "startVerse": 73,
+      "endSurah": 40,
+      "endVerse": 3,
+      "expected": 0.7857142857142857
+    },
+    {
+      "startSurah": 40,
+      "startVerse": 83,
+      "endSurah": 41,
+      "endVerse": 3,
+      "expected": 0.6477272727272727
+    },
+    {
+      "startSurah": 41,
+      "startVerse": 52,
+      "endSurah": 42,
+      "endVerse": 3,
+      "expected": 0.675
+    },
+    {
+      "startSurah": 42,
+      "startVerse": 51,
+      "endSurah": 43,
+      "endVerse": 3,
+      "expected": 0.5595238095238095
+    },
+    {
+      "startSurah": 43,
+      "startVerse": 87,
+      "endSurah": 44,
+      "endVerse": 3,
+      "expected": 0.35416666666666663
+    },
+    {
+      "startSurah": 44,
+      "startVerse": 57,
+      "endSurah": 45,
+      "endVerse": 3,
+      "expected": 0.38076923076923075
+    },
+    {
+      "startSurah": 45,
+      "startVerse": 35,
+      "endSurah": 46,
+      "endVerse": 3,
+      "expected": 0.6
+    },
+    {
+      "startSurah": 46,
+      "startVerse": 33,
+      "endSurah": 47,
+      "endVerse": 3,
+      "expected": 0.7012987012987013
+    },
+    {
+      "startSurah": 47,
+      "startVerse": 36,
+      "endSurah": 48,
+      "endVerse": 3,
+      "expected": 0.6666666666666666
+    },
+    {
+      "startSurah": 48,
+      "startVerse": 27,
+      "endSurah": 49,
+      "endVerse": 3,
+      "expected": 1.2000000000000002
+    },
+    {
+      "startSurah": 49,
+      "startVerse": 16,
+      "endSurah": 50,
+      "endVerse": 3,
+      "expected": 0.6285714285714286
+    },
+    {
+      "startSurah": 50,
+      "startVerse": 43,
+      "endSurah": 51,
+      "endVerse": 3,
+      "expected": 0.375
+    },
+    {
+      "startSurah": 51,
+      "startVerse": 58,
+      "endSurah": 52,
+      "endVerse": 3,
+      "expected": 0.2608695652173913
+    },
+    {
+      "startSurah": 52,
+      "startVerse": 47,
+      "endSurah": 53,
+      "endVerse": 3,
+      "expected": 0.28205128205128205
+    },
+    {
+      "startSurah": 53,
+      "startVerse": 60,
+      "endSurah": 54,
+      "endVerse": 3,
+      "expected": 0.25
+    },
+    {
+      "startSurah": 54,
+      "startVerse": 53,
+      "endSurah": 55,
+      "endVerse": 3,
+      "expected": 0.2727272727272727
+    },
+    {
+      "startSurah": 55,
+      "startVerse": 76,
+      "endSurah": 56,
+      "endVerse": 3,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 56,
+      "startVerse": 94,
+      "endSurah": 57,
+      "endVerse": 3,
+      "expected": 0.2608695652173913
+    },
+    {
+      "startSurah": 57,
+      "startVerse": 27,
+      "endSurah": 58,
+      "endVerse": 3,
+      "expected": 1.1
+    },
+    {
+      "startSurah": 58,
+      "startVerse": 20,
+      "endSurah": 59,
+      "endVerse": 3,
+      "expected": 1.2
+    },
+    {
+      "startSurah": 59,
+      "startVerse": 22,
+      "endSurah": 60,
+      "endVerse": 3,
+      "expected": 0.975
+    },
+    {
+      "startSurah": 60,
+      "startVerse": 11,
+      "endSurah": 61,
+      "endVerse": 3,
+      "expected": 0.8809523809523809
+    },
+    {
+      "startSurah": 61,
+      "startVerse": 12,
+      "endSurah": 62,
+      "endVerse": 3,
+      "expected": 0.7083333333333333
+    },
+    {
+      "startSurah": 62,
+      "startVerse": 9,
+      "endSurah": 63,
+      "endVerse": 3,
+      "expected": 0.8571428571428571
+    },
+    {
+      "startSurah": 63,
+      "startVerse": 9,
+      "endSurah": 64,
+      "endVerse": 3,
+      "expected": 0.7619047619047619
+    },
+    {
+      "startSurah": 64,
+      "startVerse": 16,
+      "endSurah": 65,
+      "endVerse": 3,
+      "expected": 0.9333333333333333
+    },
+    {
+      "startSurah": 65,
+      "startVerse": 10,
+      "endSurah": 66,
+      "endVerse": 3,
+      "expected": 0.8571428571428571
+    },
+    {
+      "startSurah": 66,
+      "startVerse": 10,
+      "endSurah": 67,
+      "endVerse": 3,
+      "expected": 0.85
+    },
+    {
+      "startSurah": 67,
+      "startVerse": 28,
+      "endSurah": 68,
+      "endVerse": 3,
+      "expected": 0.3157894736842105
+    },
+    {
+      "startSurah": 68,
+      "startVerse": 50,
+      "endSurah": 69,
+      "endVerse": 3,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 69,
+      "startVerse": 50,
+      "endSurah": 70,
+      "endVerse": 3,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 70,
+      "startVerse": 42,
+      "endSurah": 71,
+      "endVerse": 3,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 71,
+      "startVerse": 26,
+      "endSurah": 72,
+      "endVerse": 3,
+      "expected": 0.39743589743589747
+    },
+    {
+      "startSurah": 72,
+      "startVerse": 26,
+      "endSurah": 73,
+      "endVerse": 3,
+      "expected": 0.35789473684210527
+    },
+    {
+      "startSurah": 73,
+      "startVerse": 18,
+      "endSurah": 74,
+      "endVerse": 3,
+      "expected": 0.32748538011695905
+    },
+    {
+      "startSurah": 74,
+      "startVerse": 54,
+      "endSurah": 75,
+      "endVerse": 3,
+      "expected": 0.21428571428571427
+    },
+    {
+      "startSurah": 75,
+      "startVerse": 38,
+      "endSurah": 76,
+      "endVerse": 3,
+      "expected": 0.23076923076923078
+    },
+    {
+      "startSurah": 76,
+      "startVerse": 29,
+      "endSurah": 77,
+      "endVerse": 3,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 77,
+      "startVerse": 48,
+      "endSurah": 78,
+      "endVerse": 3,
+      "expected": 0.1967741935483871
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 38,
+      "endSurah": 79,
+      "endVerse": 3,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 79,
+      "startVerse": 44,
+      "endSurah": 80,
+      "endVerse": 3,
+      "expected": 0.16820276497695852
+    },
+    {
+      "startSurah": 80,
+      "startVerse": 40,
+      "endSurah": 81,
+      "endVerse": 3,
+      "expected": 0.1748768472906404
+    },
+    {
+      "startSurah": 81,
+      "startVerse": 27,
+      "endSurah": 82,
+      "endVerse": 3,
+      "expected": 0.22344827586206895
+    },
+    {
+      "startSurah": 82,
+      "startVerse": 17,
+      "endSurah": 83,
+      "endVerse": 3,
+      "expected": 0.24
+    },
+    {
+      "startSurah": 83,
+      "startVerse": 34,
+      "endSurah": 84,
+      "endVerse": 3,
+      "expected": 0.22089947089947087
+    },
+    {
+      "startSurah": 84,
+      "startVerse": 23,
+      "endSurah": 85,
+      "endVerse": 3,
+      "expected": 0.24747474747474746
+    },
+    {
+      "startSurah": 85,
+      "startVerse": 20,
+      "endSurah": 86,
+      "endVerse": 3,
+      "expected": 0.23011363636363635
+    },
+    {
+      "startSurah": 86,
+      "startVerse": 15,
+      "endSurah": 87,
+      "endVerse": 3,
+      "expected": 0.1875
+    },
+    {
+      "startSurah": 87,
+      "startVerse": 17,
+      "endSurah": 88,
+      "endVerse": 3,
+      "expected": 0.2
+    },
+    {
+      "startSurah": 88,
+      "startVerse": 24,
+      "endSurah": 89,
+      "endVerse": 3,
+      "expected": 0.23043478260869565
+    },
+    {
+      "startSurah": 89,
+      "startVerse": 28,
+      "endSurah": 90,
+      "endVerse": 3,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 90,
+      "startVerse": 18,
+      "endSurah": 91,
+      "endVerse": 3,
+      "expected": 0.21455938697318006
+    },
+    {
+      "startSurah": 91,
+      "startVerse": 13,
+      "endSurah": 92,
+      "endVerse": 3,
+      "expected": 0.20689655172413793
+    },
+    {
+      "startSurah": 92,
+      "startVerse": 19,
+      "endSurah": 93,
+      "endVerse": 3,
+      "expected": 0.23076923076923078
+    },
+    {
+      "startSurah": 93,
+      "startVerse": 9,
+      "endSurah": 94,
+      "endVerse": 3,
+      "expected": 0.23076923076923078
+    },
+    {
+      "startSurah": 94,
+      "startVerse": 6,
+      "endSurah": 95,
+      "endVerse": 3,
+      "expected": 0.2264957264957265
+    },
+    {
+      "startSurah": 95,
+      "startVerse": 6,
+      "endSurah": 96,
+      "endVerse": 3,
+      "expected": 0.2222222222222222
+    },
+    {
+      "startSurah": 96,
+      "startVerse": 17,
+      "endSurah": 97,
+      "endVerse": 3,
+      "expected": 0.3611111111111111
+    },
+    {
+      "startSurah": 97,
+      "startVerse": 3,
+      "endSurah": 98,
+      "endVerse": 3,
+      "expected": 0.5
+    },
+    {
+      "startSurah": 98,
+      "startVerse": 6,
+      "endSurah": 99,
+      "endVerse": 3,
+      "expected": 0.38888888888888884
+    },
+    {
+      "startSurah": 99,
+      "startVerse": 6,
+      "endSurah": 100,
+      "endVerse": 3,
+      "expected": 0.3333333333333333
+    },
+    {
+      "startSurah": 100,
+      "startVerse": 9,
+      "endSurah": 101,
+      "endVerse": 3,
+      "expected": 0.2936507936507936
+    },
+    {
+      "startSurah": 101,
+      "startVerse": 9,
+      "endSurah": 102,
+      "endVerse": 3,
+      "expected": 0.2857142857142857
+    },
+    {
+      "startSurah": 102,
+      "startVerse": 6,
+      "endSurah": 103,
+      "endVerse": 3,
+      "expected": 0.31932773109243695
+    },
+    {
+      "startSurah": 103,
+      "startVerse": 1,
+      "endSurah": 104,
+      "endVerse": 3,
+      "expected": 0.35294117647058826
+    },
+    {
+      "startSurah": 104,
+      "startVerse": 7,
+      "endSurah": 105,
+      "endVerse": 3,
+      "expected": 0.35294117647058826
+    },
+    {
+      "startSurah": 105,
+      "startVerse": 3,
+      "endSurah": 106,
+      "endVerse": 3,
+      "expected": 0.3907563025210084
+    },
+    {
+      "startSurah": 106,
+      "startVerse": 2,
+      "endSurah": 107,
+      "endVerse": 3,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 107,
+      "startVerse": 5,
+      "endSurah": 108,
+      "endVerse": 3,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 108,
+      "startVerse": 1,
+      "endSurah": 109,
+      "endVerse": 3,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 109,
+      "startVerse": 4,
+      "endSurah": 110,
+      "endVerse": 3,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 110,
+      "startVerse": 1,
+      "endSurah": 111,
+      "endVerse": 3,
+      "expected": 0.42857142857142855
+    },
+    {
+      "startSurah": 111,
+      "startVerse": 3,
+      "endSurah": 112,
+      "endVerse": 3,
+      "expected": 0.41428571428571426
+    },
+    {
+      "startSurah": 112,
+      "startVerse": 2,
+      "endSurah": 113,
+      "endVerse": 3,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 113,
+      "startVerse": 3,
+      "endSurah": 114,
+      "endVerse": 3,
+      "expected": 0.4
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 10,
+      "expected": 2.4545454545454546
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 5,
+      "endVerse": 10,
+      "expected": 107.25
+    },
+    {
+      "startSurah": 78,
+      "startVerse": 1,
+      "endSurah": 114,
+      "endVerse": 6,
+      "expected": 23
+    },
+    {
+      "startSurah": 1,
+      "startVerse": 1,
+      "endSurah": 114,
+      "endVerse": 6,
+      "expected": 604
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 20,
+      "expected": 2.5
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 1,
+      "endSurah": 2,
+      "endVerse": 5,
+      "expected": 1
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 6,
+      "endSurah": 2,
+      "endVerse": 15,
+      "expected": 0.9090909090909091
+    },
+    {
+      "startSurah": 2,
+      "startVerse": 16,
+      "endSurah": 2,
+      "endVerse": 20,
+      "expected": 0.5909090909090909
+    }
+  ],
+  "pagesRecited": [
+    {
+      "range": {
+        "startSurah": 2,
+        "startVerse": 1,
+        "endSurah": 2,
+        "endVerse": 20
+      },
+      "positions": null,
+      "expected": 2.5
+    },
+    {
+      "range": {
+        "startSurah": 2,
+        "startVerse": 1,
+        "endSurah": 2,
+        "endVerse": 20
+      },
+      "positions": [
+        {
+          "startSurah": 2,
+          "startVerse": 1,
+          "endSurah": 2,
+          "endVerse": 5
+        },
+        {
+          "startSurah": 2,
+          "startVerse": 6,
+          "endSurah": 2,
+          "endVerse": 15
+        }
+      ],
+      "expected": 1.9090909090909092
+    },
+    {
+      "range": {
+        "startSurah": 1,
+        "startVerse": 1,
+        "endSurah": 1,
+        "endVerse": 7
+      },
+      "positions": [
+        {
+          "startSurah": 1,
+          "startVerse": 1,
+          "endSurah": 1,
+          "endVerse": 1
+        }
+      ],
+      "expected": 0.14285714285714285
+    },
+    {
+      "range": {
+        "startSurah": 78,
+        "startVerse": 1,
+        "endSurah": 80,
+        "endVerse": 42
+      },
+      "positions": [
+        {
+          "startSurah": 78,
+          "startVerse": 1,
+          "endSurah": 78,
+          "endVerse": 40
+        },
+        {
+          "startSurah": 80,
+          "startVerse": 1,
+          "endSurah": 80,
+          "endVerse": 42
+        }
+      ],
+      "expected": 2.4
+    },
+    {
+      "range": {
+        "startSurah": 3,
+        "startVerse": 1,
+        "endSurah": 3,
+        "endVerse": 1
+      },
+      "positions": [],
+      "expected": 0.1111111111111111
+    }
+  ]
+}
