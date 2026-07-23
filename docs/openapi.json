@@ -5229,6 +5229,134 @@
           "Plan Items"
         ]
       }
+    },
+    "/halaqat/{id}/daily-report": {
+      "get": {
+        "operationId": "DailyReportController_getReport",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "description": "Report date (YYYY-MM-DD).",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-20",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyReportResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily-reports"
+        ]
+      }
+    },
+    "/halaqat/{id}/daily-report/{date}/students/{studentId}": {
+      "get": {
+        "operationId": "DailyReportController_getStudentDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentDetailResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily-reports"
+        ]
+      }
+    },
+    "/halaqat/{id}/daily-reports/{date}/recalculate": {
+      "post": {
+        "operationId": "DailyReportController_recalculate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecalculateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "daily-reports"
+        ]
+      }
     }
   },
   "info": {
@@ -6232,6 +6360,41 @@
           }
         }
       },
+      "ReportWeightsDto": {
+        "type": "object",
+        "properties": {
+          "hifz_weight": {
+            "type": "number",
+            "example": 40,
+            "minimum": 0,
+            "maximum": 100
+          },
+          "near_weight": {
+            "type": "number",
+            "example": 25,
+            "minimum": 0,
+            "maximum": 100
+          },
+          "far_weight": {
+            "type": "number",
+            "example": 30,
+            "minimum": 0,
+            "maximum": 100
+          },
+          "ethics_weight": {
+            "type": "number",
+            "example": 5,
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "hifz_weight",
+          "near_weight",
+          "far_weight",
+          "ethics_weight"
+        ]
+      },
       "CreateHalaqaDto": {
         "type": "object",
         "properties": {
@@ -6257,6 +6420,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/EvaluationSettingsDto"
+              }
+            ]
+          },
+          "report_weights": {
+            "description": "Daily-report track weights (hifz/near/far/ethics). The four must sum to 100. Omitted → defaults 40/25/30/5.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportWeightsDto"
               }
             ]
           },
@@ -6297,6 +6468,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/EvaluationSettingsDto"
+              }
+            ]
+          },
+          "report_weights": {
+            "description": "Daily-report track weights (hifz/near/far/ethics); the four must sum to 100. Full object only — send all four. Only principal / vice_principal may change them.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportWeightsDto"
               }
             ]
           }
@@ -7130,129 +7309,96 @@
       "StudentDetailResponse": {
         "type": "object",
         "properties": {
-          "id": {
+          "halaqa_id": {
             "type": "number",
-            "example": 1
+            "example": 10
           },
-          "first_name": {
+          "date": {
             "type": "string",
-            "example": "يوسف",
-            "description": "الاسم الأول"
+            "example": "2026-07-20"
           },
-          "second_name": {
+          "student_id": {
+            "type": "number",
+            "example": 55
+          },
+          "student_name": {
             "type": "string",
-            "example": "محمد",
-            "description": "اسم الأب"
+            "example": "محمد علي"
           },
-          "third_name": {
-            "type": "string",
-            "example": "أحمد",
-            "description": "اسم الجد"
-          },
-          "family_name": {
-            "type": "string",
-            "example": "الحسني",
-            "description": "اسم العائلة"
-          },
-          "name": {
-            "type": "string",
-            "example": "يوسف محمد أحمد الحسني",
-            "description": "Read-only display name derived from the four name parts."
-          },
-          "gender": {
+          "source": {
             "type": "string",
             "enum": [
-              "male",
-              "female"
-            ],
-            "example": "male"
+              "live",
+              "snapshot"
+            ]
           },
-          "dob": {
-            "type": "object",
-            "nullable": true,
-            "format": "date",
-            "example": "2015-06-01"
-          },
-          "join_date": {
-            "type": "string",
-            "format": "date",
-            "example": "2024-09-01"
-          },
-          "status": {
+          "attendance_status": {
             "type": "string",
             "enum": [
-              "active",
-              "inactive",
-              "graduated"
-            ],
-            "example": "active"
+              "present",
+              "late",
+              "absent",
+              "excused",
+              "missing_attendance"
+            ]
           },
-          "daily_hifz_pages_capacity": {
-            "type": "string",
-            "example": "1.00",
-            "description": "Daily Hifz memorisation target in pages (0–20)."
+          "hifz": {
+            "$ref": "#/components/schemas/StudentTrackDetail"
           },
-          "daily_near_pages_capacity": {
-            "type": "string",
-            "example": "2.00",
-            "description": "Daily near-review target in pages (0–50)."
+          "near": {
+            "$ref": "#/components/schemas/StudentTrackDetail"
           },
-          "daily_far_pages_capacity": {
-            "type": "string",
-            "example": "5.00",
-            "description": "Daily far-review target in pages (0–100)."
+          "far": {
+            "$ref": "#/components/schemas/StudentTrackDetail"
           },
-          "memorization_direction": {
-            "type": "string",
-            "enum": [
-              "ascending",
-              "descending"
-            ],
-            "example": "descending",
-            "description": "اتجاه الحفظ — `descending` (تنازلي) starts at An-Nas and works backwards, `ascending` (تصاعدي) starts at Al-Fatihah."
-          },
-          "notes": {
+          "ethics_rating": {
             "type": "object",
             "nullable": true,
-            "example": "Needs extra support on Juz 30."
+            "example": 4
           },
-          "photo_url": {
+          "ethics_score": {
             "type": "object",
             "nullable": true,
-            "example": "https://cdn.example.com/photos/1.jpg"
+            "example": 4
           },
-          "id_number": {
+          "plan_completion_rate": {
             "type": "object",
             "nullable": true,
-            "example": "300123456",
-            "description": "National ID number. Always present when you can see the student. Value is null for legacy students created before this field was required."
+            "example": 92.5
           },
-          "guardians": {
+          "total_score": {
+            "type": "object",
+            "nullable": true,
+            "example": 86.5
+          },
+          "teacher_note": {
+            "type": "object",
+            "nullable": true
+          },
+          "system_alerts": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/GuardianResponse"
+              "type": "object",
+              "additionalProperties": true
             }
           }
         },
         "required": [
-          "id",
-          "first_name",
-          "second_name",
-          "third_name",
-          "family_name",
-          "name",
-          "gender",
-          "dob",
-          "join_date",
-          "status",
-          "daily_hifz_pages_capacity",
-          "daily_near_pages_capacity",
-          "daily_far_pages_capacity",
-          "memorization_direction",
-          "notes",
-          "photo_url",
-          "id_number",
-          "guardians"
+          "halaqa_id",
+          "date",
+          "student_id",
+          "student_name",
+          "source",
+          "attendance_status",
+          "hifz",
+          "near",
+          "far",
+          "ethics_rating",
+          "ethics_score",
+          "plan_completion_rate",
+          "total_score",
+          "teacher_note",
+          "system_alerts"
         ]
       },
       "StudentDetailEnvelope": {
@@ -8112,6 +8258,12 @@
             "type": "string",
             "nullable": true,
             "example": "عذر طبي"
+          },
+          "daily_note": {
+            "type": "string",
+            "nullable": true,
+            "example": "ما شاء الله أداء متقن",
+            "description": "ملاحظة المحفّظ اليومية — teacher note surfaced in the daily report (§22)."
           },
           "modification_reason": {
             "type": "string",
@@ -9421,6 +9573,231 @@
             "type": "number",
             "example": 7,
             "minimum": 1
+          }
+        }
+      },
+      "ReportWeightsSummary": {
+        "type": "object",
+        "properties": {
+          "hifz": {
+            "type": "number",
+            "example": 40
+          },
+          "near": {
+            "type": "number",
+            "example": 25
+          },
+          "far": {
+            "type": "number",
+            "example": 30
+          },
+          "ethics": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "hifz",
+          "near",
+          "far",
+          "ethics"
+        ]
+      },
+      "StudentReportRow": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 55
+          },
+          "student_name": {
+            "type": "string",
+            "example": "محمد علي"
+          },
+          "attendance_status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "late",
+              "absent",
+              "excused",
+              "missing_attendance"
+            ],
+            "example": "present"
+          },
+          "hifz_score": {
+            "type": "number",
+            "example": 36
+          },
+          "near_score": {
+            "type": "number",
+            "example": 20
+          },
+          "far_score": {
+            "type": "number",
+            "example": 25.5
+          },
+          "ethics_score": {
+            "type": "object",
+            "nullable": true,
+            "example": 5
+          },
+          "plan_completion_rate": {
+            "type": "object",
+            "nullable": true,
+            "example": 92.5
+          },
+          "total_score": {
+            "type": "object",
+            "nullable": true,
+            "example": 86.5,
+            "description": "NULL when attendance is missing."
+          },
+          "teacher_note": {
+            "type": "object",
+            "nullable": true,
+            "example": "ما شاء الله أداء متقن"
+          },
+          "system_alerts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "example": [
+              {
+                "code": "NO_APPROVED_PLAN",
+                "severity": "warning",
+                "message": "..."
+              }
+            ]
+          }
+        },
+        "required": [
+          "student_id",
+          "student_name",
+          "attendance_status",
+          "hifz_score",
+          "near_score",
+          "far_score",
+          "ethics_score",
+          "plan_completion_rate",
+          "total_score",
+          "teacher_note",
+          "system_alerts"
+        ]
+      },
+      "DailyReportResponse": {
+        "type": "object",
+        "properties": {
+          "halaqa_id": {
+            "type": "number",
+            "example": 10
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-07-20"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "live",
+              "snapshot"
+            ],
+            "description": "live = computed now (current week); snapshot = saved report."
+          },
+          "day_status": {
+            "type": "string",
+            "enum": [
+              "working_day",
+              "non_working_day"
+            ]
+          },
+          "report_status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "failed"
+            ]
+          },
+          "weights": {
+            "$ref": "#/components/schemas/ReportWeightsSummary"
+          },
+          "students": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudentReportRow"
+            }
+          }
+        },
+        "required": [
+          "halaqa_id",
+          "date",
+          "source",
+          "day_status",
+          "report_status",
+          "weights",
+          "students"
+        ]
+      },
+      "StudentTrackDetail": {
+        "type": "object",
+        "properties": {
+          "base_weight": {
+            "type": "number",
+            "example": 40
+          },
+          "effective_weight": {
+            "type": "number",
+            "example": 40
+          },
+          "planned_pages": {
+            "type": "number",
+            "example": 2.5
+          },
+          "achieved_pages": {
+            "type": "number",
+            "example": 2
+          },
+          "completion_rate": {
+            "type": "number",
+            "example": 80
+          },
+          "quality_rate": {
+            "type": "number",
+            "example": 93.5
+          },
+          "score": {
+            "type": "number",
+            "example": 29.92
+          },
+          "reconciliation": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true,
+            "description": "Reconciliation audit blob (§12): plannedRanges, approvedSegments, gaps, outsidePlanSegments. Internal keys are camelCase (stored as-is)."
+          }
+        },
+        "required": [
+          "base_weight",
+          "effective_weight",
+          "planned_pages",
+          "achieved_pages",
+          "completion_rate",
+          "quality_rate",
+          "score",
+          "reconciliation"
+        ]
+      },
+      "RecalculateDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "تم تصحيح تسميع الطالب",
+            "description": "Reason recorded on the report and in the audit log (§29.3)."
           }
         }
       }
