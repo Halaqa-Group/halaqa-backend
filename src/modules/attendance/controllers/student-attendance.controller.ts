@@ -155,6 +155,7 @@ export class StudentAttendanceController {
         status: dto.status,
         ethicsRating: dto.ethics_rating,
         excuseNote: dto.excuse_note,
+        dailyNote: dto.daily_note,
         modificationReason: dto.modification_reason,
       },
       actor,

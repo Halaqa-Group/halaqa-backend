@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { DomainEvents } from '../../../common/events/domain-events';
+import { roundHalfUp } from '../../../common/rounding';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { Achievement } from '../entities/achievement.entity';
@@ -44,7 +46,11 @@ export interface PositionErrorInput {
 }
 
 /** A recitation position: a verse range plus the itemized errors made there. */
-export type PositionInput = VerseRangeInput & { errors?: PositionErrorInput[] };
+export type PositionInput = VerseRangeInput & {
+  errors?: PositionErrorInput[];
+  // Pages covered by this position (client-supplied, stored as-is). NULL = not sent.
+  pages?: number | null;
+};
 
 /** The four error types, all weighted by the halaqa's `evaluation_settings`. */
 export interface ErrorCounts {
@@ -87,6 +93,27 @@ function sumPositionCounts(positions: PositionInput[]): ErrorCounts {
   return countErrors(positions.flatMap((p) => p.errors ?? []));
 }
 
+/**
+ * Rounds a client-supplied page value to 4dp (matching the branch's DECIMAL(8,4)
+ * page columns and `roundHalfUp` convention). null/undefined pass through as null.
+ */
+function roundPages(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  return roundHalfUp(value, 4);
+}
+
+/**
+ * Rolls the positions' `pages` up into the achievement's `positions_pages`
+ * (صفحات المواضع). NULL when no position supplied pages — "unknown", not zero.
+ */
+function sumPositionPages(positions: PositionInput[]): number | null {
+  const provided = positions.filter(
+    (p) => p.pages !== null && p.pages !== undefined,
+  );
+  if (!provided.length) return null;
+  return roundPages(provided.reduce((sum, p) => sum + (p.pages as number), 0));
+}
+
 // ─── Input shapes (DTOs in Task 7 will satisfy these interfaces) ──────────────
 
 export interface CreateAchievementInput {
@@ -104,6 +131,8 @@ export interface CreateAchievementInput {
   // `full` only — these errors attach to the single auto-created position.
   errors?: PositionErrorInput[];
   percentageScore: number;
+  // Total pages of the whole range (الصفحات الكلية), client-supplied. NULL = not sent.
+  totalPages?: number | null;
   teacherNotes?: string | null;
   approve?: boolean;
 }
@@ -120,6 +149,7 @@ export interface UpdateAchievementInput {
   // `full` only — see CreateAchievementInput.
   errors?: PositionErrorInput[];
   percentageScore?: number;
+  totalPages?: number | null;
   teacherNotes?: string | null;
 }
 
@@ -157,7 +187,21 @@ export class AchievementsService {
     private readonly reconciliation: PlanReconciliationService,
     private readonly rangeValidator: QuranRangeValidator,
     private readonly memorization: MemorizationService,
+    private readonly domainEvents: DomainEvents,
   ) {}
+
+  /**
+   * Signals that an approved achievement changed, so a saved daily report for
+   * that (halaqa, date) can be recalculated (§28.4). Fire-and-forget; the
+   * daily-reports listener skips days with no snapshot.
+   */
+  private emitReportChange(achievement: Achievement): void {
+    this.domainEvents.emitReportSourceChanged({
+      studentId: achievement.studentId,
+      halaqaId: achievement.halaqaId,
+      date: achievement.date,
+    });
+  }
 
   private readonly logger = new Logger(AchievementsService.name);
 
@@ -244,6 +288,7 @@ export class AchievementsService {
     range: VerseRangeInput,
     testPositions?: PositionInput[],
     topLevelErrors?: PositionErrorInput[],
+    totalPages?: number | null,
   ): PositionInput[] {
     if (method === 'test') {
       if (!testPositions || testPositions.length === 0) {
@@ -268,13 +313,18 @@ export class AchievementsService {
       return testPositions;
     }
 
-    // full — one position over the whole range, holding the top-level errors
+    // full — one position over the whole range, holding the top-level errors.
+    // Its pages equal the achievement's total pages (the whole range is recited).
     if (testPositions !== undefined) {
       throw new BadRequestException(
         'test_positions is only valid when recitation_method is "test".',
       );
     }
-    const position: PositionInput = { ...range, errors: topLevelErrors ?? [] };
+    const position: PositionInput = {
+      ...range,
+      errors: topLevelErrors ?? [],
+      pages: roundPages(totalPages),
+    };
     for (const e of position.errors ?? [])
       this.validatePositionError(e, position);
     return [position];
@@ -300,6 +350,7 @@ export class AchievementsService {
           startVerse: p.startVerse,
           endSurah: p.endSurah,
           endVerse: p.endVerse,
+          pages: roundPages(p.pages),
           ...counts,
         }),
       );
@@ -462,9 +513,13 @@ export class AchievementsService {
       range,
       input.testPositions,
       input.errors,
+      input.totalPages,
     );
     // The achievement's counts are the roll-up of its positions' errors, never client-set.
     const totals = sumPositionCounts(positions);
+    // Pages are client-supplied and stored as-is: total_pages verbatim, positions_pages = SUM.
+    const totalPages = roundPages(input.totalPages);
+    const positionsPages = sumPositionPages(positions);
 
     // 2. Scope check
     if (!(await this.hasHalaqaScope(input.halaqaId, actor))) {
@@ -523,6 +578,8 @@ export class AchievementsService {
       endVerse: input.endVerse,
       ...totals,
       percentageScore,
+      totalPages,
+      positionsPages,
       status: shouldApprove ? 'approved' : 'unapproved',
       approvedBy: shouldApprove ? actor.id : null,
       approvedAt: shouldApprove ? now : null,
@@ -569,6 +626,7 @@ export class AchievementsService {
     if (shouldApprove) {
       await this.reconciliation.reconcileForAchievement(achievement.id);
       await this.enqueueMemorization(achievement);
+      this.emitReportChange(achievement);
     }
 
     return achievement;
@@ -689,6 +747,9 @@ export class AchievementsService {
       achievement.percentageScore =
         Math.round(input.percentageScore * 100) / 100;
     }
+    if (input.totalPages !== undefined) {
+      achievement.totalPages = roundPages(input.totalPages);
+    }
     if (input.completionMethod !== undefined)
       achievement.completionMethod = input.completionMethod;
     if (input.recitationMethod !== undefined)
@@ -735,8 +796,11 @@ export class AchievementsService {
         },
         input.testPositions,
         input.errors,
+        achievement.totalPages,
       );
       Object.assign(achievement, sumPositionCounts(newPositions));
+      // Positions changed → recompute the pages roll-up (صفحات المواضع).
+      achievement.positionsPages = sumPositionPages(newPositions);
     }
 
     await this.repo.save(achievement);
@@ -785,6 +849,7 @@ export class AchievementsService {
     if (wasApproved) {
       await this.reconciliation.reconcileForAchievement(id);
       await this.enqueueMemorization(achievement);
+      this.emitReportChange(achievement);
     }
   }
 
@@ -819,6 +884,7 @@ export class AchievementsService {
 
     await this.reconciliation.reconcileForAchievement(id);
     await this.enqueueMemorization(achievement);
+    this.emitReportChange(achievement);
 
     return achievement;
   }
@@ -892,6 +958,7 @@ export class AchievementsService {
 
     await this.reconciliation.reconcileForAchievement(id);
     await this.enqueueMemorization(achievement);
+    this.emitReportChange(achievement);
 
     return achievement;
   }

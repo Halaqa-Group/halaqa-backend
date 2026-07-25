@@ -81,6 +81,7 @@ function makeService(
     ds?: ReturnType<typeof makeDataSource>;
     halaqatService?: ReturnType<typeof makeHalaqatService>;
     activityLog?: ReturnType<typeof makeActivityLog>;
+    enrollments?: ReturnType<typeof makeRepo>;
     today?: string;
   } = {},
 ) {
@@ -89,6 +90,7 @@ function makeService(
     overrides.ds ?? makeDataSource(),
     overrides.halaqatService ?? makeHalaqatService(),
     overrides.activityLog ?? makeActivityLog(),
+    overrides.enrollments ?? makeRepo(),
   );
   jest.spyOn(svc as never, 'today').mockReturnValue(overrides.today ?? TODAY);
   return svc;
@@ -106,6 +108,13 @@ describe('StudentEnrollmentService', () => {
       await expect(
         svc.enroll(17, { student_id: 42 }, PRINCIPAL),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('opens a historical enrollment interval (dual-write)', async () => {
+      const enrollments = makeRepo();
+      const svc = makeService({ enrollments });
+      await svc.enroll(17, { student_id: 42 }, PRINCIPAL);
+      expect((enrollments as unknown as { save: jest.Mock }).save).toHaveBeenCalled();
     });
 
     it('throws 404 when student not found in school', async () => {

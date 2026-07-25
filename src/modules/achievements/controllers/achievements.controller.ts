@@ -58,6 +58,7 @@ function mapPositionDto(p: AchievementTestPositionDto): PositionInput {
     startVerse: p.start_verse,
     endSurah: p.end_surah,
     endVerse: p.end_verse,
+    pages: p.pages,
     errors: p.errors?.map(mapErrorDto),
   };
 }
@@ -110,6 +111,7 @@ export class AchievementsController {
         endVerse: dto.end_verse,
         errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
+        totalPages: dto.total_pages,
         teacherNotes: dto.teacher_notes,
         approve: dto.approve,
       },
@@ -273,6 +275,7 @@ export class AchievementsController {
         endVerse: dto.end_verse,
         errors: dto.errors?.map(mapErrorDto),
         percentageScore: dto.percentage_score,
+        totalPages: dto.total_pages,
         teacherNotes: dto.teacher_notes,
       },
       actor,

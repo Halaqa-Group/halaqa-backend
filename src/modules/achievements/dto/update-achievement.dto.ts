@@ -113,6 +113,21 @@ export class UpdateAchievementDto {
   @ApiProperty({
     required: false,
     nullable: true,
+    example: 1.5,
+    minimum: 0,
+    description:
+      'Total pages of the whole range (الصفحات الكلية). Stored as-is. When positions ' +
+      'are regenerated (method/test_positions/errors sent), `positions_pages` is recomputed.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  total_pages?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
     example: null,
     maxLength: 1000,
   })

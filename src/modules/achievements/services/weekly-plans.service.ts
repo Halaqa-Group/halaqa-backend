@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DomainEvents } from '../../../common/events/domain-events';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
@@ -15,6 +16,13 @@ import { WeeklyPlanItem } from '../entities/weekly-plan-item.entity';
 import type { WeeklyPlanStatus } from '../entities/weekly-plan.entity';
 import { WeeklyPlan } from '../entities/weekly-plan.entity';
 import { PlanReconciliationService } from './plan-reconciliation.service';
+
+/** UTC-safe date add on YYYY-MM-DD (v1 runs on UTC). */
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 export interface CreateWeeklyPlanItemInput {
   trackType: TrackType;
@@ -60,7 +68,27 @@ export class WeeklyPlansService {
     private readonly auditService: AuditService,
     private readonly reconciliation: PlanReconciliationService,
     private readonly rangeValidator: QuranRangeValidator,
+    private readonly domainEvents: DomainEvents,
   ) {}
+
+  /**
+   * Signals that an approved plan's presence changed (approve/unapprove/delete),
+   * invalidating saved reports for each weekday the plan has items (§28.4).
+   */
+  private async emitForPlanDays(plan: WeeklyPlan): Promise<void> {
+    const items = await this.planItems.find({
+      where: { weeklyPlanId: plan.id },
+      select: { dayOfWeek: true },
+    });
+    const days = [...new Set(items.map((i) => i.dayOfWeek))];
+    for (const day of days) {
+      this.domainEvents.emitReportSourceChanged({
+        studentId: plan.studentId,
+        halaqaId: plan.halaqaId,
+        date: addDays(plan.weekStartDate, day),
+      });
+    }
+  }
 
   // ─── Authorization helpers ────────────────────────────────────────────────
 
@@ -351,6 +379,7 @@ export class WeeklyPlansService {
 
     // Reconcile the whole plan now that it is approved
     await this.reconciliation.reconcilePlan(id);
+    await this.emitForPlanDays(plan);
 
     return this.loadOrFail(id, actor.schoolId);
   }
@@ -383,6 +412,9 @@ export class WeeklyPlansService {
       oldValues: { approvedBy: oldApprovedBy, status: 'approved' },
     });
 
+    // Was approved (fed the report), now draft (does not) — recalc affected days.
+    await this.emitForPlanDays(plan);
+
     return this.loadOrFail(id, actor.schoolId);
   }
 
@@ -398,6 +430,9 @@ export class WeeklyPlansService {
     }
 
     const wasApproved = plan.status === 'approved';
+
+    // Capture affected days before the items cascade-delete with the plan.
+    if (wasApproved) await this.emitForPlanDays(plan);
 
     // Hard delete: the row is permanently removed. weekly_plan_items cascade-delete
     // via their ON DELETE CASCADE foreign key.

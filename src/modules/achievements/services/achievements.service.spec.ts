@@ -186,6 +186,7 @@ const makeService = (
     recon,
     makeRangeValidator(),
     makeMemorization(),
+    { emitReportSourceChanged: jest.fn() } as any,
   );
 };
 

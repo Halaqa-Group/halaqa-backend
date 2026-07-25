@@ -15,10 +15,13 @@ import { EmailVerificationToken } from '../modules/auth/entities/email-verificat
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { DailyHalaqaReport } from '../modules/daily-reports/entities/daily-halaqa-report.entity';
+import { DailyStudentEvaluation } from '../modules/daily-reports/entities/daily-student-evaluation.entity';
 import { HalaqaActivityLog } from '../modules/halaqat/entities/halaqa-activity-log.entity';
 import { HalaqaTeacher } from '../modules/halaqat/entities/halaqa-teacher.entity';
 import { Halaqa } from '../modules/halaqat/entities/halaqa.entity';
 import { StudentHalaqa } from '../modules/halaqat/entities/student-halaqa.entity';
+import { StudentHalaqaEnrollment } from '../modules/halaqat/entities/student-halaqa-enrollment.entity';
 import { SupervisorHalaqa } from '../modules/halaqat/entities/supervisor-halaqa.entity';
 import { Role } from '../modules/roles/role.entity';
 import { UserRole } from '../modules/roles/user-role.entity';
@@ -61,8 +64,11 @@ export default new DataSource({
     Halaqa,
     HalaqaTeacher,
     StudentHalaqa,
+    StudentHalaqaEnrollment,
     SupervisorHalaqa,
     HalaqaActivityLog,
+    DailyHalaqaReport,
+    DailyStudentEvaluation,
     Achievement,
     AchievementRecitationPosition,
     AchievementPositionError,

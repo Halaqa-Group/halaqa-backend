@@ -48,6 +48,18 @@ export class CorrectStudentAttendanceDto {
   @MaxLength(2000)
   excuse_note?: string;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'ما شاء الله أداء متقن',
+    description:
+      'ملاحظة المحفّظ اليومية — teacher note surfaced in the daily report (§22).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  daily_note?: string;
+
   @ApiProperty({ example: 'Marked present by mistake in the morning.' })
   @IsString()
   @MinLength(3)

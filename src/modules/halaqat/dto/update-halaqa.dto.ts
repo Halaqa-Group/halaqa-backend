@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import type { HalaqaType } from '../entities/halaqa.entity';
 import { EvaluationSettingsDto } from './evaluation-settings.dto';
+import { ReportWeightsDto } from './report-weights.dto';
 
 export class UpdateHalaqaDto {
   @ApiProperty({
@@ -48,4 +49,17 @@ export class UpdateHalaqaDto {
   @ValidateNested()
   @Type(() => EvaluationSettingsDto)
   evaluation_settings?: EvaluationSettingsDto | null;
+
+  @ApiProperty({
+    required: false,
+    type: ReportWeightsDto,
+    description:
+      'Daily-report track weights (hifz/near/far/ethics); the four must sum to 100. ' +
+      'Full object only — send all four. Only principal / vice_principal may change them.',
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ReportWeightsDto)
+  report_weights?: ReportWeightsDto;
 }

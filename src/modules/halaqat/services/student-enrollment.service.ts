@@ -5,13 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { EnrollStudentDto } from '../dto/enroll-student.dto';
 import type { StudentEnrollmentResponse } from '../dto/halaqa.responses';
 import { RemoveStudentDto } from '../dto/remove-student.dto';
 import { TransferStudentDto } from '../dto/transfer-student.dto';
+import type { EnrollmentStatus } from '../entities/student-halaqa-enrollment.entity';
+import { StudentHalaqaEnrollment } from '../entities/student-halaqa-enrollment.entity';
 import { StudentHalaqa } from '../entities/student-halaqa.entity';
 import { HalaqaActivityLogService } from './halaqa-activity-log.service';
 import { HalaqatService } from './halaqat.service';
@@ -31,12 +33,55 @@ export class StudentEnrollmentService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly halaqatService: HalaqatService,
     private readonly activityLog: HalaqaActivityLogService,
+    @InjectRepository(StudentHalaqaEnrollment)
+    private readonly enrollments: Repository<StudentHalaqaEnrollment>,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   protected today(): string {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  /**
+   * Historical-membership dual-write (§8): opens a new open interval in
+   * `student_halaqa_enrollments` alongside the `student_halaqa` current-state row.
+   */
+  private async openEnrollmentInterval(
+    studentId: number,
+    halaqaId: number,
+    startDate: string,
+    actorId: number,
+  ): Promise<void> {
+    await this.enrollments.save(
+      this.enrollments.create({
+        studentId,
+        halaqaId,
+        startDate,
+        endDate: null,
+        status: 'active',
+        createdBy: actorId,
+      }),
+    );
+  }
+
+  /** Closes the currently-open interval (if any) with an end date + outcome. */
+  private async closeEnrollmentInterval(
+    studentId: number,
+    halaqaId: number,
+    endDate: string,
+    status: EnrollmentStatus,
+    reason: string | null,
+  ): Promise<void> {
+    const open = await this.enrollments.findOne({
+      where: { studentId, halaqaId, endDate: IsNull() },
+      order: { startDate: 'DESC' },
+    });
+    if (!open) return;
+    open.endDate = endDate;
+    open.status = status;
+    open.endReason = reason;
+    await this.enrollments.save(open);
   }
 
   private toResponse(row: EnrollmentRow): StudentEnrollmentResponse {
@@ -117,6 +162,12 @@ export class StudentEnrollmentService {
         status: 'active',
       }),
     );
+    await this.openEnrollmentInterval(
+      dto.student_id,
+      halaqaId,
+      enrollmentDate,
+      actor.id,
+    );
 
     await this.activityLog.log({
       schoolId: actor.schoolId,
@@ -172,6 +223,13 @@ export class StudentEnrollmentService {
 
     enrollment.status = dto.outcome === 'completed' ? 'completed' : 'archived';
     await this.repo.save(enrollment);
+    await this.closeEnrollmentInterval(
+      studentId,
+      halaqaId,
+      this.today(),
+      enrollment.status,
+      dto.notes ?? null,
+    );
 
     await this.activityLog.log({
       schoolId: actor.schoolId,
@@ -249,6 +307,13 @@ export class StudentEnrollmentService {
 
     fromEnrollment.status = 'transferred';
     await this.repo.save(fromEnrollment);
+    await this.closeEnrollmentInterval(
+      dto.student_id,
+      dto.from_halaqa_id,
+      transferDate,
+      'transferred',
+      dto.reason ?? null,
+    );
 
     await this.repo.save(
       this.repo.create({
@@ -257,6 +322,12 @@ export class StudentEnrollmentService {
         enrollmentDate: transferDate,
         status: 'active',
       }),
+    );
+    await this.openEnrollmentInterval(
+      dto.student_id,
+      dto.to_halaqa_id,
+      transferDate,
+      actor.id,
     );
 
     await this.activityLog.log({

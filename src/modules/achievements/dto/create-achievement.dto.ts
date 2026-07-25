@@ -151,6 +151,22 @@ export class CreateAchievementDto {
   @ApiProperty({
     required: false,
     nullable: true,
+    example: 1.5,
+    minimum: 0,
+    description:
+      'Total pages of the whole range (الصفحات الكلية), computed on the frontend ' +
+      'from the mushaf. Stored as-is. For a `full` recitation this also becomes the ' +
+      "single position's pages; for `test`, send per-position pages inside `test_positions`.",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  total_pages?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
     example: 'Strong on the last 3 verses.',
     maxLength: 1000,
   })
