@@ -14,6 +14,7 @@ import { DevSeederModule } from './modules/dev/dev-seeder.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { DailyReportsModule } from './modules/daily-reports/daily-reports.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HalaqatModule } from './modules/halaqat/halaqat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './modules/users/users.module';
     AttendanceModule,
     AchievementsModule,
     DailyReportsModule,
+    DashboardModule,
     DevSeederModule,
   ],
   controllers: [AppController, HealthController],
