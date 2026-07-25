@@ -104,6 +104,30 @@ export class Achievement {
   @Column({ name: 'percentage_score', type: 'decimal', precision: 5, scale: 2 })
   percentageScore!: number;
 
+  // Pages memorised/recited, computed on the frontend (from the mushaf) and
+  // stored as-is — the backend never derives them. `total_pages` is the breadth
+  // of the whole [start,end] range (الصفحات الكلية). `positions_pages` is the
+  // SUM of the recitation positions' `pages` (صفحات المواضع) — the amount
+  // actually recited; for a `full` recitation the two are equal, for a `test`
+  // it is the tested subset. NULL = the client did not supply pages.
+  @Column({
+    name: 'total_pages',
+    type: 'decimal',
+    precision: 8,
+    scale: 4,
+    nullable: true,
+  })
+  totalPages!: number | null;
+
+  @Column({
+    name: 'positions_pages',
+    type: 'decimal',
+    precision: 8,
+    scale: 4,
+    nullable: true,
+  })
+  positionsPages!: number | null;
+
   @Column({
     type: 'enum',
     enum: ['approved', 'unapproved'],

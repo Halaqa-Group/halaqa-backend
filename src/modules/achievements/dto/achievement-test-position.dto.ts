@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsInt,
+  IsNumber,
   IsOptional,
   Max,
   Min,
@@ -47,6 +48,21 @@ export class AchievementTestPositionDto {
   @IsInt()
   @Min(1)
   end_verse!: number;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 1,
+    minimum: 0,
+    description:
+      'Pages covered by this tested position (صفحات الموضع), computed on the ' +
+      'frontend from the mushaf. Stored as-is; the achievement `positions_pages` is their sum.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  pages?: number | null;
 
   @ApiProperty({
     required: false,

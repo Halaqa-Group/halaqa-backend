@@ -70,6 +70,14 @@ export class RecitationPositionDto {
   harakat_errors_count!: number;
 
   @ApiProperty({
+    nullable: true,
+    example: 1.0,
+    description:
+      'Pages covered by this position (صفحات الموضع), client-supplied fractional pages. NULL if not sent.',
+  })
+  pages!: number | null;
+
+  @ApiProperty({
     type: [PositionErrorDtoOut],
     description: 'Itemized errors at this position.',
   })
@@ -81,6 +89,7 @@ export class RecitationPositionDto {
     dto.start_verse = p.startVerse;
     dto.end_surah = p.endSurah;
     dto.end_verse = p.endVerse;
+    dto.pages = p.pages === null ? null : Number(p.pages);
     dto.mistakes_count = p.mistakesCount;
     dto.warnings_count = p.warningsCount;
     dto.tajweed_errors_count = p.tajweedErrorsCount;
@@ -161,6 +170,23 @@ export class AchievementDto {
   })
   percentage_score!: string;
 
+  @ApiProperty({
+    nullable: true,
+    example: 1.5,
+    description:
+      'Total pages of the whole range (الصفحات الكلية), client-supplied fractional pages. NULL if not sent.',
+  })
+  total_pages!: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: 1.5,
+    description:
+      'Sum of the recitation positions’ pages (صفحات المواضع) — the amount actually ' +
+      'recited. Equals total_pages for a `full` recitation; the tested subset for `test`. NULL if not sent.',
+  })
+  positions_pages!: number | null;
+
   @ApiProperty({ enum: ['approved', 'unapproved'], example: 'unapproved' })
   status!: string;
 
@@ -204,6 +230,10 @@ export class AchievementDto {
     dto.end_surah = entity.endSurah;
     dto.end_verse = entity.endVerse;
     dto.percentage_score = Number(entity.percentageScore).toFixed(2);
+    dto.total_pages =
+      entity.totalPages === null ? null : Number(entity.totalPages);
+    dto.positions_pages =
+      entity.positionsPages === null ? null : Number(entity.positionsPages);
     dto.status = entity.status;
     dto.teacher_notes = entity.teacherNotes;
     dto.created_at = entity.createdAt.toISOString();

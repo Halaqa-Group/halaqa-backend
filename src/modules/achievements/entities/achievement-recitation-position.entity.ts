@@ -44,6 +44,17 @@ export class AchievementRecitationPosition {
   @Column({ name: 'end_verse', type: 'smallint', unsigned: true })
   endVerse!: number;
 
+  // Pages covered by this position, computed on the frontend and stored as-is.
+  // NULL = not supplied. The achievement's `positions_pages` is SUM(pages).
+  @Column({
+    name: 'pages',
+    type: 'decimal',
+    precision: 8,
+    scale: 4,
+    nullable: true,
+  })
+  pages!: number | null;
+
   @Column({ name: 'mistakes_count', type: 'int', unsigned: true, default: 0 })
   mistakesCount!: number;
 
