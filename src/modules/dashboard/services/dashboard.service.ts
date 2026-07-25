@@ -917,6 +917,11 @@ export class DashboardService {
           clause: ` AND sh.halaqa_id IN (${this.inList(scope.halaqaIds)})`,
           params: scope.halaqaIds,
         };
+    // NOTE: the ORDER BY repeats `MAX(a.date)` instead of reusing the `lastDate`
+    // alias. MySQL/MariaDB accept a *bare* aggregate alias in ORDER BY, but
+    // reject one nested in an expression ("Reference 'lastDate' not supported
+    // (reference to group function)"), which `lastDate IS NOT NULL` is. The
+    // sort puts never-achieved students first, then the longest-stalled.
     const rows: Array<{
       studentId: number;
       studentName: string;
@@ -934,7 +939,7 @@ export class DashboardService {
           AND s.deleted_at IS NULL${filter.clause}
         GROUP BY s.id, s.name
        HAVING lastDate IS NULL OR lastDate < ?
-        ORDER BY lastDate IS NOT NULL, lastDate ASC
+        ORDER BY MAX(a.date) IS NOT NULL, MAX(a.date) ASC
         LIMIT 100`,
       [schoolId, ...filter.params, cutoff],
     );
