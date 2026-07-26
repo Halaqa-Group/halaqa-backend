@@ -60,7 +60,8 @@ const CHROME = {
     align: 'left',
     appName: 'Al-Itqan School',
     tagline: 'Quran Memorization — Bir Saba‘ Mosque',
-    fallbackLabel: "If the button doesn't work, copy this link into your browser:",
+    fallbackLabel:
+      "If the button doesn't work, copy this link into your browser:",
   },
 } as const satisfies Record<MailLocale, unknown>;
 
@@ -144,7 +145,8 @@ export function mailLogo(appUrl: string): {
   attachments: Attachment[];
 } {
   const content = loadLogo();
-  if (!content) return { src: `${appUrl}/images/logo/halaqa_logo.png`, attachments: [] };
+  if (!content)
+    return { src: `${appUrl}/images/logo/halaqa_logo.png`, attachments: [] };
   return {
     src: `cid:${LOGO_CID}`,
     attachments: [

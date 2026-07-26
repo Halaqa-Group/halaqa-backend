@@ -114,7 +114,9 @@ describe('StudentEnrollmentService', () => {
       const enrollments = makeRepo();
       const svc = makeService({ enrollments });
       await svc.enroll(17, { student_id: 42 }, PRINCIPAL);
-      expect((enrollments as unknown as { save: jest.Mock }).save).toHaveBeenCalled();
+      expect(
+        (enrollments as unknown as { save: jest.Mock }).save,
+      ).toHaveBeenCalled();
     });
 
     it('throws 404 when student not found in school', async () => {
