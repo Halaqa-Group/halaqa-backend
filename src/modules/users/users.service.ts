@@ -48,6 +48,8 @@ export interface UserView {
   photoUrl: string | null;
   status: User['status'];
   roles: string[];
+  /** Stamped when a verification link is consumed; null while unverified. */
+  emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -435,6 +437,7 @@ export class UsersService {
       photoUrl: user.photoUrl,
       status: user.status,
       roles: (user.userRoles ?? []).map((ur) => ur.role.slug),
+      emailVerifiedAt: user.emailVerifiedAt,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

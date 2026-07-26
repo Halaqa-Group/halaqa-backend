@@ -44,6 +44,15 @@ export class UserResponse {
   })
   roles!: string[];
 
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description:
+      'When the user proved ownership of `email` via a verification link. Null while unverified.',
+  })
+  emailVerifiedAt!: Date | null;
+
   @ApiProperty({ nullable: true, type: String, format: 'date-time' })
   lastLoginAt!: Date | null;
 

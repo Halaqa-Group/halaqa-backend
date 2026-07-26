@@ -174,6 +174,16 @@ export class MeResponse {
       'Flat list of role slugs. Authorization is role-based — there is no `permissions` field.',
   })
   roles!: string[];
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description:
+      'When the caller proved ownership of `email`. Null while unverified — clients use this to ' +
+      'offer `POST /auth/verify-email/request`.',
+  })
+  emailVerifiedAt!: Date | null;
 }
 
 export class MeEnvelope {

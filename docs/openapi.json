@@ -5357,6 +5357,432 @@
           "daily-reports"
         ]
       }
+    },
+    "/dashboard/overview": {
+      "get": {
+        "description": "Role-scoped headline indicators for the home screen: student attendance rate, teacher attendance rate (`null` for the teacher role), ethics average, new-memorization verses (Hifz), plan-completion rate, average score, and active student/halaqa counts.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "operationId": "DashboardController_overview",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Reporting window. Defaults to the current school week (starts Saturday). Ignored when both `from` and `to` are supplied.",
+            "schema": {
+              "example": "week",
+              "type": "string",
+              "enum": [
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range start (inclusive). Requires `to`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range end (inclusive). Requires `from`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-25",
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare",
+            "required": false,
+            "in": "query",
+            "description": "When true, `overview` also returns the same KPIs for the immediately-preceding window (for ▲/▼ trend deltas).",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Headline KPI cards",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/top-students": {
+      "get": {
+        "description": "Leaderboard of students ranked by verses from approved achievements in the period (`track` defaults to `Hifz` — الحفظ الجديد). `limit` defaults to 10, capped at 50.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "operationId": "DashboardController_topStudents",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Reporting window. Defaults to the current school week (starts Saturday). Ignored when both `from` and `to` are supplied.",
+            "schema": {
+              "example": "week",
+              "type": "string",
+              "enum": [
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range start (inclusive). Requires `to`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range end (inclusive). Requires `from`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-25",
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare",
+            "required": false,
+            "in": "query",
+            "description": "When true, `overview` also returns the same KPIs for the immediately-preceding window (for ▲/▼ trend deltas).",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "track",
+            "required": false,
+            "in": "query",
+            "description": "Which track to rank by. Defaults to `Hifz` (الحفظ الجديد). `Near`/`Far` rank by review volume.",
+            "schema": {
+              "example": "Hifz",
+              "type": "string",
+              "enum": [
+                "Hifz",
+                "Near",
+                "Far"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "How many students to return. Defaults to 10, capped at 50.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "example": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopStudentsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Top students by new memorization",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/halaqat": {
+      "get": {
+        "description": "One row per active halaqa in scope: active students, attendance rate, new-memorization verses, average score, and plan-completion rate. Sorted by verses.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "operationId": "DashboardController_halaqat",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Reporting window. Defaults to the current school week (starts Saturday). Ignored when both `from` and `to` are supplied.",
+            "schema": {
+              "example": "week",
+              "type": "string",
+              "enum": [
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range start (inclusive). Requires `to`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range end (inclusive). Requires `from`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-25",
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare",
+            "required": false,
+            "in": "query",
+            "description": "When true, `overview` also returns the same KPIs for the immediately-preceding window (for ▲/▼ trend deltas).",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HalaqatPerformanceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Per-halaqa performance",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/alerts": {
+      "get": {
+        "description": "Oversight cards that need action:\n- **stalled_students**: active students with no approved achievement in the last `stalled_days` days (default 7).\n- **halaqat_without_teacher**: active halaqat with no active main teacher.\n- **high_absence_teachers**: teachers with ≥ `absence_threshold` (default 2) absent days in the period.\n\nAuto-scoped: principal/VP see the school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. **high_absence_teachers is empty for the teacher role** (staff commitment is above their level).",
+        "operationId": "DashboardController_alerts",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Reporting window. Defaults to the current school week (starts Saturday). Ignored when both `from` and `to` are supplied.",
+            "schema": {
+              "example": "week",
+              "type": "string",
+              "enum": [
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range start (inclusive). Requires `to`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range end (inclusive). Requires `from`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-25",
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare",
+            "required": false,
+            "in": "query",
+            "description": "When true, `overview` also returns the same KPIs for the immediately-preceding window (for ▲/▼ trend deltas).",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "stalled_days",
+            "required": false,
+            "in": "query",
+            "description": "A student with no approved achievement in this many days is \"stalled\". Defaults to 7.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 90,
+              "example": 7,
+              "type": "number"
+            }
+          },
+          {
+            "name": "absence_threshold",
+            "required": false,
+            "in": "query",
+            "description": "A teacher with at least this many absent days in the period is flagged. Defaults to 2.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 90,
+              "example": 2,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Actionable alerts",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/teachers": {
+      "get": {
+        "description": "One row per teacher in scope: their own attendance rate, number of halaqat/students, and their students' attendance rate and new-memorization verses. Not available to the teacher role (they cannot see staff commitment).\n\nScoped to school (principal/VP) or supervised halaqat (supervisor).",
+        "operationId": "DashboardController_teachers",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "Reporting window. Defaults to the current school week (starts Saturday). Ignored when both `from` and `to` are supplied.",
+            "schema": {
+              "example": "week",
+              "type": "string",
+              "enum": [
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range start (inclusive). Requires `to`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Explicit range end (inclusive). Requires `from`.",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-25",
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare",
+            "required": false,
+            "in": "query",
+            "description": "When true, `overview` also returns the same KPIs for the immediately-preceding window (for ▲/▼ trend deltas).",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachersCommitmentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Teacher commitment (معدل التزام المحفظين)",
+        "tags": [
+          "Dashboard"
+        ]
+      }
     }
   },
   "info": {
@@ -5643,6 +6069,12 @@
               "type": "string"
             }
           },
+          "emailVerifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the user proved ownership of `email` via a verification link. Null while unverified."
+          },
           "lastLoginAt": {
             "type": "string",
             "nullable": true,
@@ -5670,6 +6102,7 @@
           "photoUrl",
           "status",
           "roles",
+          "emailVerifiedAt",
           "lastLoginAt",
           "createdAt",
           "updatedAt"
@@ -6131,6 +6564,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "emailVerifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the caller proved ownership of `email`. Null while unverified — clients use this to offer `POST /auth/verify-email/request`."
           }
         },
         "required": [
@@ -6144,7 +6583,8 @@
           "email",
           "phone",
           "photoUrl",
-          "roles"
+          "roles",
+          "emailVerifiedAt"
         ]
       },
       "MeEnvelope": {
@@ -8763,6 +9203,13 @@
             "example": 5,
             "minimum": 1
           },
+          "pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1,
+            "minimum": 0,
+            "description": "Pages covered by this tested position (صفحات الموضع), computed on the frontend from the mushaf. Stored as-is; the achievement `positions_pages` is their sum."
+          },
           "errors": {
             "description": "Errors made at this position. Each must fall within the position range. Omit or send [] for a clean position. The per-type counts are derived from this list.",
             "type": "array",
@@ -8867,6 +9314,13 @@
             "minimum": 0,
             "maximum": 100,
             "description": "Computed on the frontend from raw counts and the halaqa evaluation settings. Stored as-is."
+          },
+          "total_pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1.5,
+            "minimum": 0,
+            "description": "Total pages of the whole range (الصفحات الكلية), computed on the frontend from the mushaf. Stored as-is. For a `full` recitation this also becomes the single position's pages; for `test`, send per-position pages inside `test_positions`."
           },
           "teacher_notes": {
             "type": "object",
@@ -8979,6 +9433,12 @@
             "example": 2,
             "description": "Harakat (حركات) errors, derived from `errors`."
           },
+          "pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1,
+            "description": "Pages covered by this position (صفحات الموضع), client-supplied fractional pages. NULL if not sent."
+          },
           "errors": {
             "description": "Itemized errors at this position.",
             "type": "array",
@@ -8996,6 +9456,7 @@
           "warnings_count",
           "tajweed_errors_count",
           "harakat_errors_count",
+          "pages",
           "errors"
         ]
       },
@@ -9099,6 +9560,18 @@
             "example": "95.50",
             "description": "Computed percentage score (2 decimal places)."
           },
+          "total_pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1.5,
+            "description": "Total pages of the whole range (الصفحات الكلية), client-supplied fractional pages. NULL if not sent."
+          },
+          "positions_pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1.5,
+            "description": "Sum of the recitation positions’ pages (صفحات المواضع) — the amount actually recited. Equals total_pages for a `full` recitation; the tested subset for `test`. NULL if not sent."
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -9150,6 +9623,8 @@
           "tajweed_errors_count",
           "harakat_errors_count",
           "percentage_score",
+          "total_pages",
+          "positions_pages",
           "status",
           "recorded_by_name",
           "approved_by_name",
@@ -9255,6 +9730,13 @@
             "example": 92.5,
             "minimum": 0,
             "maximum": 100
+          },
+          "total_pages": {
+            "type": "object",
+            "nullable": true,
+            "example": 1.5,
+            "minimum": 0,
+            "description": "Total pages of the whole range (الصفحات الكلية). Stored as-is. When positions are regenerated (method/test_positions/errors sent), `positions_pages` is recomputed."
           },
           "teacher_notes": {
             "type": "object",
@@ -9800,6 +10282,457 @@
             "description": "Reason recorded on the report and in the audit log (§29.3)."
           }
         }
+      },
+      "DateRangeDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-25"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-25"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "OverviewComparisonDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "student_attendance_rate": {
+            "type": "number",
+            "example": 0.9
+          },
+          "teacher_attendance_rate": {
+            "type": "object",
+            "nullable": true,
+            "example": 0.85
+          },
+          "ethics_average": {
+            "type": "number",
+            "example": 4.9
+          },
+          "new_memorization_pages": {
+            "type": "number",
+            "example": 11
+          },
+          "plan_completion_rate": {
+            "type": "number",
+            "example": 0.7
+          },
+          "average_score": {
+            "type": "number",
+            "example": 83
+          }
+        },
+        "required": [
+          "range",
+          "student_attendance_rate",
+          "teacher_attendance_rate",
+          "ethics_average",
+          "new_memorization_pages",
+          "plan_completion_rate",
+          "average_score"
+        ]
+      },
+      "OverviewDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "student_attendance_rate": {
+            "type": "number",
+            "example": 0.92,
+            "description": "Student attendance rate over the period: (present + late) / total obligated rows."
+          },
+          "teacher_attendance_rate": {
+            "type": "object",
+            "nullable": true,
+            "example": 0.88,
+            "description": "Teacher attendance rate for teachers in scope. `null` for the teacher role (not authorized to see staff commitment)."
+          },
+          "ethics_average": {
+            "type": "number",
+            "example": 1,
+            "description": "Average ethics rating (تقييم الأخلاق), 1..5."
+          },
+          "new_memorization_pages": {
+            "type": "number",
+            "example": 12.5,
+            "description": "New-memorization volume: SUM of total_pages from approved Hifz achievements in the period (fractional pages)."
+          },
+          "plan_completion_rate": {
+            "type": "number",
+            "example": 0.75,
+            "description": "Plan-completion rate: completed items / total items in scope."
+          },
+          "average_score": {
+            "type": "number",
+            "example": 84.5,
+            "description": "Average percentage_score (0..100)."
+          },
+          "active_students": {
+            "type": "number",
+            "example": 120,
+            "description": "Distinct active students in scope."
+          },
+          "active_halaqat": {
+            "type": "number",
+            "example": 8,
+            "description": "Active halaqat in scope."
+          },
+          "previous": {
+            "nullable": true,
+            "description": "The same KPIs over the immediately-preceding window. Present only when `?compare=true`; else null. Compute deltas client-side.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverviewComparisonDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "range",
+          "student_attendance_rate",
+          "teacher_attendance_rate",
+          "ethics_average",
+          "new_memorization_pages",
+          "plan_completion_rate",
+          "average_score",
+          "active_students",
+          "active_halaqat",
+          "previous"
+        ]
+      },
+      "TopStudentDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "student_name": {
+            "type": "string",
+            "example": "محمد أحمد علي الفلاني"
+          },
+          "total_pages": {
+            "type": "number",
+            "example": 12.5,
+            "description": "Total pages (الصفحات الكلية) memorized in the period."
+          },
+          "positions_pages": {
+            "type": "number",
+            "example": 12.5,
+            "description": "Pages actually recited (صفحات المواضع). Equals total_pages for full recitations."
+          },
+          "achievements_count": {
+            "type": "number",
+            "example": 5,
+            "description": "Number of approved achievements in the period."
+          },
+          "average_score": {
+            "type": "number",
+            "example": 91.2,
+            "description": "Average percentage_score across those achievements."
+          }
+        },
+        "required": [
+          "student_id",
+          "student_name",
+          "total_pages",
+          "positions_pages",
+          "achievements_count",
+          "average_score"
+        ]
+      },
+      "TopStudentsDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "track": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Hifz"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopStudentDto"
+            }
+          }
+        },
+        "required": [
+          "range",
+          "track",
+          "items"
+        ]
+      },
+      "HalaqaPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "halaqa_id": {
+            "type": "number",
+            "example": 3
+          },
+          "halaqa_name": {
+            "type": "string",
+            "example": "حلقة الفرقان"
+          },
+          "students": {
+            "type": "number",
+            "example": 18,
+            "description": "Active students enrolled."
+          },
+          "attendance_rate": {
+            "type": "number",
+            "example": 0.94,
+            "description": "Student attendance rate."
+          },
+          "pages": {
+            "type": "number",
+            "example": 24.75,
+            "description": "New-memorization pages (SUM total_pages, Hifz) in the period."
+          },
+          "average_score": {
+            "type": "number",
+            "example": 86.4,
+            "description": "Average percentage_score."
+          },
+          "plan_completion_rate": {
+            "type": "number",
+            "example": 0.8,
+            "description": "Plan-completion rate."
+          }
+        },
+        "required": [
+          "halaqa_id",
+          "halaqa_name",
+          "students",
+          "attendance_rate",
+          "pages",
+          "average_score",
+          "plan_completion_rate"
+        ]
+      },
+      "HalaqatPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HalaqaPerformanceDto"
+            }
+          }
+        },
+        "required": [
+          "range",
+          "items"
+        ]
+      },
+      "StalledStudentDto": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "number",
+            "example": 42
+          },
+          "student_name": {
+            "type": "string",
+            "example": "محمد أحمد علي الفلاني"
+          },
+          "last_achievement_date": {
+            "type": "object",
+            "nullable": true,
+            "format": "date",
+            "example": "2026-07-10",
+            "description": "Date of their last approved achievement, or null if never."
+          },
+          "days_since": {
+            "type": "object",
+            "nullable": true,
+            "example": 15,
+            "description": "Days since the last approved achievement; null if never."
+          }
+        },
+        "required": [
+          "student_id",
+          "student_name",
+          "last_achievement_date",
+          "days_since"
+        ]
+      },
+      "HalaqaWithoutTeacherDto": {
+        "type": "object",
+        "properties": {
+          "halaqa_id": {
+            "type": "number",
+            "example": 3
+          },
+          "halaqa_name": {
+            "type": "string",
+            "example": "حلقة الفرقان"
+          }
+        },
+        "required": [
+          "halaqa_id",
+          "halaqa_name"
+        ]
+      },
+      "HighAbsenceTeacherDto": {
+        "type": "object",
+        "properties": {
+          "teacher_id": {
+            "type": "number",
+            "example": 7
+          },
+          "teacher_name": {
+            "type": "string",
+            "example": "خالد سعيد عمر الشمري"
+          },
+          "absent_days": {
+            "type": "number",
+            "example": 3,
+            "description": "Number of absent days in the period."
+          },
+          "attendance_rate": {
+            "type": "number",
+            "example": 0.62,
+            "description": "Attendance rate over the period."
+          }
+        },
+        "required": [
+          "teacher_id",
+          "teacher_name",
+          "absent_days",
+          "attendance_rate"
+        ]
+      },
+      "AlertsDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "stalled_days": {
+            "type": "number",
+            "example": 7,
+            "description": "The staleness window (days) used for stalled_students."
+          },
+          "stalled_students": {
+            "description": "Active students in scope with no approved achievement in the last `stalled_days` days.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StalledStudentDto"
+            }
+          },
+          "halaqat_without_teacher": {
+            "description": "Active halaqat in scope with no active main teacher.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HalaqaWithoutTeacherDto"
+            }
+          },
+          "high_absence_teachers": {
+            "description": "Teachers in scope with at least `absence_threshold` absent days in the period.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HighAbsenceTeacherDto"
+            }
+          }
+        },
+        "required": [
+          "range",
+          "stalled_days",
+          "stalled_students",
+          "halaqat_without_teacher",
+          "high_absence_teachers"
+        ]
+      },
+      "TeacherCommitmentDto": {
+        "type": "object",
+        "properties": {
+          "teacher_id": {
+            "type": "number",
+            "example": 7
+          },
+          "teacher_name": {
+            "type": "string",
+            "example": "خالد سعيد عمر الشمري"
+          },
+          "attendance_rate": {
+            "type": "object",
+            "nullable": true,
+            "example": 0.96,
+            "description": "The teacher's own attendance rate over the period. `null` if they have no attendance rows."
+          },
+          "halaqat": {
+            "type": "number",
+            "example": 2,
+            "description": "Active halaqat they currently teach."
+          },
+          "students": {
+            "type": "number",
+            "example": 34,
+            "description": "Distinct active students across those halaqat."
+          },
+          "student_attendance_rate": {
+            "type": "number",
+            "example": 0.9,
+            "description": "Their students' attendance rate."
+          },
+          "student_pages": {
+            "type": "number",
+            "example": 42.5,
+            "description": "Their students' new-memorization pages (SUM total_pages, Hifz)."
+          }
+        },
+        "required": [
+          "teacher_id",
+          "teacher_name",
+          "attendance_rate",
+          "halaqat",
+          "students",
+          "student_attendance_rate",
+          "student_pages"
+        ]
+      },
+      "TeachersCommitmentDto": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/DateRangeDto"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeacherCommitmentDto"
+            }
+          }
+        },
+        "required": [
+          "range",
+          "items"
+        ]
       }
     }
   }

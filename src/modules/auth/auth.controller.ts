@@ -238,6 +238,7 @@ export class AuthController {
       phone: view.phone,
       photoUrl: view.photoUrl,
       roles: view.roles,
+      emailVerifiedAt: view.emailVerifiedAt,
     };
   }
 
