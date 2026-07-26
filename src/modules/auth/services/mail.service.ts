@@ -2,11 +2,23 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import type { MailContent } from '../mail/mail-layout';
+import { mailLogo, renderMailHtml, renderMailText } from '../mail/mail-layout';
+import type { MailLocale } from '../mail/mail-locale';
+import {
+  parentInviteEmail,
+  passwordResetEmail,
+  verificationEmail,
+} from '../mail/mail-templates';
 
 export interface MailService {
-  sendResetEmail(to: string, link: string): Promise<void>;
-  sendParentInvite(to: string, link: string): Promise<void>;
-  sendVerificationEmail(to: string, link: string): Promise<void>;
+  sendResetEmail(to: string, link: string, locale: MailLocale): Promise<void>;
+  sendParentInvite(to: string, link: string, locale: MailLocale): Promise<void>;
+  sendVerificationEmail(
+    to: string,
+    link: string,
+    locale: MailLocale,
+  ): Promise<void>;
 }
 
 @Injectable()
@@ -16,12 +28,14 @@ export class NodemailerMailService
   private readonly logger = new Logger(NodemailerMailService.name);
   private readonly transporter: Transporter;
   private readonly from: string;
+  private readonly appUrl: string;
   private readonly hasSmtp: boolean;
 
   constructor(config: ConfigService) {
     const host = config.get<string>('SMTP_HOST');
     this.hasSmtp = !!host;
     this.from = config.getOrThrow<string>('MAIL_FROM');
+    this.appUrl = config.getOrThrow<string>('APP_URL');
     this.transporter = this.hasSmtp
       ? nodemailer.createTransport({
           host,
@@ -45,51 +59,48 @@ export class NodemailerMailService
     this.logger.log('SMTP transport verified');
   }
 
-  async sendResetEmail(to: string, link: string): Promise<void> {
-    await this.transporter.sendMail({
-      from: this.from,
-      to,
-      subject: 'Reset your password',
-      text: `Use this link to reset your password (valid for 1 hour):\n\n${link}\n\nIf you didn't request this, ignore this email.`,
-      html:
-        `<p>Use this link to reset your password (valid for 1 hour):</p>` +
-        `<p><a href="${link}">${link}</a></p>` +
-        `<p>If you didn't request this, ignore this email.</p>`,
-    });
-    if (!this.hasSmtp) {
-      this.logger.log(`reset email (jsonTransport) → ${to}: ${link}`);
-    }
+  async sendResetEmail(
+    to: string,
+    link: string,
+    locale: MailLocale,
+  ): Promise<void> {
+    await this.deliver(to, passwordResetEmail(locale, link), locale);
   }
 
-  async sendVerificationEmail(to: string, link: string): Promise<void> {
-    await this.transporter.sendMail({
-      from: this.from,
-      to,
-      subject: 'Verify your email',
-      text: `Confirm this email address (link valid for 24 hours):\n\n${link}\n\nIf you didn't request this, ignore this email.`,
-      html:
-        `<p>Confirm this email address (link valid for 24 hours):</p>` +
-        `<p><a href="${link}">${link}</a></p>` +
-        `<p>If you didn't request this, ignore this email.</p>`,
-    });
-    if (!this.hasSmtp) {
-      this.logger.log(`verification email (jsonTransport) → ${to}: ${link}`);
-    }
+  async sendVerificationEmail(
+    to: string,
+    link: string,
+    locale: MailLocale,
+  ): Promise<void> {
+    await this.deliver(to, verificationEmail(locale, link), locale);
   }
 
-  async sendParentInvite(to: string, link: string): Promise<void> {
+  async sendParentInvite(
+    to: string,
+    link: string,
+    locale: MailLocale,
+  ): Promise<void> {
+    await this.deliver(to, parentInviteEmail(locale, link), locale);
+  }
+
+  private async deliver(
+    to: string,
+    content: MailContent,
+    locale: MailLocale,
+  ): Promise<void> {
+    const logo = mailLogo(this.appUrl);
     await this.transporter.sendMail({
       from: this.from,
       to,
-      subject: 'You have been added as a guardian',
-      text: `You have been added as a parent/guardian. Set your password using this link (valid for 7 days):\n\n${link}`,
-      html:
-        `<p>You have been added as a parent/guardian.</p>` +
-        `<p>Set your password using this link (valid for 7 days):</p>` +
-        `<p><a href="${link}">${link}</a></p>`,
+      subject: content.subject,
+      text: renderMailText(content, locale),
+      html: renderMailHtml(content, locale, logo.src),
+      attachments: logo.attachments,
     });
     if (!this.hasSmtp) {
-      this.logger.log(`parent invite (jsonTransport) → ${to}: ${link}`);
+      this.logger.log(
+        `${content.kind} (jsonTransport, ${locale}) → ${to}: ${content.ctaUrl}`,
+      );
     }
   }
 }

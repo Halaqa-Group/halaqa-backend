@@ -38,6 +38,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { resolveMailLocale } from './mail/mail-locale';
 import { buildRequestContext } from './request-context';
 import { AuthService } from './services/auth.service';
 import { EmailVerificationService } from './services/email-verification.service';
@@ -182,7 +183,8 @@ export class AuthController {
     summary: 'Request a password-reset email',
     description:
       'Always returns 200 with the same message regardless of whether the email exists — never reveals ' +
-      'membership. The reset token is one-time, valid for 1 hour.',
+      'membership. The reset token is one-time, valid for 1 hour.\n\n' +
+      'The email is written in the language negotiated from `Accept-Language` (`ar` or `en`, default `ar`).',
   })
   @ApiBody({ type: ForgotPasswordDto })
   @ApiResponse({ status: 200, type: MessageEnvelope })
@@ -191,7 +193,11 @@ export class AuthController {
     @Req() req: Request,
   ): Promise<ApiMessage> {
     const ctx = buildRequestContext(req);
-    await this.passwordReset.requestReset(dto.email, ctx.ip);
+    await this.passwordReset.requestReset(
+      dto.email,
+      ctx.ip,
+      resolveMailLocale(req.headers['accept-language']),
+    );
     return new ApiMessage('A reset link has been sent.');
   }
 
@@ -271,7 +277,8 @@ export class AuthController {
     description:
       'Authenticated. Always returns the same 200 message (even if the email is already ' +
       'verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new ' +
-      'one invalidates any previously sent link.',
+      'one invalidates any previously sent link.\n\n' +
+      'The email is written in the language negotiated from `Accept-Language` (`ar` or `en`, default `ar`).',
   })
   @ApiResponse({ status: 200, type: MessageEnvelope })
   @ApiResponse({ status: 401, type: ErrorEnvelope })
@@ -280,7 +287,11 @@ export class AuthController {
     @Req() req: Request,
   ): Promise<ApiMessage> {
     const ctx = buildRequestContext(req);
-    await this.emailVerification.requestVerification(actor.id, ctx.ip);
+    await this.emailVerification.requestVerification(
+      actor.id,
+      ctx.ip,
+      resolveMailLocale(req.headers['accept-language']),
+    );
     return new ApiMessage('A verification link has been sent.');
   }
 

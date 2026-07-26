@@ -97,7 +97,7 @@ describe('PasswordResetService', () => {
     it('returns silently and does no work for an unknown email', async () => {
       m.userRepo.findOne.mockResolvedValue(null);
 
-      await service.requestReset('nope@nowhere.com', '1.2.3.4');
+      await service.requestReset('nope@nowhere.com', '1.2.3.4', 'ar');
 
       expect(m.resets.insert).not.toHaveBeenCalled();
       expect(m.mail.sendResetEmail).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('PasswordResetService', () => {
         email: 'admin@school.com',
       });
 
-      await service.requestReset('admin@school.com', '1.2.3.4');
+      await service.requestReset('admin@school.com', '1.2.3.4', 'en');
 
       expect(m.resets.insert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -118,11 +118,12 @@ describe('PasswordResetService', () => {
           tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       );
-      const [to, link] = m.mail.sendResetEmail.mock.calls[0];
+      const [to, link, locale] = m.mail.sendResetEmail.mock.calls[0];
       expect(to).toBe('admin@school.com');
       expect(link).toMatch(
         /^http:\/\/localhost:3000\/auth\/reset-password\?token=[A-Za-z0-9_-]+$/,
       );
+      expect(locale).toBe('en');
     });
   });
 

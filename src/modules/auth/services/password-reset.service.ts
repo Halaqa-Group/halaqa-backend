@@ -7,6 +7,7 @@ import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/users.service';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import type { MailLocale } from '../mail/mail-locale';
 import { generateRawToken, hashToken } from '../token-crypto';
 import { MAIL_SERVICE } from './mail.service';
 import type { MailService } from './mail.service';
@@ -28,7 +29,11 @@ export class PasswordResetService {
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
-  async requestReset(email: string, ip: string): Promise<void> {
+  async requestReset(
+    email: string,
+    ip: string,
+    locale: MailLocale,
+  ): Promise<void> {
     const user = await this.userRepo.findOne({
       where: { email, schoolId: this.defaultSchoolId() },
     });
@@ -44,7 +49,7 @@ export class PasswordResetService {
 
     const link = `${this.appUrl()}/auth/reset-password?token=${raw}`;
     // Non-null by construction: the row was looked up by this exact address.
-    await this.mail.sendResetEmail(email, link);
+    await this.mail.sendResetEmail(email, link, locale);
   }
 
   async validateResetToken(rawToken: string): Promise<{ email: string }> {

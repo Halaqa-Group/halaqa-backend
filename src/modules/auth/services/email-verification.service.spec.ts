@@ -82,7 +82,7 @@ describe('EmailVerificationService', () => {
     it('does nothing for an unknown user', async () => {
       m.userRepo.findOne.mockResolvedValue(null);
 
-      await service.requestVerification(7, '1.2.3.4');
+      await service.requestVerification(7, '1.2.3.4', 'ar');
 
       expect(m.verifications.insert).not.toHaveBeenCalled();
       expect(m.mail.sendVerificationEmail).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe('EmailVerificationService', () => {
         emailVerifiedAt: new Date(),
       });
 
-      await service.requestVerification(7, '1.2.3.4');
+      await service.requestVerification(7, '1.2.3.4', 'ar');
 
       expect(m.verifications.insert).not.toHaveBeenCalled();
       expect(m.mail.sendVerificationEmail).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe('EmailVerificationService', () => {
         emailVerifiedAt: null,
       });
 
-      await service.requestVerification(7, '1.2.3.4');
+      await service.requestVerification(7, '1.2.3.4', 'ar');
 
       // Previous unused tokens are marked used before issuing a new one.
       expect(m.verifications.update).toHaveBeenCalledWith(
@@ -122,11 +122,12 @@ describe('EmailVerificationService', () => {
           tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       );
-      const [to, link] = m.mail.sendVerificationEmail.mock.calls[0];
+      const [to, link, locale] = m.mail.sendVerificationEmail.mock.calls[0];
       expect(to).toBe('admin@school.com');
       expect(link).toMatch(
         /^http:\/\/localhost:3000\/auth\/verify-email\?token=[A-Za-z0-9_-]+$/,
       );
+      expect(locale).toBe('ar');
     });
   });
 

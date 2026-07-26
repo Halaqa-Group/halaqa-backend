@@ -4,6 +4,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { EmailVerificationToken } from '../entities/email-verification-token.entity';
+import type { MailLocale } from '../mail/mail-locale';
 import { generateRawToken, hashToken } from '../token-crypto';
 import { MAIL_SERVICE } from './mail.service';
 import type { MailService } from './mail.service';
@@ -25,9 +26,13 @@ export class EmailVerificationService {
   /**
    * Issue a verification link for the caller's own email. No-op if the email is
    * already verified. Any previously issued unused tokens are invalidated so
-   * only the latest link works.
+   * only the latest link works. `locale` picks the language of the email itself.
    */
-  async requestVerification(userId: number, ip: string): Promise<void> {
+  async requestVerification(
+    userId: number,
+    ip: string,
+    locale: MailLocale,
+  ): Promise<void> {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user || user.email === null || user.emailVerifiedAt !== null) return;
     const email = user.email;
@@ -46,7 +51,7 @@ export class EmailVerificationService {
     });
 
     const link = `${this.appUrl()}/auth/verify-email?token=${raw}`;
-    await this.mail.sendVerificationEmail(email, link);
+    await this.mail.sendVerificationEmail(email, link, locale);
   }
 
   /**
