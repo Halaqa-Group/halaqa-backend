@@ -76,8 +76,12 @@ export class User {
   @Column({ name: 'id_number', type: 'varchar', length: 20 })
   idNumber!: string;
 
-  @Column({ type: 'varchar', length: 255 })
-  email!: string;
+  /**
+   * Optional — `id_number` is the mandatory identifier. The unique index below
+   * ignores NULLs, so many users per school may have no email.
+   */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email!: string | null;
 
   @Exclude({ toPlainOnly: true })
   @Column({ type: 'varchar', length: 255 })

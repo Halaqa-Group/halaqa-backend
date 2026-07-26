@@ -25,8 +25,14 @@ export class UserResponse {
   @ApiProperty({ example: '400000006', description: 'National ID number.' })
   idNumber!: string;
 
-  @ApiProperty({ example: 'admin@school.com', format: 'email' })
-  email!: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'admin@school.com',
+    format: 'email',
+    description: 'Null when the user was created without an email.',
+  })
+  email!: string | null;
 
   @ApiProperty({ nullable: true, example: '+970599123456' })
   phone!: string | null;

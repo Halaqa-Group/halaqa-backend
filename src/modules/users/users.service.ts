@@ -43,7 +43,7 @@ export interface UserView {
   /** Derived by the database from the four parts above; never written directly. */
   name: string;
   idNumber: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   photoUrl: string | null;
   status: User['status'];
@@ -81,7 +81,8 @@ export class UsersService {
     dto: CreateUserDto,
     actor: AuthenticatedUser,
   ): Promise<UserView> {
-    if (await this.emailTaken(dto.email, actor.schoolId)) {
+    const email = dto.email?.trim() ? dto.email.trim() : null;
+    if (email !== null && (await this.emailTaken(email, actor.schoolId))) {
       throw new ConflictException('Email already in use');
     }
 
@@ -108,7 +109,7 @@ export class UsersService {
           thirdName: dto.third_name,
           familyName: dto.family_name,
           idNumber,
-          email: dto.email,
+          email,
           password: passwordHash,
           phone: dto.phone ?? null,
           photoUrl: dto.photo_url ?? null,

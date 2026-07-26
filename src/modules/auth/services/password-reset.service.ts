@@ -43,7 +43,8 @@ export class PasswordResetService {
     });
 
     const link = `${this.appUrl()}/auth/reset-password?token=${raw}`;
-    await this.mail.sendResetEmail(user.email, link);
+    // Non-null by construction: the row was looked up by this exact address.
+    await this.mail.sendResetEmail(email, link);
   }
 
   async validateResetToken(rawToken: string): Promise<{ email: string }> {
@@ -51,7 +52,12 @@ export class PasswordResetService {
       where: { tokenHash: hashToken(rawToken) },
       relations: { user: true },
     });
-    if (!row || row.usedAt !== null || row.expiresAt <= new Date()) {
+    if (
+      !row ||
+      row.usedAt !== null ||
+      row.expiresAt <= new Date() ||
+      row.user.email === null
+    ) {
       throw new BadRequestException(INVALID_OR_EXPIRED);
     }
     return { email: row.user.email };

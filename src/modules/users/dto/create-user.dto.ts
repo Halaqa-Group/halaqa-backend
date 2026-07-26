@@ -10,6 +10,7 @@ import {
   Length,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
 import type { UserStatus } from '../entities/user.entity';
@@ -65,9 +66,18 @@ export class CreateUserDto {
   @MaxLength(20)
   id_number!: string;
 
-  @ApiProperty({ example: 'admin@school.com', format: 'email' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'admin@school.com',
+    format: 'email',
+    description:
+      'Optional — users log in with `id_number` when they have no email.',
+  })
+  @IsOptional()
+  @ValidateIf((o: CreateUserDto) => o.email !== null && o.email !== '')
   @IsEmail()
-  email!: string;
+  email?: string | null;
 
   @ApiProperty({ example: 'Passw0rd!', minLength: 8 })
   @IsString()

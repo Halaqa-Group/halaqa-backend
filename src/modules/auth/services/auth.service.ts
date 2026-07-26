@@ -26,7 +26,7 @@ import { TokenService } from './token.service';
 export interface AuthUserView {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
   roles: string[];
 }
 

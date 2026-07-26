@@ -22,8 +22,13 @@ export class GuardianUserResponse {
   })
   name!: string;
 
-  @ApiProperty({ example: 'parent@example.com', format: 'email' })
-  email!: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'parent@example.com',
+    format: 'email',
+  })
+  email!: string | null;
 
   @ApiProperty({ nullable: true, example: '+970599000001' })
   phone!: string | null;
@@ -250,7 +255,7 @@ export type PersonNameView = {
 export type GuardianView = {
   user: PersonNameView & {
     id: number;
-    email: string;
+    email: string | null;
     phone: string | null;
   };
   relation: string;

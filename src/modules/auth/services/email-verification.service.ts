@@ -29,7 +29,8 @@ export class EmailVerificationService {
    */
   async requestVerification(userId: number, ip: string): Promise<void> {
     const user = await this.users.findOne({ where: { id: userId } });
-    if (!user || user.emailVerifiedAt !== null) return;
+    if (!user || user.email === null || user.emailVerifiedAt !== null) return;
+    const email = user.email;
 
     await this.verifications.update(
       { userId, usedAt: IsNull() },
@@ -45,7 +46,7 @@ export class EmailVerificationService {
     });
 
     const link = `${this.appUrl()}/auth/verify-email?token=${raw}`;
-    await this.mail.sendVerificationEmail(user.email, link);
+    await this.mail.sendVerificationEmail(email, link);
   }
 
   /**
@@ -59,16 +60,17 @@ export class EmailVerificationService {
         where: { tokenHash: hashToken(rawToken), usedAt: IsNull() },
         relations: { user: true },
       });
-      if (!row || row.expiresAt <= new Date()) {
+      if (!row || row.expiresAt <= new Date() || row.user.email === null) {
         throw new BadRequestException(INVALID_OR_EXPIRED);
       }
+      const email = row.user.email;
 
       await manager
         .getRepository(User)
         .update(row.userId, { emailVerifiedAt: new Date() });
       await repo.update(row.id, { usedAt: new Date() });
 
-      return { email: row.user.email };
+      return { email };
     });
   }
 

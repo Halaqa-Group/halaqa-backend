@@ -7,8 +7,13 @@ export class AuthUserResponse {
   @ApiProperty({ example: 'أحمد المدير' })
   name!: string;
 
-  @ApiProperty({ example: 'admin@school.com', format: 'email' })
-  email!: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'admin@school.com',
+    format: 'email',
+  })
+  email!: string | null;
 
   @ApiProperty({
     type: [String],
@@ -158,8 +163,14 @@ export class MeResponse {
   @ApiProperty({ example: '400000006', description: 'National ID number.' })
   idNumber!: string;
 
-  @ApiProperty({ example: 'admin@school.com', format: 'email' })
-  email!: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'admin@school.com',
+    format: 'email',
+    description: 'Null when the account has no email.',
+  })
+  email!: string | null;
 
   @ApiProperty({ nullable: true, example: '+970599123456' })
   phone!: string | null;
