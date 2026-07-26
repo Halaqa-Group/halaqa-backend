@@ -5954,7 +5954,7 @@
             "description": "National ID number (Palestinian: 9 digits). Normalized and unique per school; also usable as a login identifier. A bad checksum is stored with a warning, not rejected."
           },
           "email": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "admin@school.com",
             "format": "email",
