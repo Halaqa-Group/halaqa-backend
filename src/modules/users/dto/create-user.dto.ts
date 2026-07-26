@@ -69,6 +69,7 @@ export class CreateUserDto {
   @ApiProperty({
     required: false,
     nullable: true,
+    type: String,
     example: 'admin@school.com',
     format: 'email',
     description:
