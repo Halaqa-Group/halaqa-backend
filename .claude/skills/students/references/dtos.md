@@ -22,6 +22,8 @@ All DTOs use `class-validator` and the global `whitelist: true, forbidNonWhiteli
   memorization_direction?: 'ascending' | 'descending'; // اتجاه الحفظ, default 'descending'
   notes?: string;
   photo_url?: string;
+  phone_country_code?: string;                   // dial code, e.g. '+970'
+  phone?: string;                                // national number, no dial code
   guardians?: LinkGuardianDto[];                 // optional; if present, link in same tx
 }
 ```
@@ -48,8 +50,27 @@ Partial of CreateStudentDto, **excluding** `guardians` (use the dedicated guardi
   memorization_direction?: 'ascending' | 'descending';
   notes?: string;
   photo_url?: string;
+  phone_country_code?: string | null;
+  phone?: string | null;
 }
 ```
+
+### The WhatsApp number — `phone_country_code` + `phone`
+
+Stored as two columns so the country picker round-trips exactly; splitting a
+joined E.164 string back into (country, number) is ambiguous outside the +9xx
+range. Rules, all enforced in `StudentsService.resolvePhone`:
+
+- Both halves are set and cleared **together**. Sending one while the other is
+  unset is a 400; `null` (or `''`) on either half clears both.
+- Patching one half while the other is already stored keeps the stored half.
+- The service normalizes before storing: Arabic-Indic/Persian digits → ASCII,
+  separators dropped, the national trunk `0` stripped, `00970`/`970` → `+970`.
+  Then `+\d{1,4}` and `\d{4,15}` are enforced — a miss is a 400.
+- Bio field: principal/VP only. Teachers get a 400 from the field allow-list.
+- Responses carry all three of `phone_country_code`, `phone` and the derived
+  `phone_e164` (null unless both halves are set). The audit entry records the
+  joined number, not the split.
 
 > Note: `status: 'graduated'` works here, but prefer `POST /:id/graduate` so the audit action is precise (`student.graduate`, not `student.update`).
 

@@ -15,6 +15,13 @@ import {
   namePartsPatch,
   toNameFields,
 } from '../../../common/person-name';
+import {
+  PHONE_COUNTRY_CODE_PATTERN,
+  PHONE_NUMBER_PATTERN,
+  normalizeCountryCode,
+  normalizePhoneNumber,
+  toE164,
+} from '../../../common/phone';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
 import { CAPACITY_LIMITS } from '../capacity.config';
@@ -75,6 +82,11 @@ export class StudentsService {
       }
     }
 
+    const phone = this.resolvePhone(dto, null) ?? {
+      phoneCountryCode: null,
+      phone: null,
+    };
+
     const studentId = await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Student);
       const student = await repo.save(
@@ -85,6 +97,8 @@ export class StudentsService {
           thirdName: dto.third_name,
           familyName: dto.family_name,
           idNumber: normalizedIdNumber ?? null,
+          phoneCountryCode: phone.phoneCountryCode,
+          phone: phone.phone,
           gender: dto.gender,
           dob: dto.dob ? new Date(dto.dob) : null,
           joinDate: new Date(dto.join_date),
@@ -129,6 +143,9 @@ export class StudentsService {
         }),
         ...(idNumberWarnings.length && {
           id_number_warnings: idNumberWarnings,
+        }),
+        ...(phone.phone && {
+          phone: toE164(phone.phoneCountryCode, phone.phone),
         }),
       },
     });
@@ -341,6 +358,8 @@ export class StudentsService {
       memorizationDirection?: MemorizationDirection;
       notes?: string | null;
       idNumber?: string | null;
+      phoneCountryCode?: string | null;
+      phone?: string | null;
     } = {};
 
     if (!isTeacherOnly) {
@@ -381,6 +400,15 @@ export class StudentsService {
         oldValues.photoUrl = student.photoUrl;
         newValues.photoUrl = dto.photo_url ?? null;
         patch.photoUrl = dto.photo_url ?? null;
+      }
+
+      const phone = this.resolvePhone(dto, student);
+      if (phone !== undefined) {
+        // Audited as the joined number — the split is a storage detail.
+        oldValues.phone = toE164(student.phoneCountryCode, student.phone);
+        newValues.phone = toE164(phone.phoneCountryCode, phone.phone);
+        patch.phoneCountryCode = phone.phoneCountryCode;
+        patch.phone = phone.phone;
       }
     }
 
@@ -607,6 +635,58 @@ export class StudentsService {
     return rows.length > 0;
   }
 
+  /**
+   * Resolves the two WhatsApp halves into the pair actually stored.
+   *
+   * Returns `undefined` when the caller sent neither field, so a patch leaves
+   * the number alone. `null` (or an empty string) on either half clears both —
+   * a dial code with no number is not a contact, and a number with no dial code
+   * cannot be dialled. Sending one half while the other is unset is a 400.
+   */
+  private resolvePhone(
+    dto: Pick<UpdateStudentDto, 'phone_country_code' | 'phone'>,
+    current: Pick<Student, 'phoneCountryCode' | 'phone'> | null,
+  ): { phoneCountryCode: string | null; phone: string | null } | undefined {
+    const blank = (v: string | null | undefined) =>
+      v === null || (typeof v === 'string' && v.trim() === '');
+    const rawCode = blank(dto.phone_country_code)
+      ? null
+      : dto.phone_country_code;
+    const rawPhone = blank(dto.phone) ? null : dto.phone;
+
+    if (rawCode === undefined && rawPhone === undefined) return undefined;
+    if (rawCode === null || rawPhone === null) {
+      return { phoneCountryCode: null, phone: null };
+    }
+
+    const code =
+      rawCode !== undefined
+        ? normalizeCountryCode(rawCode)
+        : (current?.phoneCountryCode ?? null);
+    const number =
+      rawPhone !== undefined
+        ? normalizePhoneNumber(rawPhone)
+        : (current?.phone ?? null);
+
+    if (!code || !number) {
+      throw new BadRequestException(
+        'phone and phone_country_code must be sent together.',
+      );
+    }
+    if (!PHONE_COUNTRY_CODE_PATTERN.test(code)) {
+      throw new BadRequestException(
+        'phone_country_code must be a dial code such as +970.',
+      );
+    }
+    if (!PHONE_NUMBER_PATTERN.test(number)) {
+      throw new BadRequestException(
+        'phone must be 4 to 15 digits, excluding the dial code.',
+      );
+    }
+
+    return { phoneCountryCode: code, phone: number };
+  }
+
   private validateCapacities(
     dto: Partial<
       Pick<
@@ -667,6 +747,9 @@ export class StudentsService {
       notes: student.notes,
       photo_url: student.photoUrl,
       id_number: student.idNumber,
+      phone_country_code: student.phoneCountryCode,
+      phone: student.phone,
+      phone_e164: toE164(student.phoneCountryCode, student.phone),
     };
 
     return base;

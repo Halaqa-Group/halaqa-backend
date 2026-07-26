@@ -55,6 +55,8 @@ const BASE_STUDENT: Student = {
   familyName: 'الحسني',
   name: 'محمد أحمد علي الحسني',
   idNumber: null,
+  phoneCountryCode: null,
+  phone: null,
   gender: 'male',
   dob: null,
   joinDate: new Date('2023-09-01'),
@@ -527,6 +529,133 @@ describe('StudentsService', () => {
       const s = { ...BASE_STUDENT, idNumber: '300123456' };
       const view = service.toView(s, SUPERVISOR);
       expect(view).toHaveProperty('id_number', '300123456');
+    });
+  });
+
+  describe('phone — WhatsApp contact', () => {
+    function makeUpdateSetup() {
+      const repo = makeStudentRepo();
+      repo.update.mockResolvedValue({ affected: 1 });
+      const audit = makeAudit();
+      const ds = makeDataSource(jest.fn().mockResolvedValue([{ 1: 1 }]));
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      return { repo, audit, ds, guardianRepo };
+    }
+
+    it('joins both halves into phone_e164 in the view', () => {
+      const service = makeService();
+      const s = {
+        ...BASE_STUDENT,
+        phoneCountryCode: '+970',
+        phone: '599123456',
+      };
+      const view = service.toView(s, PRINCIPAL);
+      expect(view).toMatchObject({
+        phone_country_code: '+970',
+        phone: '599123456',
+        phone_e164: '+970599123456',
+      });
+    });
+
+    it('leaves phone_e164 null when the number is unset', () => {
+      const service = makeService();
+      const view = service.toView(BASE_STUDENT, PRINCIPAL);
+      expect(view.phone_e164).toBeNull();
+    });
+
+    it('normalizes the trunk zero, separators and Arabic-Indic digits', async () => {
+      const { repo, audit, ds, guardianRepo } = makeUpdateSetup();
+      repo.findOne
+        .mockResolvedValueOnce(BASE_STUDENT)
+        .mockResolvedValueOnce(BASE_STUDENT);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      await service.update(
+        10,
+        { phone_country_code: '00970', phone: '٠٥٩٩-١٢٣ ٤٥٦' },
+        PRINCIPAL,
+        false,
+      );
+
+      expect(repo.update.mock.calls[0][1]).toEqual(
+        expect.objectContaining({
+          phoneCountryCode: '+970',
+          phone: '599123456',
+        }),
+      );
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newValues: expect.objectContaining({ phone: '+970599123456' }),
+        }),
+      );
+    });
+
+    it('throws 400 when only one half is sent and the other is unset', async () => {
+      const { repo, audit, ds, guardianRepo } = makeUpdateSetup();
+      repo.findOne.mockResolvedValue(BASE_STUDENT);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      await expect(
+        service.update(10, { phone: '599123456' }, PRINCIPAL, false),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('keeps the stored dial code when only the number is patched', async () => {
+      const { repo, audit, ds, guardianRepo } = makeUpdateSetup();
+      const withPhone = {
+        ...BASE_STUDENT,
+        phoneCountryCode: '+962',
+        phone: '791111111',
+      };
+      repo.findOne
+        .mockResolvedValueOnce(withPhone)
+        .mockResolvedValueOnce(withPhone);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      await service.update(10, { phone: '792222222' }, PRINCIPAL, false);
+
+      expect(repo.update.mock.calls[0][1]).toEqual(
+        expect.objectContaining({
+          phoneCountryCode: '+962',
+          phone: '792222222',
+        }),
+      );
+    });
+
+    it('clears both halves when either is sent as null', async () => {
+      const { repo, audit, ds, guardianRepo } = makeUpdateSetup();
+      const withPhone = {
+        ...BASE_STUDENT,
+        phoneCountryCode: '+970',
+        phone: '599123456',
+      };
+      repo.findOne
+        .mockResolvedValueOnce(withPhone)
+        .mockResolvedValueOnce(BASE_STUDENT);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      await service.update(10, { phone: null }, PRINCIPAL, false);
+
+      expect(repo.update.mock.calls[0][1]).toEqual(
+        expect.objectContaining({ phoneCountryCode: null, phone: null }),
+      );
+    });
+
+    it('throws 400 when a teacher tries to set it', async () => {
+      const repo = makeStudentRepo();
+      repo.findOne.mockResolvedValue(BASE_STUDENT);
+      const ds = makeDataSource(jest.fn().mockResolvedValue([{ 1: 1 }]));
+      const service = makeService(repo, makeGuardianRepo(), ds);
+
+      await expect(
+        service.update(
+          10,
+          { phone_country_code: '+970', phone: '599123456' },
+          TEACHER,
+          true,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

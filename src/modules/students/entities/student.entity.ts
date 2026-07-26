@@ -15,6 +15,10 @@ import {
   FULL_NAME_MAX_LENGTH,
   NAME_PART_MAX_LENGTH,
 } from '../../../common/person-name';
+import {
+  PHONE_COUNTRY_CODE_MAX_LENGTH,
+  PHONE_NUMBER_MAX_LENGTH,
+} from '../../../common/phone';
 import { School } from '../../tenant/school.entity';
 
 export type StudentStatus = 'active' | 'inactive' | 'graduated';
@@ -76,6 +80,26 @@ export class Student {
 
   @Column({ name: 'id_number', type: 'varchar', length: 20, nullable: true })
   idNumber!: string | null;
+
+  /**
+   * WhatsApp contact — dial code (`+970`) stored apart from the national number
+   * so the country picker round-trips without re-parsing an E.164 string.
+   * Both halves are set and cleared together; see `src/common/phone.ts`.
+   */
+  @Column({
+    name: 'phone_country_code',
+    type: 'varchar',
+    length: PHONE_COUNTRY_CODE_MAX_LENGTH,
+    nullable: true,
+  })
+  phoneCountryCode!: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: PHONE_NUMBER_MAX_LENGTH,
+    nullable: true,
+  })
+  phone!: string | null;
 
   @Column({ type: 'enum', enum: ['male', 'female'] })
   gender!: StudentGender;

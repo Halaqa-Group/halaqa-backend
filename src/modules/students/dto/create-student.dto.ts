@@ -20,6 +20,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
+import {
+  PHONE_COUNTRY_CODE_MAX_LENGTH,
+  PHONE_NUMBER_MAX_LENGTH,
+} from '../../../common/phone';
 import { CAPACITY_LIMITS } from '../capacity.config';
 import type {
   MemorizationDirection,
@@ -170,6 +174,32 @@ export class CreateStudentDto {
   @IsString()
   @MaxLength(20)
   id_number!: string;
+
+  @ApiProperty({
+    required: false,
+    example: '+970',
+    maxLength: PHONE_COUNTRY_CODE_MAX_LENGTH,
+    description:
+      'Dial code of the student WhatsApp number, `+` followed by 1–4 digits. ' +
+      'Must be sent together with `phone` — one without the other is a 400.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(PHONE_COUNTRY_CODE_MAX_LENGTH)
+  phone_country_code?: string;
+
+  @ApiProperty({
+    required: false,
+    example: '599123456',
+    maxLength: PHONE_NUMBER_MAX_LENGTH,
+    description:
+      'Student WhatsApp number without the dial code. A leading trunk `0` is stripped ' +
+      'and Arabic-Indic digits are normalised before storage.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(PHONE_NUMBER_MAX_LENGTH)
+  phone?: string;
 
   @ApiProperty({
     required: false,

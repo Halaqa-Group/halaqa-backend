@@ -18,6 +18,10 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { NAME_PART_MAX_LENGTH } from '../../../common/person-name';
+import {
+  PHONE_COUNTRY_CODE_MAX_LENGTH,
+  PHONE_NUMBER_MAX_LENGTH,
+} from '../../../common/phone';
 import { CAPACITY_LIMITS } from '../capacity.config';
 import type {
   MemorizationDirection,
@@ -186,4 +190,34 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsBoolean()
   force_id_number_change?: boolean;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '+970',
+    maxLength: PHONE_COUNTRY_CODE_MAX_LENGTH,
+    description:
+      'Dial code of the student WhatsApp number. Send both halves together; ' +
+      'send either one as null to clear the number entirely.',
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateStudentDto) => o.phone_country_code !== null)
+  @IsString()
+  @MaxLength(PHONE_COUNTRY_CODE_MAX_LENGTH)
+  phone_country_code?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '599123456',
+    maxLength: PHONE_NUMBER_MAX_LENGTH,
+    description:
+      'Student WhatsApp number without the dial code. Null clears the number ' +
+      '(and its dial code).',
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateStudentDto) => o.phone !== null)
+  @IsString()
+  @MaxLength(PHONE_NUMBER_MAX_LENGTH)
+  phone?: string | null;
 }

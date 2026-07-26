@@ -136,6 +136,28 @@ export class StudentResponse {
       'Value is null for legacy students created before this field was required.',
   })
   id_number!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: '+970',
+    description: 'Dial code of the student WhatsApp number.',
+  })
+  phone_country_code!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: '599123456',
+    description: 'Student WhatsApp number without the dial code.',
+  })
+  phone!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: '+970599123456',
+    description:
+      'The two fields above joined, ready for a wa.me link. Null unless both are set.',
+  })
+  phone_e164!: string | null;
 }
 
 export class StudentDetailResponse extends StudentResponse {
@@ -249,6 +271,10 @@ export type StudentView = PersonNameView & {
   notes: string | null;
   photo_url: string | null;
   id_number: string | null;
+  phone_country_code: string | null;
+  phone: string | null;
+  /** `phone_country_code` + `phone`, or null when the number is unset. */
+  phone_e164: string | null;
 };
 
 export type StudentDetailView = StudentView & { guardians: GuardianView[] };
