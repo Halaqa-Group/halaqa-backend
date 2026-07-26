@@ -5954,9 +5954,11 @@
             "description": "National ID number (Palestinian: 9 digits). Normalized and unique per school; also usable as a login identifier. A bad checksum is stored with a warning, not rejected."
           },
           "email": {
-            "type": "string",
+            "type": "object",
+            "nullable": true,
             "example": "admin@school.com",
-            "format": "email"
+            "format": "email",
+            "description": "Optional — users log in with `id_number` when they have no email."
           },
           "password": {
             "type": "string",
@@ -5996,7 +5998,6 @@
           "third_name",
           "family_name",
           "id_number",
-          "email",
           "password"
         ]
       },
@@ -6039,8 +6040,10 @@
           },
           "email": {
             "type": "string",
+            "nullable": true,
             "example": "admin@school.com",
-            "format": "email"
+            "format": "email",
+            "description": "Null when the user was created without an email."
           },
           "phone": {
             "type": "object",
@@ -6384,6 +6387,7 @@
           },
           "email": {
             "type": "string",
+            "nullable": true,
             "example": "admin@school.com",
             "format": "email"
           },
@@ -6543,8 +6547,10 @@
           },
           "email": {
             "type": "string",
+            "nullable": true,
             "example": "admin@school.com",
-            "format": "email"
+            "format": "email",
+            "description": "Null when the account has no email."
           },
           "phone": {
             "type": "object",
@@ -7588,6 +7594,24 @@
             "nullable": true,
             "example": "300123456",
             "description": "National ID number. Always present when you can see the student. Value is null for legacy students created before this field was required."
+          },
+          "phone_country_code": {
+            "type": "object",
+            "nullable": true,
+            "example": "+970",
+            "description": "Dial code of the student WhatsApp number."
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "599123456",
+            "description": "Student WhatsApp number without the dial code."
+          },
+          "phone_e164": {
+            "type": "object",
+            "nullable": true,
+            "example": "+970599123456",
+            "description": "The two fields above joined, ready for a wa.me link. Null unless both are set."
           }
         },
         "required": [
@@ -7607,7 +7631,10 @@
           "memorization_direction",
           "notes",
           "photo_url",
-          "id_number"
+          "id_number",
+          "phone_country_code",
+          "phone",
+          "phone_e164"
         ]
       },
       "StudentListData": {
@@ -7689,6 +7716,7 @@
           },
           "email": {
             "type": "string",
+            "nullable": true,
             "example": "parent@example.com",
             "format": "email"
           },
@@ -8010,6 +8038,18 @@
             "maxLength": 20,
             "description": "National ID number. Format is country-specific (Palestinian: 9 digits). A bad checksum is stored with a warning, not rejected. Unique per school (soft-deleted rows included in the constraint)."
           },
+          "phone_country_code": {
+            "type": "string",
+            "example": "+970",
+            "maxLength": 8,
+            "description": "Dial code of the student WhatsApp number, `+` followed by 1–4 digits. Must be sent together with `phone` — one without the other is a 400."
+          },
+          "phone": {
+            "type": "string",
+            "example": "599123456",
+            "maxLength": 20,
+            "description": "Student WhatsApp number without the dial code. A leading trunk `0` is stripped and Arabic-Indic digits are normalised before storage."
+          },
           "guardians": {
             "description": "Guardians linked atomically in the same transaction. First entry is forced to is_primary=true.",
             "type": "array",
@@ -8156,6 +8196,20 @@
             "type": "boolean",
             "example": true,
             "description": "Required when changing or clearing an already-set id_number. Transient — never persisted."
+          },
+          "phone_country_code": {
+            "type": "object",
+            "nullable": true,
+            "example": "+970",
+            "maxLength": 8,
+            "description": "Dial code of the student WhatsApp number. Send both halves together; send either one as null to clear the number entirely."
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true,
+            "example": "599123456",
+            "maxLength": 20,
+            "description": "Student WhatsApp number without the dial code. Null clears the number (and its dial code)."
           }
         }
       },
