@@ -206,6 +206,19 @@ describe('PlanItemsService', () => {
         NotFoundException,
       );
     });
+
+    // The item is seeded at achieved_verses = 0 / 'due'. Approved achievements may
+    // already cover its range, so the seed is only correct after reconciliation.
+    it('reconciles the whole plan after adding an item', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(makePlan({ status: 'draft' }));
+      const recon = makeReconciliation();
+
+      const service = makeService({ plans, recon, ds: makeDataSource([HIT]) });
+      await service.addItem(1, ADD_INPUT, makeTeacherActor());
+
+      expect(recon.reconcilePlan).toHaveBeenCalledWith(1);
+    });
   });
 
   describe('deleteItem()', () => {
@@ -217,6 +230,19 @@ describe('PlanItemsService', () => {
       await service.deleteItem(20, makeTeacherActor());
 
       expect(items.delete).toHaveBeenCalledWith(20);
+    });
+
+    // The deleted item released the verses it had consumed; without a re-run the
+    // later items in the week keep showing 'due' for verses that are now free.
+    it('reconciles the whole plan after deleting an item', async () => {
+      const items = makeItemsRepo();
+      items.findOne.mockResolvedValue(makeItem());
+      const recon = makeReconciliation();
+
+      const service = makeService({ items, recon, ds: makeDataSource([HIT]) });
+      await service.deleteItem(20, makeTeacherActor());
+
+      expect(recon.reconcilePlan).toHaveBeenCalledWith(1);
     });
 
     it('throws ForbiddenException when the teacher is out of scope', async () => {

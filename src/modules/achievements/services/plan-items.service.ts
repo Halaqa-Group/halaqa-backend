@@ -209,7 +209,12 @@ export class PlanItemsService {
       },
     });
 
-    return item;
+    // Seeded at achieved_verses = 0 / 'due'; the week's approved achievements may
+    // already cover this range. Plan-wide because the new item consumes from the
+    // same pool as its siblings.
+    await this.reconciliation.reconcilePlan(planId);
+
+    return (await this.planItems.findOne({ where: { id: item.id } })) ?? item;
   }
 
   // ─── Delete item ──────────────────────────────────────────────────────────
@@ -243,6 +248,10 @@ export class PlanItemsService {
         dayOfWeek: item.dayOfWeek,
       },
     });
+
+    // The deleted item released whatever verses it had consumed — later items in
+    // the week can now claim them.
+    await this.reconciliation.reconcilePlan(plan.id);
   }
 
   // ─── Update item ──────────────────────────────────────────────────────────
@@ -330,6 +339,10 @@ export class PlanItemsService {
       input.order !== undefined
     ) {
       await this.reconciliation.reconcileItem(itemId);
+      // reconcileItem writes achieved_verses/status straight to the DB, so the
+      // in-memory entity is stale — reload before it is mapped to the response.
+      const fresh = await this.planItems.findOne({ where: { id: itemId } });
+      if (fresh) Object.assign(item, fresh);
     }
 
     // Only approved plans feed the report (§7). Editing one may invalidate a

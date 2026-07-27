@@ -374,8 +374,15 @@ Triggered (synchronously, in the same transaction) on:
 1. **Achievement approved** — recompute the plan(s) covering its week.
 2. **Achievement unapproved** — recompute (its verses drop out of the pool).
 3. **Approved achievement deleted** — recompute (same as unapprove).
-4. **Plan item range edited** — recompute the whole owning plan (item results are interdependent).
+4. **Plan item range/track/day/order edited** — recompute the whole owning plan (item results are interdependent).
 5. **Plan approved** — recompute every item in the plan.
+6. **Plan created** — items are persisted at `achieved_verses = 0` / `'due'`; if the week already holds approved achievements (mid-week or backdated creation) that seed is wrong on arrival.
+7. **Item added to a draft plan** — same seeding problem, plus the new item consumes from the same week pool as its siblings.
+8. **Item deleted from a draft plan** — the deleted item releases the verses it had consumed, so later items in the week can now claim them.
+
+The rule behind the list: **anything that changes either side of the match — the achievement pool or the set/shape/priority of items — re-runs reconciliation.** Plan `status` is not part of the match, so approve/unapprove of a plan doesn't invalidate stored values (approve still reconciles, as a safety net for plans left stale). `reconcilePlan` works on draft plans too — plan items carry live `achieved_verses` regardless of approval state.
+
+Because reconciliation writes `achieved_verses`/`status` straight to the DB with `repo.update`, any in-memory entity held by the caller is stale afterwards. Every mutation that reconciles **re-reads** the affected rows before mapping the response — otherwise the API reports `0` for work that was just credited.
 
 The core service method reconciles a **whole plan (week)** as a unit, because items are interdependent — what an earlier item consumes changes what remains for later ones:
 ```ts

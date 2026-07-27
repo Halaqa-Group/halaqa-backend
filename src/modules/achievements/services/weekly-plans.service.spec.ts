@@ -216,6 +216,27 @@ describe('WeeklyPlansService', () => {
       ).resolves.toBeDefined();
     });
 
+    // A plan created mid-week (or backdated) meets achievements that were approved
+    // before it existed; its items are seeded at 0/'due' and would stay wrong.
+    it('reconciles the new plan against achievements already approved this week', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(null);
+      plans.save.mockImplementation((p: WeeklyPlan) =>
+        Promise.resolve(Object.assign(p, { id: 7 })),
+      );
+      const items = makeItemsRepo();
+      items.find.mockResolvedValue([{ id: 30, achievedVerses: 7 }]);
+      const recon = makeReconciliation();
+
+      const service = makeService({ plans, items, recon });
+      const plan = await service.create(CREATE_INPUT, makeActor());
+
+      expect(recon.reconcilePlan).toHaveBeenCalledWith(7);
+      // Reconciliation writes straight to the DB, so the returned items must be
+      // re-read — otherwise the response reports 0 for work already credited.
+      expect(plan.items[0].achievedVerses).toBe(7);
+    });
+
     it('skips the scope query entirely for a principal', async () => {
       const plans = makePlansRepo();
       plans.findOne.mockResolvedValue(null);

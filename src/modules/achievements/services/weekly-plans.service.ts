@@ -288,6 +288,15 @@ export class WeeklyPlansService {
       },
     });
 
+    // Items are seeded at achieved_verses = 0 / 'due'. If approved achievements
+    // already exist in this week (plan created mid-week or backdated), those
+    // seeds are wrong the moment they are written — reconcile before returning.
+    await this.reconciliation.reconcilePlan(plan.id);
+    plan.items = await this.planItems.find({
+      where: { weeklyPlanId: plan.id },
+      order: { id: 'ASC' },
+    });
+
     return plan;
   }
 
