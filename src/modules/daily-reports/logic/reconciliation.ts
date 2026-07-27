@@ -26,10 +26,10 @@ export interface PlannedItemInput extends VerseRangeLike {
 }
 
 /**
- * An approved achievement for one track/day. `covered` is the verse set the
- * student actually recited: the tested positions for a `test` recitation, or the
- * whole range for a `full` one (the caller decides). `approvedAt` is epoch ms;
- * `percentageScore` is `achievements.percentage_score` used as-is (§15.1).
+ * An approved achievement for one track/day. `covered` is the verse set credited
+ * against the plan — the achievement's whole range, for `test` recitations too
+ * (the tested positions affect `percentageScore`, not coverage). `approvedAt` is
+ * epoch ms; `percentageScore` is `achievements.percentage_score` as-is (§15.1).
  */
 export interface AchievementInput {
   id: number;

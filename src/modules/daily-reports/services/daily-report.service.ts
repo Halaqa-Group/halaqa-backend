@@ -7,7 +7,6 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { Achievement } from '../../achievements/entities/achievement.entity';
 import type { TrackType } from '../../achievements/entities/achievement.entity';
 import { WeeklyPlan } from '../../achievements/entities/weekly-plan.entity';
-import { AchievementsService } from '../../achievements/services/achievements.service';
 import { StudentAttendance } from '../../attendance/entities/student-attendance.entity';
 import { Halaqa } from '../../halaqat/entities/halaqa.entity';
 import { StudentHalaqaEnrollment } from '../../halaqat/entities/student-halaqa-enrollment.entity';
@@ -70,7 +69,6 @@ export class DailyReportService {
     private readonly reports: Repository<DailyHalaqaReport>,
     @InjectRepository(DailyStudentEvaluation)
     private readonly evaluations: Repository<DailyStudentEvaluation>,
-    private readonly achievementsService: AchievementsService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
@@ -494,7 +492,11 @@ export class DailyReportService {
       }
     }
 
-    // Approved achievements for the date, with recitation positions.
+    // Approved achievements for the date. The whole recited range counts toward
+    // the plan, `test` recitations included: sampling positions is a way to fit a
+    // long review into the time available, not a shortfall in the plan. The tested
+    // positions' errors already shape `percentage_score`, so they drive quality
+    // only. This matches how plan items are reconciled (PlanReconciliationService).
     const achievements = await this.achievements.find({
       where: {
         halaqaId: halaqa.id,
@@ -503,31 +505,19 @@ export class DailyReportService {
         date,
       },
     });
-    const positionsByAch = await this.achievementsService.resolvePositions(
-      achievements.map((a) => a.id),
-    );
     const achievedByStudent = new Map<
       number,
       Map<TrackType, AchievementInput[]>
     >();
     for (const ach of achievements) {
-      const positions = positionsByAch.get(ach.id) ?? [];
-      const covered =
-        ach.recitationMethod === 'test' && positions.length
-          ? positions.map((p) => ({
-              startSurah: p.startSurah,
-              startVerse: p.startVerse,
-              endSurah: p.endSurah,
-              endVerse: p.endVerse,
-            }))
-          : [
-              {
-                startSurah: ach.startSurah,
-                startVerse: ach.startVerse,
-                endSurah: ach.endSurah,
-                endVerse: ach.endVerse,
-              },
-            ];
+      const covered = [
+        {
+          startSurah: ach.startSurah,
+          startVerse: ach.startVerse,
+          endSurah: ach.endSurah,
+          endVerse: ach.endVerse,
+        },
+      ];
       let byTrack = achievedByStudent.get(ach.studentId);
       if (!byTrack) {
         byTrack = new Map();

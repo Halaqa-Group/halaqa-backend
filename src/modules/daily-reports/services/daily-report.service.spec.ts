@@ -73,10 +73,6 @@ function build(opts: {
   const evaluations = {
     find: jest.fn().mockResolvedValue(opts.snapshotRows ?? []),
   };
-  const achievementsService = {
-    resolvePositions: jest.fn().mockResolvedValue(new Map()),
-  };
-
   const captured: Captured = { created: [], saved: [], deleted: [] };
   const em = {
     findOne: jest.fn().mockResolvedValue(opts.existingHeader ?? null),
@@ -121,7 +117,6 @@ function build(opts: {
     achievements as never,
     reports as never,
     evaluations as never,
-    achievementsService as never,
     dataSource as never,
   );
   return { service, captured, halaqat, reports, evaluations, dataSource };
@@ -203,6 +198,51 @@ describe('DailyReportService.getDailyReport (live)', () => {
     });
     const res = await service.getDailyReport(10, DATE, actor);
     expect(res.students[0].total_score).toBe(0);
+  });
+
+  it('a test recitation completes the plan over its whole range', async () => {
+    // Sampling positions saves time; it must not read as a shortfall. Only the
+    // quality rate carries the test result.
+    const { service } = build({
+      students: [{ id: 55, name: 'محمد' }],
+      attendances: [{ studentId: 55, status: 'present', ethicsRating: 5 }],
+      plans: [
+        {
+          studentId: 55,
+          items: [
+            {
+              id: 2,
+              dayOfWeek: dow,
+              trackType: 'Near',
+              startSurah: 2,
+              startVerse: 1,
+              endSurah: 2,
+              endVerse: 20,
+            },
+          ],
+        },
+      ],
+      achievements: [
+        {
+          id: 101,
+          studentId: 55,
+          trackType: 'Near',
+          recitationMethod: 'test',
+          percentageScore: '92',
+          approvedAt: new Date('2026-07-20T09:00:00Z'),
+          startSurah: 2,
+          startVerse: 1,
+          endSurah: 2,
+          endVerse: 20,
+        },
+      ],
+    });
+    const detail = await service.getStudentDetail(10, DATE, 55, actor);
+    expect(detail.near.completion_rate).toBeCloseTo(100, 2);
+    expect(detail.near.quality_rate).toBeCloseTo(92, 2);
+    expect(detail.near.reconciliation?.gaps).toEqual([]);
+    expect(detail.plan_completion_rate).toBeCloseTo(100, 2);
+    expect(detail.system_alerts.map((a) => a.code)).not.toContain('PLAN_GAPS');
   });
 
   it('404 for a non-member student detail', async () => {

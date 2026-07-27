@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Achievement } from '../achievements/entities/achievement.entity';
 import { WeeklyPlan } from '../achievements/entities/weekly-plan.entity';
-import { AchievementsModule } from '../achievements/achievements.module';
 import { StudentAttendance } from '../attendance/entities/student-attendance.entity';
 import { Halaqa } from '../halaqat/entities/halaqa.entity';
 import { StudentHalaqaEnrollment } from '../halaqat/entities/student-halaqa-enrollment.entity';
@@ -32,7 +31,6 @@ import { HistoricalRecalcListener } from './services/historical-recalc.listener'
       DailyStudentEvaluation,
     ]),
     HalaqatModule,
-    AchievementsModule,
   ],
   controllers: [DailyReportController],
   providers: [

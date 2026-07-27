@@ -112,6 +112,7 @@
 4. جمع نقاط الحدود → تقسيم الخطة إلى **مقاطع ذرّية** غير متداخلة.
 5. لكل مقطع: تحديد الإنجازات المغطية؛ إن لا شيء → `gap`؛ إن أكثر من إنجاز → أعلى `percentage_score`، وعند التعادل الأحدث `approved_at` ثم أعلى `id` (حتمية).
 6. دمج المقاطع المتجاورة بنفس النتيجة والإنجاز.
+   - **نطاق الإنجاز المحتسَب = مدى الإنجاز كاملاً، بما في ذلك `recitation_method='test'`.** الاختبار في مواضع مختارة أسلوبٌ لاختصار الوقت في المراجعة القريبة/البعيدة، لا تقصيرٌ في الخطة؛ فأخطاء تلك المواضع تنعكس في `percentage_score` (الجودة) فقط ولا تنقص التغطية. يطابق ذلك مصالحة بنود الخطة في `PlanReconciliationService`.
 7. حساب تغطية الصفحات (اتحاد، بلا تكرار) → `planned_pages`, `achieved_pages`.
 8. `completion_rate = min(achieved/planned×100, 100)` (§14.3)، `quality_rate` = متوسط موزون بتغطية الصفحات (§15.4).
 - **الإخراج:** `{version, trackType, plannedPages, achievedPages, completionRate, qualityRate, plannedRanges[], approvedSegments[], gaps[], outsidePlanSegments[]}` مطابقاً للبنية في §12.
@@ -131,7 +132,7 @@
 
 ## 4. المرحلة 3 — الخدمات وواجهات API ✅ (المسار المباشر Live مُنفَّذ)
 
-> **حالة التنفيذ:** `DailyReportService` (حساب Live مجمّع batched) + `DailyReportController` بالـ endpointين للعرض، مربوطة في `DailyReportsModule` (يستورد `HalaqatModule` للحراس + `AchievementsModule` لـ `resolvePositions`). `pnpm run build` نظيف؛ **601 اختبار** يعبر (منها 6 لخدمة التقرير: يوم غير دراسي/حاضر بخطة/حضور مفقود/غائب/بلا خطة/404). lint نظيف.
+> **حالة التنفيذ:** `DailyReportService` (حساب Live مجمّع batched) + `DailyReportController` بالـ endpointين للعرض، مربوطة في `DailyReportsModule` (يستورد `HalaqatModule` للحراس). `pnpm run build` نظيف؛ **601 اختبار** يعبر (منها 6 لخدمة التقرير: يوم غير دراسي/حاضر بخطة/حضور مفقود/غائب/بلا خطة/404). lint نظيف.
 > - **قرار مسار:** الحارس `HalaqaAccessGuard` يقرأ `req.params.id` → المسار **`/halaqat/:id/daily-report`** (وليس `:halaqaId`). الاستجابة تُعيد `halaqa_id`.
 > - **قرار casing:** حقول الاستجابة **snake_case** (اتساق مع halaqat/students/achievements)؛ يبقى JSON المطابقة الداخلي camelCase كما هو مخزَّن (§12).
 > - **الحضور:** استعلام مباشر على `student_attendances` (لا `findForStudentOnDate` التي تُرجع present-افتراضياً) للتمييز الصحيح لـ `missing_attendance`.

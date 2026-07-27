@@ -172,8 +172,8 @@ describe('reconcileTrack', () => {
     expect(res.qualityRate).toBe(0);
   });
 
-  it('test recitation credits only the recited positions', () => {
-    // Plan 2:1–2:20; a test achievement recited only positions 2:1–2:2 and 2:19–2:20.
+  it('a partially covered plan credits only the recited parts', () => {
+    // Plan 2:1–2:20; the covered set reaches only 2:1–2:2 and 2:19–2:20.
     const res = reconcileTrack(
       'Near',
       [plan(1, [2, 1, 2, 20])],
