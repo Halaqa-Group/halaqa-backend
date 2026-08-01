@@ -1,0 +1,31 @@
+name: Deploy API Staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy NestJS API staging
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+
+          script: |
+            export PATH=/home/deploy/.nvm/versions/node/v24.18.0/bin:$PATH
+
+            cd /var/www/staging/api
+
+            git pull origin staging
+
+            pnpm install --frozen-lockfile
+
+            pnpm build
+
+            pm2 restart api_staging
