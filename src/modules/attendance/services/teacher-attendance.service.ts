@@ -259,6 +259,10 @@ export class TeacherAttendanceService {
 
     const qb = this.repo
       .createQueryBuilder('a')
+      // Join the user so the list can render real names/photos for every staff
+      // role (principal, VP, supervisor, teacher) without a second, admin-only
+      // call to GET /users.
+      .leftJoinAndSelect('a.user', 'user')
       .where('a.schoolId = :schoolId', { schoolId: actor.schoolId });
 
     if (this.isAdmin(actor)) {

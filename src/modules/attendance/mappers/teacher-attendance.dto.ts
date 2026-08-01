@@ -10,6 +10,20 @@ export class TeacherAttendanceDto {
   @ApiProperty({ example: 7 })
   user_id!: number;
 
+  @ApiProperty({
+    nullable: true,
+    example: 'أحمد محمد علي المدير',
+    description: 'Full display name of the staff member (null if unavailable).',
+  })
+  user_name!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: 'https://cdn.example.com/u/7.jpg',
+    description: "Staff member's photo URL (null if none).",
+  })
+  user_photo_url!: string | null;
+
   @ApiProperty({ format: 'date', example: '2026-07-07' })
   date!: string;
 
@@ -42,6 +56,10 @@ export class TeacherAttendanceDto {
     const dto = new TeacherAttendanceDto();
     dto.id = a.id;
     dto.user_id = a.userId;
+    // `user` is only populated when the caller joined it (the list query).
+    // Fall back to null so the single-row PATCH response stays valid.
+    dto.user_name = a.user?.name ?? null;
+    dto.user_photo_url = a.user?.photoUrl ?? null;
     dto.date = a.attendanceDate;
     dto.status = a.status;
     dto.excuse_note = a.excuseNote;
