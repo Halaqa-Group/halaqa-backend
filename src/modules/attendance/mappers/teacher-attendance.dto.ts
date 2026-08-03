@@ -24,6 +24,14 @@ export class TeacherAttendanceDto {
   })
   user_photo_url!: string | null;
 
+  @ApiProperty({
+    example: false,
+    description:
+      'True when the staff member has since been deleted. Such rows are ' +
+      'historical only (dates before the deletion) and cannot be corrected.',
+  })
+  user_is_deleted!: boolean;
+
   @ApiProperty({ format: 'date', example: '2026-07-07' })
   date!: string;
 
@@ -60,6 +68,7 @@ export class TeacherAttendanceDto {
     // Fall back to null so the single-row PATCH response stays valid.
     dto.user_name = a.user?.name ?? null;
     dto.user_photo_url = a.user?.photoUrl ?? null;
+    dto.user_is_deleted = a.user?.deletedAt != null;
     dto.date = a.attendanceDate;
     dto.status = a.status;
     dto.excuse_note = a.excuseNote;

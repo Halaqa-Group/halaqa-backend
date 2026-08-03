@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { Achievement } from '../../achievements/entities/achievement.entity';
 import type { TrackType } from '../../achievements/entities/achievement.entity';
 import { WeeklyPlan } from '../../achievements/entities/weekly-plan.entity';
+import { activeOnDate } from '../../attendance/attendance-visibility.sql';
 import { StudentAttendance } from '../../attendance/entities/student-attendance.entity';
 import { Halaqa } from '../../halaqat/entities/halaqa.entity';
 import { StudentHalaqaEnrollment } from '../../halaqat/entities/student-halaqa-enrollment.entity';
@@ -430,6 +431,10 @@ export class DailyReportService {
       .andWhere('e.startDate <= :date', { date })
       .andWhere('(e.endDate IS NULL OR e.endDate >= :date)', { date })
       .andWhere('e.status = :status', { status: 'active' })
+      // A soft-deleted student stays in the reports of the days they attended
+      // and drops out from their deletion date onward — same cut-off the
+      // attendance lists and dashboard aggregations use.
+      .andWhere(activeOnDate('s', ':date'))
       .orderBy('s.name', 'ASC')
       .getRawMany<{ id: number; name: string }>();
     return rows.map((r) => ({ id: Number(r.id), name: r.name }));

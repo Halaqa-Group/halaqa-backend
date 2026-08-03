@@ -8,6 +8,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DomainEvents } from '../../../common/events/domain-events';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
+import { activeStudentAttendance } from '../attendance-visibility.sql';
 import { AuditService } from '../../audit/audit.service';
 import {
   AttendanceStatus,
@@ -363,7 +364,10 @@ export class StudentAttendanceService {
 
     const qb = this.repo
       .createQueryBuilder('a')
-      .where('a.schoolId = :schoolId', { schoolId: actor.schoolId });
+      .where('a.schoolId = :schoolId', { schoolId: actor.schoolId })
+      // Soft-deleted students drop out from their deletion date onward — same
+      // rule the dashboard/report aggregations apply.
+      .andWhere(activeStudentAttendance('a'));
 
     if (this.isAdmin(actor)) {
       // full school visibility

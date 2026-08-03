@@ -735,7 +735,7 @@
     },
     "/auth/forgot-password": {
       "post": {
-        "description": "Always returns 200 with the same message regardless of whether the email exists — never reveals membership. The reset token is one-time, valid for 1 hour.",
+        "description": "Always returns 200 with the same message regardless of whether the email exists — never reveals membership. The reset token is one-time, valid for 1 hour.\n\nThe email is written in the language negotiated from `Accept-Language` (`ar` or `en`, default `ar`).",
         "operationId": "AuthController_forgotPassword",
         "parameters": [],
         "requestBody": {
@@ -891,7 +891,7 @@
     },
     "/auth/verify-email/request": {
       "post": {
-        "description": "Authenticated. Always returns the same 200 message (even if the email is already verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new one invalidates any previously sent link.",
+        "description": "Authenticated. Always returns the same 200 message (even if the email is already verified — no state is leaked). The link is one-time and valid for 24 hours; issuing a new one invalidates any previously sent link.\n\nThe email is written in the language negotiated from `Accept-Language` (`ar` or `en`, default `ar`).",
         "operationId": "AuthController_requestEmailVerification",
         "parameters": [],
         "responses": {
@@ -8915,6 +8915,23 @@
             "type": "number",
             "example": 7
           },
+          "user_name": {
+            "type": "object",
+            "nullable": true,
+            "example": "أحمد محمد علي المدير",
+            "description": "Full display name of the staff member (null if unavailable)."
+          },
+          "user_photo_url": {
+            "type": "object",
+            "nullable": true,
+            "example": "https://cdn.example.com/u/7.jpg",
+            "description": "Staff member's photo URL (null if none)."
+          },
+          "user_is_deleted": {
+            "type": "boolean",
+            "example": false,
+            "description": "True when the staff member has since been deleted. Such rows are historical only (dates before the deletion) and cannot be corrected."
+          },
           "date": {
             "type": "string",
             "format": "date",
@@ -8964,6 +8981,9 @@
         "required": [
           "id",
           "user_id",
+          "user_name",
+          "user_photo_url",
+          "user_is_deleted",
           "date",
           "status",
           "excuse_note",

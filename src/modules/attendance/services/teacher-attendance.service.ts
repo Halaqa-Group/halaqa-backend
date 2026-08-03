@@ -8,6 +8,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
+import { activeStaffAttendance } from '../attendance-visibility.sql';
 import { AttendanceStatus } from '../entities/student-attendance.entity';
 import { TeacherAttendance } from '../entities/teacher-attendance.entity';
 
@@ -223,6 +224,10 @@ export class TeacherAttendanceService {
     });
     if (!row) throw new NotFoundException();
 
+    // A deleted user's history is read-only — accessibleUserIds excludes them.
+    const accessible = await this.accessibleUserIds([row.userId], actor);
+    if (!accessible.has(row.userId)) throw new NotFoundException();
+
     const previousStatus = row.status;
     if (previousStatus === input.status) {
       throw new BadRequestException('Attendance already has this status.');
@@ -259,11 +264,19 @@ export class TeacherAttendanceService {
 
     const qb = this.repo
       .createQueryBuilder('a')
+      // withDeleted() before the join: otherwise TypeORM puts
+      // `user.deleted_at IS NULL` in the JOIN ON clause, and a soft-deleted
+      // user's rows would still list with a null name. History must stay
+      // readable, so pull the user in either way.
+      .withDeleted()
       // Join the user so the list can render real names/photos for every staff
       // role (principal, VP, supervisor, teacher) without a second, admin-only
       // call to GET /users.
       .leftJoinAndSelect('a.user', 'user')
-      .where('a.schoolId = :schoolId', { schoolId: actor.schoolId });
+      .where('a.schoolId = :schoolId', { schoolId: actor.schoolId })
+      // Soft-deleted staff drop out from their deletion date onward — same rule
+      // the dashboard/report aggregations apply.
+      .andWhere(activeStaffAttendance('a'));
 
     if (this.isAdmin(actor)) {
       // full school visibility

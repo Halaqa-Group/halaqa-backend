@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import type { TrackType } from '../../achievements/entities/achievement.entity';
+import {
+  activeStaffAttendance,
+  activeStudentAttendance,
+} from '../../attendance/attendance-visibility.sql';
 import type {
   AlertsDto,
   HalaqaPerformanceDto,
@@ -305,7 +309,8 @@ export class DashboardService {
                 COALESCE(AVG(sa.ethics_rating),0) AS ethics
            FROM student_attendances sa
           WHERE sa.school_id = ?
-            AND sa.attendance_date BETWEEN ? AND ?${s.clause}`,
+            AND sa.attendance_date BETWEEN ? AND ?
+            AND ${activeStudentAttendance('sa')}${s.clause}`,
         [schoolId, range.from, range.to, ...s.params],
       );
     const r = rows[0];
@@ -343,12 +348,13 @@ export class DashboardService {
     if (teacherIds.length === 0) return null;
     const rows: Array<{ present: string; total: string }> =
       await this.dataSource.query(
-        `SELECT COALESCE(SUM(status IN ('present','late')),0) AS present,
+        `SELECT COALESCE(SUM(ta.status IN ('present','late')),0) AS present,
                 COUNT(*) AS total
-           FROM teacher_attendances
-          WHERE school_id = ?
-            AND attendance_date BETWEEN ? AND ?
-            AND user_id IN (${this.inList(teacherIds)})`,
+           FROM teacher_attendances ta
+          WHERE ta.school_id = ?
+            AND ta.attendance_date BETWEEN ? AND ?
+            AND ta.user_id IN (${this.inList(teacherIds)})
+            AND ${activeStaffAttendance('ta')}`,
         [schoolId, range.from, range.to, ...teacherIds],
       );
     const total = Number(rows[0].total);
@@ -566,6 +572,7 @@ export class DashboardService {
             AND sh.halaqa_id IN (${idList})
             AND sa.school_id = ?
             AND sa.attendance_date BETWEEN ? AND ?
+            AND ${activeStudentAttendance('sa')}
           GROUP BY sh.halaqa_id`,
         [...halaqaIds, actor.schoolId, range.from, range.to],
       );
@@ -763,14 +770,15 @@ export class DashboardService {
     if (userIds.length === 0) return map;
     const rows: Array<{ id: number; present: string; total: string }> =
       await this.dataSource.query(
-        `SELECT user_id AS id,
-                COALESCE(SUM(status IN ('present','late')),0) AS present,
+        `SELECT ta.user_id AS id,
+                COALESCE(SUM(ta.status IN ('present','late')),0) AS present,
                 COUNT(*) AS total
-           FROM teacher_attendances
-          WHERE school_id = ?
-            AND attendance_date BETWEEN ? AND ?
-            AND user_id IN (${this.inList(userIds)})
-          GROUP BY user_id`,
+           FROM teacher_attendances ta
+          WHERE ta.school_id = ?
+            AND ta.attendance_date BETWEEN ? AND ?
+            AND ta.user_id IN (${this.inList(userIds)})
+            AND ${activeStaffAttendance('ta')}
+          GROUP BY ta.user_id`,
         [schoolId, range.from, range.to, ...userIds],
       );
     for (const r of rows)
@@ -790,14 +798,15 @@ export class DashboardService {
     if (studentIds.length === 0) return map;
     const rows: Array<{ id: number; present: string; total: string }> =
       await this.dataSource.query(
-        `SELECT student_id AS id,
-                COALESCE(SUM(status IN ('present','late')),0) AS present,
+        `SELECT sa.student_id AS id,
+                COALESCE(SUM(sa.status IN ('present','late')),0) AS present,
                 COUNT(*) AS total
-           FROM student_attendances
-          WHERE school_id = ?
-            AND attendance_date BETWEEN ? AND ?
-            AND student_id IN (${this.inList(studentIds)})
-          GROUP BY student_id`,
+           FROM student_attendances sa
+          WHERE sa.school_id = ?
+            AND sa.attendance_date BETWEEN ? AND ?
+            AND sa.student_id IN (${this.inList(studentIds)})
+            AND ${activeStudentAttendance('sa')}
+          GROUP BY sa.student_id`,
         [schoolId, range.from, range.to, ...studentIds],
       );
     for (const r of rows)
@@ -1000,6 +1009,7 @@ export class DashboardService {
         WHERE ta.school_id = ?
           AND ta.attendance_date BETWEEN ? AND ?
           AND ta.user_id IN (${this.inList(teacherIds)})
+          AND ${activeStaffAttendance('ta')}
         GROUP BY ta.user_id
        HAVING absentDays >= ?
         ORDER BY absentDays DESC`,
