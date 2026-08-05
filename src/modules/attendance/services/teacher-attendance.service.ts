@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +12,7 @@ import { AuditService } from '../../audit/audit.service';
 import { activeStaffAttendance } from '../attendance-visibility.sql';
 import { AttendanceStatus } from '../entities/student-attendance.entity';
 import { TeacherAttendance } from '../entities/teacher-attendance.entity';
+import { AttendanceSeedService } from './attendance-seed.service';
 
 export interface SyncTeacherEntry {
   userId: number;
@@ -65,11 +67,14 @@ export interface TeacherAttendanceListResult {
 
 @Injectable()
 export class TeacherAttendanceService {
+  private readonly logger = new Logger(TeacherAttendanceService.name);
+
   constructor(
     @InjectRepository(TeacherAttendance)
     private readonly repo: Repository<TeacherAttendance>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly seedService: AttendanceSeedService,
   ) {}
 
   private isAdmin(actor: AuthenticatedUser): boolean {
@@ -255,12 +260,42 @@ export class TeacherAttendanceService {
 
   // ─── List ───────────────────────────────────────────────────────────────────
 
+  /**
+   * Staff hired (or reactivated, or given a staff role) after the nightly seed
+   * ran have no row for today, so they would silently drop out of today's list
+   * until tomorrow. Re-run the seed for this school before reading whenever the
+   * requested window covers today — it is idempotent, scoped to one school, and
+   * still respects the school schedule and holidays.
+   */
+  private async topUpToday(
+    filter: ListTeacherAttendanceFilter,
+    actor: AuthenticatedUser,
+  ): Promise<void> {
+    try {
+      const today = await this.seedService.today();
+      const covers =
+        filter.date !== undefined
+          ? filter.date === today
+          : (filter.from ?? today) <= today && (filter.to ?? today) >= today;
+      if (!covers) return;
+      await this.seedService.seedStaffForDate(today, actor.schoolId);
+    } catch (err) {
+      // A read must never fail because the top-up did.
+      this.logger.error(
+        'staff attendance top-up failed',
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
+  }
+
   async list(
     filter: ListTeacherAttendanceFilter,
     actor: AuthenticatedUser,
   ): Promise<TeacherAttendanceListResult> {
     const page = Math.max(1, filter.page ?? 1);
     const limit = Math.min(100, Math.max(1, filter.limit ?? 20));
+
+    await this.topUpToday(filter, actor);
 
     const qb = this.repo
       .createQueryBuilder('a')

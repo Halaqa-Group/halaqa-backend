@@ -3,6 +3,7 @@ import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { TeacherAttendance } from '../entities/teacher-attendance.entity';
+import { AttendanceSeedService } from './attendance-seed.service';
 import {
   SyncTeacherEntry,
   TeacherAttendanceService,
@@ -32,24 +33,50 @@ const entry = (over: Partial<SyncTeacherEntry> = {}): SyncTeacherEntry => ({
 });
 
 function build() {
+  // Chainable no-op builder — the list tests here assert the seeding side
+  // effect, not the SQL, so every builder method returns the builder itself.
+  const qb: Record<string, jest.Mock> = {
+    getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+  };
+  for (const m of [
+    'withDeleted',
+    'leftJoinAndSelect',
+    'where',
+    'andWhere',
+    'orderBy',
+    'addOrderBy',
+    'skip',
+    'take',
+  ]) {
+    qb[m] = jest.fn(() => qb);
+  }
   const repo = {
     findOne: jest.fn(),
     create: jest.fn((x: TeacherAttendance) => x),
     save: jest.fn((x: TeacherAttendance) => Promise.resolve(x)),
+    createQueryBuilder: jest.fn(() => qb),
   } as unknown as jest.Mocked<
-    Pick<Repository<TeacherAttendance>, 'findOne' | 'create' | 'save'>
+    Pick<
+      Repository<TeacherAttendance>,
+      'findOne' | 'create' | 'save' | 'createQueryBuilder'
+    >
   >;
   const query = jest.fn();
   const dataSource = { manager: { query } } as unknown as DataSource;
   const audit = { log: jest.fn() } as unknown as jest.Mocked<
     Pick<AuditService, 'log'>
   >;
+  const seed = {
+    today: jest.fn<Promise<string>, []>().mockResolvedValue('2026-07-07'),
+    seedStaffForDate: jest.fn<Promise<number>, [string, number?]>(),
+  };
   const service = new TeacherAttendanceService(
     repo as unknown as Repository<TeacherAttendance>,
     dataSource,
     audit as unknown as AuditService,
+    seed as unknown as AttendanceSeedService,
   );
-  return { service, repo, query, audit };
+  return { service, repo, query, audit, seed };
 }
 
 describe('TeacherAttendanceService', () => {
@@ -84,5 +111,39 @@ describe('TeacherAttendanceService', () => {
         admin(),
       ),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  describe('list top-up', () => {
+    it('seeds today for the school when the window covers today', async () => {
+      const { service, seed } = build();
+      await service.list({ date: '2026-07-07' }, admin(1, 4));
+      expect(seed.seedStaffForDate).toHaveBeenCalledWith('2026-07-07', 4);
+    });
+
+    it('seeds today when no date filter is given', async () => {
+      const { service, seed } = build();
+      await service.list({}, admin(1, 4));
+      expect(seed.seedStaffForDate).toHaveBeenCalledWith('2026-07-07', 4);
+    });
+
+    it('seeds today for an open range that still covers it', async () => {
+      const { service, seed } = build();
+      await service.list({ from: '2026-07-01' }, admin(1, 4));
+      expect(seed.seedStaffForDate).toHaveBeenCalledWith('2026-07-07', 4);
+    });
+
+    it('skips seeding for a past-only window', async () => {
+      const { service, seed } = build();
+      await service.list({ from: '2026-06-01', to: '2026-06-30' }, admin());
+      expect(seed.seedStaffForDate).not.toHaveBeenCalled();
+    });
+
+    it('still returns rows when the top-up fails', async () => {
+      const { service, seed } = build();
+      seed.seedStaffForDate.mockRejectedValueOnce(new Error('db down'));
+      await expect(service.list({}, admin())).resolves.toMatchObject({
+        total: 0,
+      });
+    });
   });
 });

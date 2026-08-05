@@ -22,7 +22,11 @@ const STAFF_ROLE_SLUGS = [
  *
  * Each insert is idempotent (skips subjects who already have a row), so it is
  * safe to re-run — that is exactly the boot-time catch-up for a server that was
- * down at midnight.
+ * down at midnight, and the on-read top-up the list endpoints use to pick up
+ * staff/students added after that day's seed already ran. `INSERT IGNORE` on
+ * top of the NOT EXISTS guard because the API runs as a pm2 cluster: two
+ * workers can pass the guard at the same instant, and the unique
+ * (subject, date) key must decide the winner without raising.
  *
  * Day convention: 0=Saturday … 6=Friday, so WEEKDAY(d) maps via (WEEKDAY(d)+2)%7.
  */
@@ -66,15 +70,16 @@ export class AttendanceSeedService implements OnApplicationBootstrap {
     return students + staff;
   }
 
-  private async seedStudentsForDate(date: string): Promise<number> {
+  async seedStudentsForDate(date: string, schoolId?: number): Promise<number> {
     const result: { affectedRows?: number } =
       await this.dataSource.manager.query(
-        `INSERT INTO student_attendances
+        `INSERT IGNORE INTO student_attendances
          (school_id, student_id, attendance_date, status, recorded_at, created_at)
        SELECT s.school_id, s.id, ?, 'present', NOW(6), NOW(6)
        FROM students s
        WHERE s.status = 'active'
          AND s.deleted_at IS NULL
+         ${schoolId === undefined ? '' : 'AND s.school_id = ?'}
          AND EXISTS (
            SELECT 1 FROM school_schedules ss
            WHERE ss.school_id = s.school_id
@@ -90,21 +95,30 @@ export class AttendanceSeedService implements OnApplicationBootstrap {
            SELECT 1 FROM student_attendances a
            WHERE a.student_id = s.id AND a.attendance_date = ?
          )`,
-        [date, date, date, date, date, date],
+        [
+          date,
+          ...(schoolId === undefined ? [] : [schoolId]),
+          date,
+          date,
+          date,
+          date,
+          date,
+        ],
       );
     return result?.affectedRows ?? 0;
   }
 
-  private async seedStaffForDate(date: string): Promise<number> {
+  async seedStaffForDate(date: string, schoolId?: number): Promise<number> {
     const rolePlaceholders = STAFF_ROLE_SLUGS.map(() => '?').join(', ');
     const result: { affectedRows?: number } =
       await this.dataSource.manager.query(
-        `INSERT INTO teacher_attendances
+        `INSERT IGNORE INTO teacher_attendances
          (school_id, user_id, attendance_date, status, recorded_at, created_at)
        SELECT u.school_id, u.id, ?, 'present', NOW(6), NOW(6)
        FROM users u
        WHERE u.status = 'active'
          AND u.deleted_at IS NULL
+         ${schoolId === undefined ? '' : 'AND u.school_id = ?'}
          AND EXISTS (
            SELECT 1 FROM user_roles ur
            JOIN roles r ON r.id = ur.role_id
@@ -125,13 +139,22 @@ export class AttendanceSeedService implements OnApplicationBootstrap {
            SELECT 1 FROM teacher_attendances a
            WHERE a.user_id = u.id AND a.attendance_date = ?
          )`,
-        [date, ...STAFF_ROLE_SLUGS, date, date, date, date, date],
+        [
+          date,
+          ...(schoolId === undefined ? [] : [schoolId]),
+          ...STAFF_ROLE_SLUGS,
+          date,
+          date,
+          date,
+          date,
+          date,
+        ],
       );
     return result?.affectedRows ?? 0;
   }
 
   /** Today's date as 'YYYY-MM-DD' in the database/server timezone. */
-  private async today(): Promise<string> {
+  async today(): Promise<string> {
     const rows: { d: string }[] = await this.dataSource.manager.query(
       'SELECT CAST(CURDATE() AS CHAR) AS d',
     );
