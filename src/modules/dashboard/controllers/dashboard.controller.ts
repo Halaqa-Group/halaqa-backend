@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -25,13 +25,35 @@ import { DashboardService } from '../services/dashboard.service';
 const SCOPED_NOTE =
   'Auto-scoped to the caller: principal/VP see the whole school, ' +
   'supervisors their supervised halaqat, teachers their currently-assigned halaqat. ' +
-  'An out-of-scope caller simply gets empty/zero results (never 403).';
+  'An out-of-scope caller simply gets empty/zero results (never 403). ' +
+  'A multi-role user may send `X-Active-Role` to scope to the role they are ' +
+  'acting as; it can only narrow, never widen.';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth('access-token')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly service: DashboardService) {}
+
+  /**
+   * Narrows the actor to the role named in `X-Active-Role`, so a user who holds
+   * several roles (e.g. principal + teacher) sees the dashboard for the role
+   * they are ACTING as rather than the widest union of their roles. Scope is
+   * derived from `actor.roles`, so narrowing here re-scopes every metric at once.
+   *
+   * Safe by construction: it only ever narrows. An absent header, an unknown
+   * value, or a role the user does not actually hold leaves the full role set
+   * standing — it can never grant a scope the caller lacks. The `@Roles` guards
+   * still authorize on the real (un-narrowed) request, so this never causes a 403.
+   */
+  private acting(
+    actor: AuthenticatedUser,
+    activeRole?: string,
+  ): AuthenticatedUser {
+    if (!activeRole) return actor;
+    const held = actor.roles.find((r) => r.slug === activeRole);
+    return held ? { ...actor, roles: [held] } : actor;
+  }
 
   @Get('overview')
   @Roles('principal', 'vice_principal', 'supervisor', 'teacher')
@@ -48,8 +70,9 @@ export class DashboardController {
   overview(
     @Query() query: DashboardQuery,
     @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-active-role') activeRole?: string,
   ): Promise<OverviewDto> {
-    return this.service.overview(actor, {
+    return this.service.overview(this.acting(actor, activeRole), {
       period: query.period,
       from: query.from,
       to: query.to,
@@ -70,8 +93,9 @@ export class DashboardController {
   topStudents(
     @Query() query: TopStudentsQuery,
     @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-active-role') activeRole?: string,
   ): Promise<TopStudentsDto> {
-    return this.service.topStudents(actor, query);
+    return this.service.topStudents(this.acting(actor, activeRole), query);
   }
 
   @Get('halaqat')
@@ -87,8 +111,9 @@ export class DashboardController {
   halaqat(
     @Query() query: DashboardQuery,
     @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-active-role') activeRole?: string,
   ): Promise<HalaqatPerformanceDto> {
-    return this.service.halaqatPerformance(actor, query);
+    return this.service.halaqatPerformance(this.acting(actor, activeRole), query);
   }
 
   @Get('alerts')
@@ -108,8 +133,9 @@ export class DashboardController {
   alerts(
     @Query() query: AlertsQuery,
     @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-active-role') activeRole?: string,
   ): Promise<AlertsDto> {
-    return this.service.alerts(actor, {
+    return this.service.alerts(this.acting(actor, activeRole), {
       period: query.period,
       from: query.from,
       to: query.to,
@@ -132,7 +158,8 @@ export class DashboardController {
   teachers(
     @Query() query: DashboardQuery,
     @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-active-role') activeRole?: string,
   ): Promise<TeachersCommitmentDto> {
-    return this.service.teacherCommitment(actor, query);
+    return this.service.teacherCommitment(this.acting(actor, activeRole), query);
   }
 }

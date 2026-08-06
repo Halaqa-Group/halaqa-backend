@@ -71,7 +71,14 @@ export class DashboardService {
     fn: () => Promise<T>,
   ): Promise<T> {
     const now = Date.now();
-    const key = `${name}:${actor.id}:${actor.schoolId}:${JSON.stringify(query)}`;
+    // The active role narrows `actor.roles` (see DashboardController.acting), which
+    // changes the resolved scope. Fold the role set into the key so the same user's
+    // principal-view and teacher-view never share a cache entry.
+    const roleSig = actor.roles
+      .map((r) => r.slug)
+      .sort()
+      .join(',');
+    const key = `${name}:${actor.id}:${actor.schoolId}:${roleSig}:${JSON.stringify(query)}`;
     const hit = this.cache.get(key);
     if (hit && hit.exp > now) return hit.val as T;
     const val = await fn();
