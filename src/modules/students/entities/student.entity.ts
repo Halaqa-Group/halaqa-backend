@@ -19,6 +19,11 @@ import {
   PHONE_COUNTRY_CODE_MAX_LENGTH,
   PHONE_NUMBER_MAX_LENGTH,
 } from '../../../common/phone';
+import {
+  CAPACITY_UNITS,
+  DEFAULT_CAPACITY_UNIT,
+  type StudentCapacityUnit,
+} from '../capacity.config';
 import { School } from '../../tenant/school.entity';
 
 export type StudentStatus = 'active' | 'inactive' | 'graduated';
@@ -117,6 +122,9 @@ export class Student {
   })
   status!: StudentStatus;
 
+  // Each capacity is a bare number plus the unit it counts in. The column names
+  // still say `pages` (kept for API compatibility) — read the paired
+  // `*_capacity_unit` column before interpreting the number as pages.
   @Column({
     name: 'daily_hifz_pages_capacity',
     type: 'decimal',
@@ -125,6 +133,14 @@ export class Student {
     default: 1,
   })
   dailyHifzPagesCapacity!: number;
+
+  @Column({
+    name: 'daily_hifz_capacity_unit',
+    type: 'enum',
+    enum: CAPACITY_UNITS,
+    default: DEFAULT_CAPACITY_UNIT,
+  })
+  dailyHifzCapacityUnit!: StudentCapacityUnit;
 
   @Column({
     name: 'daily_near_pages_capacity',
@@ -136,6 +152,14 @@ export class Student {
   dailyNearPagesCapacity!: number;
 
   @Column({
+    name: 'daily_near_capacity_unit',
+    type: 'enum',
+    enum: CAPACITY_UNITS,
+    default: DEFAULT_CAPACITY_UNIT,
+  })
+  dailyNearCapacityUnit!: StudentCapacityUnit;
+
+  @Column({
     name: 'daily_far_pages_capacity',
     type: 'decimal',
     precision: 5,
@@ -143,6 +167,14 @@ export class Student {
     default: 10,
   })
   dailyFarPagesCapacity!: number;
+
+  @Column({
+    name: 'daily_far_capacity_unit',
+    type: 'enum',
+    enum: CAPACITY_UNITS,
+    default: DEFAULT_CAPACITY_UNIT,
+  })
+  dailyFarCapacityUnit!: StudentCapacityUnit;
 
   @Column({
     name: 'memorization_direction',

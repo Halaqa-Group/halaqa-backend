@@ -5360,7 +5360,7 @@
     },
     "/dashboard/overview": {
       "get": {
-        "description": "Role-scoped headline indicators for the home screen: student attendance rate, teacher attendance rate (`null` for the teacher role), ethics average, new-memorization verses (Hifz), plan-completion rate, average score, and active student/halaqa counts.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "description": "Role-scoped headline indicators for the home screen: student attendance rate, teacher attendance rate (`null` for the teacher role), ethics average, new-memorization verses (Hifz), plan-completion rate, average score, and active student/halaqa counts.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403). A multi-role user may send `X-Active-Role` to scope to the role they are acting as; it can only narrow, never widen.",
         "operationId": "DashboardController_overview",
         "parameters": [
           {
@@ -5408,6 +5408,14 @@
               "example": true,
               "type": "boolean"
             }
+          },
+          {
+            "name": "x-active-role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5435,7 +5443,7 @@
     },
     "/dashboard/top-students": {
       "get": {
-        "description": "Leaderboard of students ranked by verses from approved achievements in the period (`track` defaults to `Hifz` — الحفظ الجديد). `limit` defaults to 10, capped at 50.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "description": "Leaderboard of students ranked by verses from approved achievements in the period (`track` defaults to `Hifz` — الحفظ الجديد). `limit` defaults to 10, capped at 50.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403). A multi-role user may send `X-Active-Role` to scope to the role they are acting as; it can only narrow, never widen.",
         "operationId": "DashboardController_topStudents",
         "parameters": [
           {
@@ -5510,6 +5518,14 @@
               "example": 10,
               "type": "number"
             }
+          },
+          {
+            "name": "x-active-role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5537,7 +5553,7 @@
     },
     "/dashboard/halaqat": {
       "get": {
-        "description": "One row per active halaqa in scope: active students, attendance rate, new-memorization verses, average score, and plan-completion rate. Sorted by verses.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403).",
+        "description": "One row per active halaqa in scope: active students, attendance rate, new-memorization verses, average score, and plan-completion rate. Sorted by verses.\n\nAuto-scoped to the caller: principal/VP see the whole school, supervisors their supervised halaqat, teachers their currently-assigned halaqat. An out-of-scope caller simply gets empty/zero results (never 403). A multi-role user may send `X-Active-Role` to scope to the role they are acting as; it can only narrow, never widen.",
         "operationId": "DashboardController_halaqat",
         "parameters": [
           {
@@ -5584,6 +5600,14 @@
             "schema": {
               "example": true,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "x-active-role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -5684,6 +5708,14 @@
               "example": 2,
               "type": "number"
             }
+          },
+          {
+            "name": "x-active-role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5758,6 +5790,14 @@
             "schema": {
               "example": true,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "x-active-role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -7558,17 +7598,53 @@
           "daily_hifz_pages_capacity": {
             "type": "string",
             "example": "1.00",
-            "description": "Daily Hifz memorisation target in pages (0–20)."
+            "description": "Daily Hifz memorisation target (0–20), counted in `daily_hifz_capacity_unit`."
+          },
+          "daily_hifz_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة الحفظ."
           },
           "daily_near_pages_capacity": {
             "type": "string",
             "example": "2.00",
-            "description": "Daily near-review target in pages (0–50)."
+            "description": "Daily near-review target (0–50), counted in `daily_near_capacity_unit`."
+          },
+          "daily_near_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة القريبة."
           },
           "daily_far_pages_capacity": {
             "type": "string",
             "example": "5.00",
-            "description": "Daily far-review target in pages (0–100)."
+            "description": "Daily far-review target (0–100), counted in `daily_far_capacity_unit`."
+          },
+          "daily_far_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة البعيدة."
           },
           "memorization_direction": {
             "type": "string",
@@ -7626,8 +7702,11 @@
           "join_date",
           "status",
           "daily_hifz_pages_capacity",
+          "daily_hifz_capacity_unit",
           "daily_near_pages_capacity",
+          "daily_near_capacity_unit",
           "daily_far_pages_capacity",
+          "daily_far_capacity_unit",
           "memorization_direction",
           "notes",
           "photo_url",
@@ -7999,21 +8078,57 @@
             "example": 1,
             "minimum": 0,
             "maximum": 20,
-            "description": "Daily Hifz memorisation target in pages. Defaults to 0.5."
+            "description": "Daily Hifz memorisation target, counted in `daily_hifz_capacity_unit`. Defaults to 1."
+          },
+          "daily_hifz_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة الحفظ — unit `daily_hifz_pages_capacity` is counted in. Defaults to `page`."
           },
           "daily_near_pages_capacity": {
             "type": "number",
             "example": 2,
             "minimum": 0,
             "maximum": 50,
-            "description": "Daily near-review target in pages. Defaults to 2."
+            "description": "Daily near-review target, counted in `daily_near_capacity_unit`. Defaults to 5."
+          },
+          "daily_near_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة القريبة — unit `daily_near_pages_capacity` is counted in. Defaults to `page`."
           },
           "daily_far_pages_capacity": {
             "type": "number",
             "example": 5,
             "minimum": 0,
             "maximum": 100,
-            "description": "Daily far-review target in pages. Defaults to 5."
+            "description": "Daily far-review target, counted in `daily_far_capacity_unit`. Defaults to 10."
+          },
+          "daily_far_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة البعيدة — unit `daily_far_pages_capacity` is counted in. Defaults to `page`."
           },
           "memorization_direction": {
             "type": "string",
@@ -8156,17 +8271,53 @@
             "minimum": 0,
             "maximum": 20
           },
+          "daily_hifz_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto)."
+          },
           "daily_near_pages_capacity": {
             "type": "number",
             "example": 2,
             "minimum": 0,
             "maximum": 50
           },
+          "daily_near_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة القريبة — also writable by a primary teacher."
+          },
           "daily_far_pages_capacity": {
             "type": "number",
             "example": 5,
             "minimum": 0,
             "maximum": 100
+          },
+          "daily_far_capacity_unit": {
+            "type": "string",
+            "enum": [
+              "page",
+              "juz",
+              "hizb",
+              "quarter",
+              "surah"
+            ],
+            "example": "page",
+            "description": "وحدة قدرة المراجعة البعيدة — also writable by a primary teacher."
           },
           "memorization_direction": {
             "type": "string",

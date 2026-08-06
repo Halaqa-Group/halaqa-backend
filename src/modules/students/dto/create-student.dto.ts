@@ -24,7 +24,11 @@ import {
   PHONE_COUNTRY_CODE_MAX_LENGTH,
   PHONE_NUMBER_MAX_LENGTH,
 } from '../../../common/phone';
-import { CAPACITY_LIMITS } from '../capacity.config';
+import {
+  CAPACITY_LIMITS,
+  CAPACITY_UNITS,
+  type StudentCapacityUnit,
+} from '../capacity.config';
 import type {
   MemorizationDirection,
   StudentGender,
@@ -102,7 +106,8 @@ export class CreateStudentDto {
     example: 1.0,
     minimum: CAPACITY_LIMITS.hifz.min,
     maximum: CAPACITY_LIMITS.hifz.max,
-    description: 'Daily Hifz memorisation target in pages. Defaults to 0.5.',
+    description:
+      'Daily Hifz memorisation target, counted in `daily_hifz_capacity_unit`. Defaults to 1.',
   })
   @IsOptional()
   @IsNumber()
@@ -112,10 +117,22 @@ export class CreateStudentDto {
 
   @ApiProperty({
     required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة الحفظ — unit `daily_hifz_pages_capacity` is counted in. Defaults to `page`.',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_hifz_capacity_unit?: StudentCapacityUnit;
+
+  @ApiProperty({
+    required: false,
     example: 2.0,
     minimum: CAPACITY_LIMITS.near.min,
     maximum: CAPACITY_LIMITS.near.max,
-    description: 'Daily near-review target in pages. Defaults to 2.',
+    description:
+      'Daily near-review target, counted in `daily_near_capacity_unit`. Defaults to 5.',
   })
   @IsOptional()
   @IsNumber()
@@ -125,16 +142,39 @@ export class CreateStudentDto {
 
   @ApiProperty({
     required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة المراجعة القريبة — unit `daily_near_pages_capacity` is counted in. Defaults to `page`.',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_near_capacity_unit?: StudentCapacityUnit;
+
+  @ApiProperty({
+    required: false,
     example: 5.0,
     minimum: CAPACITY_LIMITS.far.min,
     maximum: CAPACITY_LIMITS.far.max,
-    description: 'Daily far-review target in pages. Defaults to 5.',
+    description:
+      'Daily far-review target, counted in `daily_far_capacity_unit`. Defaults to 10.',
   })
   @IsOptional()
   @IsNumber()
   @Min(CAPACITY_LIMITS.far.min)
   @Max(CAPACITY_LIMITS.far.max)
   daily_far_pages_capacity?: number;
+
+  @ApiProperty({
+    required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة المراجعة البعيدة — unit `daily_far_pages_capacity` is counted in. Defaults to `page`.',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_far_capacity_unit?: StudentCapacityUnit;
 
   @ApiProperty({
     required: false,

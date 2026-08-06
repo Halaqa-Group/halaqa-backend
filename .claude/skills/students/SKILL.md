@@ -60,9 +60,9 @@ The teacher's "edit student" permission is a **field-level allow-list**, not a r
 ### Teacher field allow-list
 
 `UpdateStudentByTeacherDto` accepts only:
-- `daily_hifz_pages_capacity`
-- `daily_near_pages_capacity`
-- `daily_far_pages_capacity`
+- `daily_hifz_pages_capacity` + `daily_hifz_capacity_unit`
+- `daily_near_pages_capacity` + `daily_near_capacity_unit`
+- `daily_far_pages_capacity` + `daily_far_capacity_unit`
 - `memorization_direction`
 - `notes`
 
@@ -196,12 +196,28 @@ Validated in the service, not just the DTO, because the bounds are business rule
 
 ```ts
 const MIN = 0;
-const MAX_HIFZ = 20;     // pages of new memorization per day
-const MAX_NEAR = 50;     // pages of recent review per day
-const MAX_FAR  = 100;    // pages of distant review per day
+const MAX_HIFZ = 20;     // units of new memorization per day
+const MAX_NEAR = 50;     // units of recent review per day
+const MAX_FAR  = 100;    // units of distant review per day
 ```
 
-Out-of-range → 400 with the field name and allowed range. These constants live in `students/capacity.config.ts` so they can be tuned without touching service logic. The DECIMAL(5,2) column already permits up to 999.99; the service is the actual gatekeeper.
+Out-of-range → 400 with the field name and allowed range. These constants live in `students/capacity.config.ts` so they can be tuned without touching service logic. The DECIMAL(5,2) column already permits up to 999.99; the service is the actual gatekeeper. The bounds are **unit-agnostic** — they cap the raw number whatever it counts.
+
+## وحدة القدرة — `daily_*_capacity_unit`
+
+Each capacity number carries the unit it counts in, so a school can plan in أجزاء/أحزاب/أرباع/سور instead of pages:
+
+```ts
+type StudentCapacityUnit = 'page' | 'juz' | 'hizb' | 'quarter' | 'surah';
+```
+
+`quarter` is ربع الحزب (an eighth of a juz), not a quarter of a juz. All three columns are `ENUM(...) NOT NULL DEFAULT 'page'`; the migration backfills every existing row to `page`, so today's meaning is preserved exactly.
+
+> The numeric columns keep their legacy `daily_*_pages_capacity` names — renaming them would break every current client — so **the number is only pages when its paired unit says `page`**. Never read `daily_hifz_pages_capacity` as pages without checking `daily_hifz_capacity_unit`.
+
+Like the capacity numbers, the units are a **teaching-plan** field: writable by principal/VP via `UpdateStudentDto` and by a primary/acting-primary teacher via `UpdateStudentByTeacherDto`. Everyone who can see the student reads them in `StudentResponse`. Unit changes are audited alongside the numbers under `student.update`, and only when the value actually changes.
+
+The unit list and the `page` default live in `students/capacity.config.ts` (`CAPACITY_UNITS`, `DEFAULT_CAPACITY_UNIT`) — the entity, DTOs and service all import from there, so adding a unit is a one-line change plus a migration.
 
 ## اتجاه الحفظ — `memorization_direction`
 
@@ -248,8 +264,11 @@ Follow the existing global envelope (`{ code, data }` / `{ code, message }`). Sp
     "join_date": "2023-09-01",
     "status": "active",
     "daily_hifz_pages_capacity": "1.00",
+    "daily_hifz_capacity_unit": "page",
     "daily_near_pages_capacity": "5.00",
+    "daily_near_capacity_unit": "page",
     "daily_far_pages_capacity": "10.00",
+    "daily_far_capacity_unit": "page",
     "memorization_direction": "descending",
     "notes": "...",
     "photo_url": null,

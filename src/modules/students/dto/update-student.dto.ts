@@ -22,7 +22,11 @@ import {
   PHONE_COUNTRY_CODE_MAX_LENGTH,
   PHONE_NUMBER_MAX_LENGTH,
 } from '../../../common/phone';
-import { CAPACITY_LIMITS } from '../capacity.config';
+import {
+  CAPACITY_LIMITS,
+  CAPACITY_UNITS,
+  type StudentCapacityUnit,
+} from '../capacity.config';
 import type {
   MemorizationDirection,
   StudentGender,
@@ -119,6 +123,17 @@ export class UpdateStudentDto {
 
   @ApiProperty({
     required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة الحفظ — also writable by a primary teacher (see UpdateStudentByTeacherDto).',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_hifz_capacity_unit?: StudentCapacityUnit;
+
+  @ApiProperty({
+    required: false,
     example: 2.0,
     minimum: CAPACITY_LIMITS.near.min,
     maximum: CAPACITY_LIMITS.near.max,
@@ -131,6 +146,17 @@ export class UpdateStudentDto {
 
   @ApiProperty({
     required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة المراجعة القريبة — also writable by a primary teacher.',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_near_capacity_unit?: StudentCapacityUnit;
+
+  @ApiProperty({
+    required: false,
     example: 5.0,
     minimum: CAPACITY_LIMITS.far.min,
     maximum: CAPACITY_LIMITS.far.max,
@@ -140,6 +166,17 @@ export class UpdateStudentDto {
   @Min(CAPACITY_LIMITS.far.min)
   @Max(CAPACITY_LIMITS.far.max)
   daily_far_pages_capacity?: number;
+
+  @ApiProperty({
+    required: false,
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description:
+      'وحدة قدرة المراجعة البعيدة — also writable by a primary teacher.',
+  })
+  @IsOptional()
+  @IsEnum(CAPACITY_UNITS)
+  daily_far_capacity_unit?: StudentCapacityUnit;
 
   @ApiProperty({
     required: false,

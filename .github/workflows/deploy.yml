@@ -28,4 +28,6 @@ jobs:
 
             pnpm build
 
+            pnpm migration:run
+
             pm2 restart api_staging

@@ -24,7 +24,11 @@ import {
 } from '../../../common/phone';
 import { AuditService } from '../../audit/audit.service';
 import { StudentGuardian } from '../entities/student-guardian.entity';
-import { CAPACITY_LIMITS } from '../capacity.config';
+import {
+  CAPACITY_LIMITS,
+  DEFAULT_CAPACITY_UNIT,
+  type StudentCapacityUnit,
+} from '../capacity.config';
 import { CreateStudentDto } from '../dto/create-student.dto';
 import { GraduateStudentDto } from '../dto/graduate-student.dto';
 import { ListStudentsQuery } from '../dto/list-students.query';
@@ -104,8 +108,14 @@ export class StudentsService {
           joinDate: new Date(dto.join_date),
           status: dto.status ?? 'active',
           dailyHifzPagesCapacity: dto.daily_hifz_pages_capacity ?? 1,
+          dailyHifzCapacityUnit:
+            dto.daily_hifz_capacity_unit ?? DEFAULT_CAPACITY_UNIT,
           dailyNearPagesCapacity: dto.daily_near_pages_capacity ?? 5,
+          dailyNearCapacityUnit:
+            dto.daily_near_capacity_unit ?? DEFAULT_CAPACITY_UNIT,
           dailyFarPagesCapacity: dto.daily_far_pages_capacity ?? 10,
+          dailyFarCapacityUnit:
+            dto.daily_far_capacity_unit ?? DEFAULT_CAPACITY_UNIT,
           memorizationDirection: dto.memorization_direction ?? 'descending',
           notes: dto.notes ?? null,
           photoUrl: dto.photo_url ?? null,
@@ -320,8 +330,11 @@ export class StudentsService {
     if (isTeacherOnly) {
       const teacherOnlyFields = new Set([
         'daily_hifz_pages_capacity',
+        'daily_hifz_capacity_unit',
         'daily_near_pages_capacity',
+        'daily_near_capacity_unit',
         'daily_far_pages_capacity',
+        'daily_far_capacity_unit',
         'memorization_direction',
         'notes',
       ]);
@@ -353,8 +366,11 @@ export class StudentsService {
       status?: string;
       photoUrl?: string | null;
       dailyHifzPagesCapacity?: number;
+      dailyHifzCapacityUnit?: StudentCapacityUnit;
       dailyNearPagesCapacity?: number;
+      dailyNearCapacityUnit?: StudentCapacityUnit;
       dailyFarPagesCapacity?: number;
+      dailyFarCapacityUnit?: StudentCapacityUnit;
       memorizationDirection?: MemorizationDirection;
       notes?: string | null;
       idNumber?: string | null;
@@ -417,15 +433,39 @@ export class StudentsService {
       newValues.dailyHifzPagesCapacity = dto.daily_hifz_pages_capacity;
       patch.dailyHifzPagesCapacity = dto.daily_hifz_pages_capacity;
     }
+    if (
+      dto.daily_hifz_capacity_unit !== undefined &&
+      dto.daily_hifz_capacity_unit !== student.dailyHifzCapacityUnit
+    ) {
+      oldValues.dailyHifzCapacityUnit = student.dailyHifzCapacityUnit;
+      newValues.dailyHifzCapacityUnit = dto.daily_hifz_capacity_unit;
+      patch.dailyHifzCapacityUnit = dto.daily_hifz_capacity_unit;
+    }
     if (dto.daily_near_pages_capacity !== undefined) {
       oldValues.dailyNearPagesCapacity = student.dailyNearPagesCapacity;
       newValues.dailyNearPagesCapacity = dto.daily_near_pages_capacity;
       patch.dailyNearPagesCapacity = dto.daily_near_pages_capacity;
     }
+    if (
+      dto.daily_near_capacity_unit !== undefined &&
+      dto.daily_near_capacity_unit !== student.dailyNearCapacityUnit
+    ) {
+      oldValues.dailyNearCapacityUnit = student.dailyNearCapacityUnit;
+      newValues.dailyNearCapacityUnit = dto.daily_near_capacity_unit;
+      patch.dailyNearCapacityUnit = dto.daily_near_capacity_unit;
+    }
     if (dto.daily_far_pages_capacity !== undefined) {
       oldValues.dailyFarPagesCapacity = student.dailyFarPagesCapacity;
       newValues.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
       patch.dailyFarPagesCapacity = dto.daily_far_pages_capacity;
+    }
+    if (
+      dto.daily_far_capacity_unit !== undefined &&
+      dto.daily_far_capacity_unit !== student.dailyFarCapacityUnit
+    ) {
+      oldValues.dailyFarCapacityUnit = student.dailyFarCapacityUnit;
+      newValues.dailyFarCapacityUnit = dto.daily_far_capacity_unit;
+      patch.dailyFarCapacityUnit = dto.daily_far_capacity_unit;
     }
     if (
       dto.memorization_direction !== undefined &&
@@ -741,8 +781,14 @@ export class StudentsService {
       join_date: formatDate(student.joinDate) ?? '',
       status: student.status,
       daily_hifz_pages_capacity: String(student.dailyHifzPagesCapacity),
+      daily_hifz_capacity_unit:
+        student.dailyHifzCapacityUnit ?? DEFAULT_CAPACITY_UNIT,
       daily_near_pages_capacity: String(student.dailyNearPagesCapacity),
+      daily_near_capacity_unit:
+        student.dailyNearCapacityUnit ?? DEFAULT_CAPACITY_UNIT,
       daily_far_pages_capacity: String(student.dailyFarPagesCapacity),
+      daily_far_capacity_unit:
+        student.dailyFarCapacityUnit ?? DEFAULT_CAPACITY_UNIT,
       memorization_direction: student.memorizationDirection,
       notes: student.notes,
       photo_url: student.photoUrl,

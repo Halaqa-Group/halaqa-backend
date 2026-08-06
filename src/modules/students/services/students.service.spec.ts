@@ -62,8 +62,11 @@ const BASE_STUDENT: Student = {
   joinDate: new Date('2023-09-01'),
   status: 'active',
   dailyHifzPagesCapacity: 1,
+  dailyHifzCapacityUnit: 'page',
   dailyNearPagesCapacity: 5,
+  dailyNearCapacityUnit: 'page',
   dailyFarPagesCapacity: 10,
+  dailyFarCapacityUnit: 'page',
   memorizationDirection: 'descending',
   notes: null,
   memorizedAyat: null,
@@ -103,6 +106,28 @@ function makeGuardiansService(): jest.Mocked<GuardiansService> {
     linkMany: jest.fn().mockResolvedValue(undefined),
     listForStudentId: jest.fn().mockResolvedValue([]),
   } as never;
+}
+
+/**
+ * Like makeDataSource, but hands the transaction a caller-supplied Student repo
+ * so a create() test can assert on what was passed to repo.create().
+ */
+function makeCreateDataSource(
+  txStudentRepo: ReturnType<typeof makeStudentRepo>,
+) {
+  return {
+    transaction: jest
+      .fn()
+      .mockImplementation(async (cb: (m: EntityManager) => Promise<unknown>) =>
+        cb({
+          getRepository: jest.fn().mockReturnValue(txStudentRepo),
+        } as unknown as EntityManager),
+      ),
+    manager: {
+      query: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+    } as unknown as EntityManager,
+  } as unknown as DataSource;
 }
 
 function makeDataSource(
@@ -486,6 +511,112 @@ describe('StudentsService', () => {
           PRINCIPAL,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('capacity units', () => {
+    it('defaults every unit to page on create', async () => {
+      const txStudentRepo = makeStudentRepo();
+      txStudentRepo.save.mockResolvedValue(BASE_STUDENT);
+      const ds = makeCreateDataSource(txStudentRepo);
+      const repo = makeStudentRepo();
+      // 1st findOne = the id_number uniqueness probe, later ones = the re-read.
+      repo.findOne.mockResolvedValueOnce(null).mockResolvedValue(BASE_STUDENT);
+      const service = makeService(repo, makeGuardianRepo(), ds);
+
+      await service.create(
+        {
+          ...NAME_DTO,
+          gender: 'male',
+          join_date: '2023-09-01',
+          id_number: '300123456',
+        },
+        PRINCIPAL,
+      );
+
+      expect(txStudentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dailyHifzCapacityUnit: 'page',
+          dailyNearCapacityUnit: 'page',
+          dailyFarCapacityUnit: 'page',
+        }),
+      );
+    });
+
+    it('stores the submitted units on create', async () => {
+      const txStudentRepo = makeStudentRepo();
+      txStudentRepo.save.mockResolvedValue(BASE_STUDENT);
+      const ds = makeCreateDataSource(txStudentRepo);
+      const repo = makeStudentRepo();
+      // 1st findOne = the id_number uniqueness probe, later ones = the re-read.
+      repo.findOne.mockResolvedValueOnce(null).mockResolvedValue(BASE_STUDENT);
+      const service = makeService(repo, makeGuardianRepo(), ds);
+
+      await service.create(
+        {
+          ...NAME_DTO,
+          gender: 'male',
+          join_date: '2023-09-01',
+          id_number: '300123456',
+          daily_hifz_capacity_unit: 'quarter',
+          daily_far_capacity_unit: 'juz',
+        },
+        PRINCIPAL,
+      );
+
+      expect(txStudentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dailyHifzCapacityUnit: 'quarter',
+          dailyNearCapacityUnit: 'page',
+          dailyFarCapacityUnit: 'juz',
+        }),
+      );
+    });
+
+    it('lets a primary teacher change a unit', async () => {
+      const repo = makeStudentRepo();
+      repo.update.mockResolvedValue({ affected: 1 });
+      repo.findOne.mockResolvedValueOnce(BASE_STUDENT).mockResolvedValueOnce({
+        ...BASE_STUDENT,
+        dailyHifzCapacityUnit: 'juz',
+      });
+      const audit = makeAudit();
+      const ds = makeDataSource(jest.fn().mockResolvedValue([{ 1: 1 }]));
+      const guardianRepo = makeGuardianRepo();
+      guardianRepo.find.mockResolvedValue([]);
+      const service = makeService(repo, guardianRepo, ds, audit);
+
+      await service.update(
+        10,
+        { daily_hifz_capacity_unit: 'juz' },
+        TEACHER,
+        true,
+      );
+
+      expect(repo.update).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({ dailyHifzCapacityUnit: 'juz' }),
+      );
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'student.update',
+          oldValues: expect.objectContaining({ dailyHifzCapacityUnit: 'page' }),
+          newValues: expect.objectContaining({ dailyHifzCapacityUnit: 'juz' }),
+        }),
+      );
+    });
+
+    it('exposes the units in toView', () => {
+      const service = makeService();
+      const view = service.toView(
+        { ...BASE_STUDENT, dailyFarCapacityUnit: 'hizb' },
+        PRINCIPAL,
+      );
+      expect(view).toMatchObject({
+        daily_hifz_capacity_unit: 'page',
+        daily_near_capacity_unit: 'page',
+        daily_far_capacity_unit: 'hizb',
+      });
     });
   });
 

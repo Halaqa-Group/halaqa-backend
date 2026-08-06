@@ -17,8 +17,11 @@ All DTOs use `class-validator` and the global `whitelist: true, forbidNonWhiteli
   join_date: string;                             // ISO date, required
   status?: 'active' | 'inactive' | 'graduated'; // default 'active' (rarely set on create)
   daily_hifz_pages_capacity?: number;            // default 1, range MIN..MAX_HIFZ
+  daily_hifz_capacity_unit?: CapacityUnit;       // default 'page'
   daily_near_pages_capacity?: number;            // default 5, range MIN..MAX_NEAR
+  daily_near_capacity_unit?: CapacityUnit;       // default 'page'
   daily_far_pages_capacity?: number;             // default 10, range MIN..MAX_FAR
+  daily_far_capacity_unit?: CapacityUnit;        // default 'page'
   memorization_direction?: 'ascending' | 'descending'; // اتجاه الحفظ, default 'descending'
   notes?: string;
   photo_url?: string;
@@ -45,8 +48,11 @@ Partial of CreateStudentDto, **excluding** `guardians` (use the dedicated guardi
   join_date?: string;
   status?: 'active' | 'inactive' | 'graduated';
   daily_hifz_pages_capacity?: number;
+  daily_hifz_capacity_unit?: CapacityUnit;
   daily_near_pages_capacity?: number;
+  daily_near_capacity_unit?: CapacityUnit;
   daily_far_pages_capacity?: number;
+  daily_far_capacity_unit?: CapacityUnit;
   memorization_direction?: 'ascending' | 'descending';
   notes?: string;
   photo_url?: string;
@@ -54,6 +60,26 @@ Partial of CreateStudentDto, **excluding** `guardians` (use the dedicated guardi
   phone?: string | null;
 }
 ```
+
+### `CapacityUnit` — وحدة القدرة اليومية
+
+```ts
+type CapacityUnit = 'page' | 'juz' | 'hizb' | 'quarter' | 'surah';
+```
+
+Each daily capacity is a bare number plus the unit it counts in, so a school can
+plan in أجزاء/أحزاب/أرباع/سور instead of pages. `quarter` is ربع الحزب (an eighth
+of a juz), not a quarter of a juz.
+
+The numeric columns keep their legacy `daily_*_pages_capacity` names — renaming
+them would break every current client — so **the number is only pages when its
+paired unit says `page`**. Never read `daily_hifz_pages_capacity` as pages
+without checking `daily_hifz_capacity_unit`.
+
+The `CAPACITY_LIMITS` bounds are unit-agnostic: they cap the raw number whatever
+it counts. Units and the `page` default live in `students/capacity.config.ts`
+(`CAPACITY_UNITS`, `DEFAULT_CAPACITY_UNIT`); the migration backfills every
+existing row to `page`, preserving today's meaning exactly.
 
 ### The WhatsApp number — `phone_country_code` + `phone`
 
@@ -81,8 +107,11 @@ The strict subset. Anything else in the body is a 400.
 ```ts
 {
   daily_hifz_pages_capacity?: number;
+  daily_hifz_capacity_unit?: CapacityUnit;
   daily_near_pages_capacity?: number;
+  daily_near_capacity_unit?: CapacityUnit;
   daily_far_pages_capacity?: number;
+  daily_far_capacity_unit?: CapacityUnit;
   memorization_direction?: 'ascending' | 'descending';
   notes?: string;
 }

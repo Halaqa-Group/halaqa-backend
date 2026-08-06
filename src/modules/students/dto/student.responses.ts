@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { CAPACITY_UNITS, type StudentCapacityUnit } from '../capacity.config';
 
 export class GuardianUserResponse {
   @ApiProperty({ example: 12 })
@@ -99,21 +100,45 @@ export class StudentResponse {
 
   @ApiProperty({
     example: '1.00',
-    description: 'Daily Hifz memorisation target in pages (0–20).',
+    description:
+      'Daily Hifz memorisation target (0–20), counted in `daily_hifz_capacity_unit`.',
   })
   daily_hifz_pages_capacity!: string;
 
   @ApiProperty({
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description: 'وحدة قدرة الحفظ.',
+  })
+  daily_hifz_capacity_unit!: string;
+
+  @ApiProperty({
     example: '2.00',
-    description: 'Daily near-review target in pages (0–50).',
+    description:
+      'Daily near-review target (0–50), counted in `daily_near_capacity_unit`.',
   })
   daily_near_pages_capacity!: string;
 
   @ApiProperty({
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description: 'وحدة قدرة المراجعة القريبة.',
+  })
+  daily_near_capacity_unit!: string;
+
+  @ApiProperty({
     example: '5.00',
-    description: 'Daily far-review target in pages (0–100).',
+    description:
+      'Daily far-review target (0–100), counted in `daily_far_capacity_unit`.',
   })
   daily_far_pages_capacity!: string;
+
+  @ApiProperty({
+    enum: CAPACITY_UNITS,
+    example: 'page',
+    description: 'وحدة قدرة المراجعة البعيدة.',
+  })
+  daily_far_capacity_unit!: string;
 
   @ApiProperty({
     enum: ['ascending', 'descending'],
@@ -270,8 +295,11 @@ export type StudentView = PersonNameView & {
   join_date: string;
   status: string;
   daily_hifz_pages_capacity: string;
+  daily_hifz_capacity_unit: StudentCapacityUnit;
   daily_near_pages_capacity: string;
+  daily_near_capacity_unit: StudentCapacityUnit;
   daily_far_pages_capacity: string;
+  daily_far_capacity_unit: StudentCapacityUnit;
   memorization_direction: string;
   notes: string | null;
   photo_url: string | null;
