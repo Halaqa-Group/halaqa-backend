@@ -22,7 +22,7 @@ jobs:
 
             cd /var/www/staging/api
 
-            git pull origin staging
+            git pull origin main
 
             pnpm install --frozen-lockfile
 
