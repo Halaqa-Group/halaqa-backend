@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AssignTeacherDto } from '../dto/assign-teacher.dto';
@@ -74,6 +74,44 @@ export class TeacherAssignmentService {
     return rows[0];
   }
 
+  private static readonly MAIN_TEACHER_CONFLICT =
+    'This halaqa already has an active main teacher. End that assignment first or assign this teacher as an assistant.';
+
+  /**
+   * BR-HLQ-04 — at most one active `role='main'` row per halaqa. The DB enforces
+   * this via the unique index `idx_one_main_per_halaqa`; this check surfaces it
+   * as a 409 instead of letting the driver error escape as a 500.
+   */
+  private async assertNoActiveMain(
+    halaqaId: number,
+    exceptAssignmentId?: number,
+  ): Promise<void> {
+    const existing = await this.repo.findOne({
+      where: {
+        halaqaId,
+        role: 'main',
+        endDate: IsNull(),
+        ...(exceptAssignmentId !== undefined
+          ? { id: Not(exceptAssignmentId) }
+          : {}),
+      },
+    });
+    if (existing) {
+      throw new ConflictException(
+        TeacherAssignmentService.MAIN_TEACHER_CONFLICT,
+      );
+    }
+  }
+
+  /** Safety net for the race between assertNoActiveMain and the insert/update. */
+  private static isDuplicateEntry(err: unknown): boolean {
+    return (
+      err instanceof QueryFailedError &&
+      (err as unknown as { driverError?: { code?: string } }).driverError
+        ?.code === 'ER_DUP_ENTRY'
+    );
+  }
+
   // ─── Public methods ────────────────────────────────────────────────────────
 
   async assign(
@@ -101,17 +139,29 @@ export class TeacherAssignmentService {
       );
     }
 
-    const saved = await this.repo.save(
-      this.repo.create({
-        halaqaId,
-        teacherUserId: dto.teacher_user_id,
-        role: dto.role,
-        actingAsPrimary: false,
-        startDate: dto.start_date,
-        notes: dto.notes ?? null,
-        assignedBy: actor.id,
-      }),
-    );
+    if (dto.role === 'main') await this.assertNoActiveMain(halaqaId);
+
+    let saved: HalaqaTeacher;
+    try {
+      saved = await this.repo.save(
+        this.repo.create({
+          halaqaId,
+          teacherUserId: dto.teacher_user_id,
+          role: dto.role,
+          actingAsPrimary: false,
+          startDate: dto.start_date,
+          notes: dto.notes ?? null,
+          assignedBy: actor.id,
+        }),
+      );
+    } catch (err) {
+      if (TeacherAssignmentService.isDuplicateEntry(err)) {
+        throw new ConflictException(
+          TeacherAssignmentService.MAIN_TEACHER_CONFLICT,
+        );
+      }
+      throw err;
+    }
 
     await this.activityLog.log({
       schoolId: actor.schoolId,
@@ -165,10 +215,22 @@ export class TeacherAssignmentService {
     }
 
     const roleChanged = dto.role !== undefined && dto.role !== assignment.role;
+    if (roleChanged && dto.role === 'main') {
+      await this.assertNoActiveMain(halaqaId, assignmentId);
+    }
     if (dto.role !== undefined) assignment.role = dto.role;
     if (dto.notes !== undefined) assignment.notes = dto.notes ?? null;
 
-    await this.repo.save(assignment);
+    try {
+      await this.repo.save(assignment);
+    } catch (err) {
+      if (TeacherAssignmentService.isDuplicateEntry(err)) {
+        throw new ConflictException(
+          TeacherAssignmentService.MAIN_TEACHER_CONFLICT,
+        );
+      }
+      throw err;
+    }
 
     if (roleChanged) {
       await this.activityLog.log({

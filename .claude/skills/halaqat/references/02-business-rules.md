@@ -74,9 +74,13 @@ that would create a second active main row.
 **At creation:** the main teacher is **optional** (BR-HLQ-07).
 A halaqa may exist with zero main teachers.
 
-**Service responsibility:** when assigning a teacher with `role='main'`,
-the DB will fail if another active main row already exists for that
-halaqa. Surface that as `ConflictException`.
+**Service responsibility:** `TeacherAssignmentService` pre-checks for an active
+main row before insert (`assign`) and before promoting a row to main
+(`updateAssignment`, excluding the row being edited), and also maps a racing
+`ER_DUP_ENTRY` from the save to the same 409 — otherwise the driver error would
+escape the global filter as a 500.
+
+**Error:** `ConflictException("This halaqa already has an active main teacher. End that assignment first or assign this teacher as an assistant.")`
 
 ---
 

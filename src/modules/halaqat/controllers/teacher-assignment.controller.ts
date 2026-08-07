@@ -60,7 +60,8 @@ export class TeacherAssignmentController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Already assigned or schedule conflict',
+    description:
+      'Already assigned, halaqa already has an active main teacher, or schedule conflict',
   })
   assign(
     @Param('id', ParseIntPipe) id: number,
@@ -104,7 +105,8 @@ export class TeacherAssignmentController {
   @ApiResponse({ status: 404, description: 'Halaqa or assignment not found' })
   @ApiResponse({
     status: 409,
-    description: 'Assignment already ended or role is substitute',
+    description:
+      'Assignment already ended, role is substitute, or halaqa already has an active main teacher',
   })
   updateAssignment(
     @Param('id', ParseIntPipe) id: number,

@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Not, QueryFailedError } from 'typeorm';
 import { HalaqaTeacher } from '../entities/halaqa-teacher.entity';
 import { TeacherAssignmentService } from './teacher-assignment.service';
 
@@ -84,6 +85,14 @@ function makeActivityLog() {
   return { log: jest.fn().mockResolvedValue(undefined) } as never;
 }
 
+/** Mimics what the mysql2 driver surfaces through TypeORM on a unique clash. */
+function makeDupEntryError() {
+  return new QueryFailedError('INSERT', [], {
+    code: 'ER_DUP_ENTRY',
+    message: "Duplicate entry '17' for key 'idx_one_main_per_halaqa'",
+  } as never);
+}
+
 function makeService(
   overrides: {
     repo?: ReturnType<typeof makeRepo>;
@@ -127,6 +136,50 @@ describe('TeacherAssignmentService', () => {
     it('throws 409 when teacher already has active assignment', async () => {
       const repo = makeRepo({
         findOne: jest.fn().mockResolvedValue(BASE_ASSIGNMENT),
+      });
+      const svc = makeService({ repo });
+      await expect(
+        svc.assign(
+          17,
+          { teacher_user_id: 12, role: 'main', start_date: '2026-05-01' },
+          PRINCIPAL,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws 409 when the halaqa already has an active main teacher (BR-HLQ-04)', async () => {
+      // 1st findOne = same-teacher check (none), 2nd = active-main check (found)
+      const repo = makeRepo({
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ ...BASE_ASSIGNMENT, teacherUserId: 99 }),
+      });
+      const svc = makeService({ repo });
+      await expect(
+        svc.assign(
+          17,
+          { teacher_user_id: 12, role: 'main', start_date: '2026-05-01' },
+          PRINCIPAL,
+        ),
+      ).rejects.toThrow(/already has an active main teacher/);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not run the active-main check when assigning an assistant', async () => {
+      const repo = makeRepo();
+      const svc = makeService({ repo });
+      await svc.assign(
+        17,
+        { teacher_user_id: 12, role: 'assistant', start_date: '2026-05-01' },
+        PRINCIPAL,
+      );
+      expect(repo.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('maps a duplicate-key race on save to 409', async () => {
+      const repo = makeRepo({
+        save: jest.fn().mockRejectedValue(makeDupEntryError()),
       });
       const svc = makeService({ repo });
       await expect(
@@ -267,6 +320,40 @@ describe('TeacherAssignmentService', () => {
       await expect(
         svc.updateAssignment(17, 55, { role: 'main' }, PRINCIPAL),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws 409 when promoting to main while another main is active', async () => {
+      // 1st findOne = the assignment being edited, 2nd = active-main check
+      const repo = makeRepo({
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce({ ...BASE_ASSIGNMENT, role: 'assistant' })
+          .mockResolvedValueOnce({ ...BASE_ASSIGNMENT, id: 56 }),
+      });
+      const svc = makeService({ repo });
+      await expect(
+        svc.updateAssignment(17, 55, { role: 'main' }, PRINCIPAL),
+      ).rejects.toThrow(/already has an active main teacher/);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('excludes the row being edited from the active-main check', async () => {
+      const repo = makeRepo({
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce({ ...BASE_ASSIGNMENT, role: 'assistant' })
+          .mockResolvedValueOnce(null),
+      });
+      const svc = makeService({ repo });
+      await svc.updateAssignment(17, 55, { role: 'main' }, PRINCIPAL);
+      expect(repo.findOne).toHaveBeenLastCalledWith({
+        where: expect.objectContaining({
+          halaqaId: 17,
+          role: 'main',
+          id: Not(55),
+        }),
+      });
+      expect(repo.save).toHaveBeenCalled();
     });
 
     it('saves updated role and notes', async () => {

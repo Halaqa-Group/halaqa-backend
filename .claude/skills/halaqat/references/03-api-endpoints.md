@@ -287,10 +287,11 @@ Assign a teacher to a halaqa.
 **Behavior:**
 1. Verify teacher exists in the school and has `teacher` role.
 2. Reject if `role='substitute'` (must go through the acting endpoint).
-3. Insert the row. The DB-level unique constraints enforce BR-HLQ-04
-   (one active main per halaqa) and BR-HLQ-05 / no duplicate active
-   assignment.
-4. Log `action='teacher_assigned'`.
+3. Reject with 409 if the teacher already has an active assignment here, or
+   if `role='main'` and the halaqa already has an active main (BR-HLQ-04).
+   The DB unique indexes back both checks as a race safety net.
+4. Insert the row.
+5. Log `action='teacher_assigned'`.
 
 **Response (201):**
 ```json
@@ -375,8 +376,8 @@ Modify an active assignment (change `role`, `notes`).
 - `role` can be changed between `main` and `assistant` only. Switching to
   `substitute` (or away from it) is not allowed via this endpoint —
   substitutes have a strict lifecycle bound to acting (BR-HLQ-06).
-- Setting `role='main'` triggers the DB unique constraint on
-  `idx_one_main_per_halaqa` — fails if another active main exists.
+- Setting `role='main'` returns 409 if another active main assignment exists
+  in the halaqa (BR-HLQ-04); the row being edited is excluded from that check.
 - Logs `action='teacher_role_changed'` if `role` changed.
 
 **Response (200):** the updated assignment row, same shape as POST.
