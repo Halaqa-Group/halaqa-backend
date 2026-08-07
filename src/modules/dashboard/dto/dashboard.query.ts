@@ -56,6 +56,20 @@ export class DashboardQuery {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   compare?: boolean;
+
+  @ApiProperty({
+    required: false,
+    example: 12,
+    description:
+      'Narrow every figure to a single halaqa. Intersected with the caller’s ' +
+      'scope: an id outside their access yields empty/zero results, never a leak. ' +
+      'Omit for the caller’s full scope.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  halaqa_id?: number;
 }
 
 export class AlertsQuery extends DashboardQuery {

@@ -5410,6 +5410,16 @@
             }
           },
           {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Narrow every figure to a single halaqa. Intersected with the caller’s scope: an id outside their access yields empty/zero results, never a leak. Omit for the caller’s full scope.",
+            "schema": {
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
             "name": "x-active-role",
             "required": true,
             "in": "header",
@@ -5490,6 +5500,16 @@
             "schema": {
               "example": true,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Narrow every figure to a single halaqa. Intersected with the caller’s scope: an id outside their access yields empty/zero results, never a leak. Omit for the caller’s full scope.",
+            "schema": {
+              "example": 12,
+              "type": "number"
             }
           },
           {
@@ -5603,6 +5623,16 @@
             }
           },
           {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Narrow every figure to a single halaqa. Intersected with the caller’s scope: an id outside their access yields empty/zero results, never a leak. Omit for the caller’s full scope.",
+            "schema": {
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
             "name": "x-active-role",
             "required": true,
             "in": "header",
@@ -5683,6 +5713,16 @@
             "schema": {
               "example": true,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Narrow every figure to a single halaqa. Intersected with the caller’s scope: an id outside their access yields empty/zero results, never a leak. Omit for the caller’s full scope.",
+            "schema": {
+              "example": 12,
+              "type": "number"
             }
           },
           {
@@ -5790,6 +5830,16 @@
             "schema": {
               "example": true,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "halaqa_id",
+            "required": false,
+            "in": "query",
+            "description": "Narrow every figure to a single halaqa. Intersected with the caller’s scope: an id outside their access yields empty/zero results, never a leak. Omit for the caller’s full scope.",
+            "schema": {
+              "example": 12,
+              "type": "number"
             }
           },
           {

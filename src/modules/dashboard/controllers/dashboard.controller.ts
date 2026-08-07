@@ -77,6 +77,7 @@ export class DashboardController {
       from: query.from,
       to: query.to,
       compare: query.compare,
+      halaqaId: query.halaqa_id,
     });
   }
 
@@ -95,7 +96,14 @@ export class DashboardController {
     @CurrentUser() actor: AuthenticatedUser,
     @Headers('x-active-role') activeRole?: string,
   ): Promise<TopStudentsDto> {
-    return this.service.topStudents(this.acting(actor, activeRole), query);
+    return this.service.topStudents(this.acting(actor, activeRole), {
+      period: query.period,
+      from: query.from,
+      to: query.to,
+      track: query.track,
+      limit: query.limit,
+      halaqaId: query.halaqa_id,
+    });
   }
 
   @Get('halaqat')
@@ -113,7 +121,12 @@ export class DashboardController {
     @CurrentUser() actor: AuthenticatedUser,
     @Headers('x-active-role') activeRole?: string,
   ): Promise<HalaqatPerformanceDto> {
-    return this.service.halaqatPerformance(this.acting(actor, activeRole), query);
+    return this.service.halaqatPerformance(this.acting(actor, activeRole), {
+      period: query.period,
+      from: query.from,
+      to: query.to,
+      halaqaId: query.halaqa_id,
+    });
   }
 
   @Get('alerts')
@@ -141,6 +154,7 @@ export class DashboardController {
       to: query.to,
       stalledDays: query.stalled_days,
       absenceThreshold: query.absence_threshold,
+      halaqaId: query.halaqa_id,
     });
   }
 
@@ -160,6 +174,11 @@ export class DashboardController {
     @CurrentUser() actor: AuthenticatedUser,
     @Headers('x-active-role') activeRole?: string,
   ): Promise<TeachersCommitmentDto> {
-    return this.service.teacherCommitment(this.acting(actor, activeRole), query);
+    return this.service.teacherCommitment(this.acting(actor, activeRole), {
+      period: query.period,
+      from: query.from,
+      to: query.to,
+      halaqaId: query.halaqa_id,
+    });
   }
 }

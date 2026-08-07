@@ -93,7 +93,13 @@ export class DashboardService {
 
   overview(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string; compare?: boolean },
+    query: {
+      period?: Period;
+      from?: string;
+      to?: string;
+      compare?: boolean;
+      halaqaId?: number;
+    },
   ): Promise<OverviewDto> {
     return this.memo('overview', actor, query, () =>
       this.computeOverview(actor, query),
@@ -108,6 +114,7 @@ export class DashboardService {
       to?: string;
       track?: TrackType;
       limit?: number;
+      halaqaId?: number;
     },
   ): Promise<TopStudentsDto> {
     return this.memo('top-students', actor, query, () =>
@@ -117,7 +124,7 @@ export class DashboardService {
 
   halaqatPerformance(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string },
+    query: { period?: Period; from?: string; to?: string; halaqaId?: number },
   ): Promise<HalaqatPerformanceDto> {
     return this.memo('halaqat', actor, query, () =>
       this.computeHalaqatPerformance(actor, query),
@@ -126,7 +133,7 @@ export class DashboardService {
 
   teacherCommitment(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string },
+    query: { period?: Period; from?: string; to?: string; halaqaId?: number },
   ): Promise<TeachersCommitmentDto> {
     return this.memo('teachers', actor, query, () =>
       this.computeTeacherCommitment(actor, query),
@@ -141,6 +148,7 @@ export class DashboardService {
       to?: string;
       stalledDays?: number;
       absenceThreshold?: number;
+      halaqaId?: number;
     },
   ): Promise<AlertsDto> {
     return this.memo('alerts', actor, query, () =>
@@ -190,10 +198,16 @@ export class DashboardService {
 
   private async computeOverview(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string; compare?: boolean },
+    query: {
+      period?: Period;
+      from?: string;
+      to?: string;
+      compare?: boolean;
+      halaqaId?: number;
+    },
   ): Promise<OverviewDto> {
     const range = resolveRange(query);
-    const scope = await this.scopeService.resolve(actor);
+    const scope = await this.scopeService.resolve(actor, query.halaqaId);
     const showTeacherRate =
       this.scopeService.isAdmin(actor) ||
       actor.roles.some((r) => r.slug === 'supervisor');
@@ -461,12 +475,13 @@ export class DashboardService {
       to?: string;
       track?: TrackType;
       limit?: number;
+      halaqaId?: number;
     },
   ): Promise<TopStudentsDto> {
     const range = resolveRange(query);
     const track: TrackType = query.track ?? 'Hifz';
     const limit = Math.min(50, Math.max(1, query.limit ?? 10));
-    const scope = await this.scopeService.resolve(actor);
+    const scope = await this.scopeService.resolve(actor, query.halaqaId);
 
     if (this.isEmpty(scope)) return { range, track, items: [] };
 
@@ -532,10 +547,10 @@ export class DashboardService {
 
   private async computeHalaqatPerformance(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string },
+    query: { period?: Period; from?: string; to?: string; halaqaId?: number },
   ): Promise<HalaqatPerformanceDto> {
     const range = resolveRange(query);
-    const scope = await this.scopeService.resolve(actor);
+    const scope = await this.scopeService.resolve(actor, query.halaqaId);
 
     if (this.isEmpty(scope)) return { range, items: [] };
 
@@ -668,10 +683,10 @@ export class DashboardService {
 
   private async computeTeacherCommitment(
     actor: AuthenticatedUser,
-    query: { period?: Period; from?: string; to?: string },
+    query: { period?: Period; from?: string; to?: string; halaqaId?: number },
   ): Promise<TeachersCommitmentDto> {
     const range = resolveRange(query);
-    const scope = await this.scopeService.resolve(actor);
+    const scope = await this.scopeService.resolve(actor, query.halaqaId);
 
     if (this.isEmpty(scope)) return { range, items: [] };
 
@@ -875,10 +890,11 @@ export class DashboardService {
       to?: string;
       stalledDays?: number;
       absenceThreshold?: number;
+      halaqaId?: number;
     },
   ): Promise<AlertsDto> {
     const range = resolveRange(query);
-    const scope = await this.scopeService.resolve(actor);
+    const scope = await this.scopeService.resolve(actor, query.halaqaId);
     const stalledDays = Math.min(90, Math.max(1, query.stalledDays ?? 7));
     const absenceThreshold = Math.min(
       90,

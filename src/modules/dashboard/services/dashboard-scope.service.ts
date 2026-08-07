@@ -23,7 +23,33 @@ export class DashboardScopeService {
     );
   }
 
-  async resolve(actor: AuthenticatedUser): Promise<HalaqaScope> {
+  /**
+   * Resolves the caller's scope, optionally narrowed to a single requested
+   * halaqa. The narrowing is an INTERSECTION, never a widening: a `halaqaId`
+   * outside the caller's role-derived scope collapses to the empty scope
+   * (zeros/empty arrays), so a teacher can never read another halaqa's figures
+   * by passing its id.
+   */
+  async resolve(
+    actor: AuthenticatedUser,
+    halaqaId?: number,
+  ): Promise<HalaqaScope> {
+    return this.restrictTo(await this.resolveRoleScope(actor), halaqaId);
+  }
+
+  /** Intersect an already-resolved scope with a single requested halaqa. */
+  restrictTo(scope: HalaqaScope, halaqaId?: number): HalaqaScope {
+    if (halaqaId == null) return scope;
+    if (scope.all) return { all: false, halaqaIds: [halaqaId] };
+    return scope.halaqaIds.includes(halaqaId)
+      ? { all: false, halaqaIds: [halaqaId] }
+      : { all: false, halaqaIds: [] };
+  }
+
+  /** The role-derived scope (union of admin/supervisor/teacher access). */
+  private async resolveRoleScope(
+    actor: AuthenticatedUser,
+  ): Promise<HalaqaScope> {
     if (this.isAdmin(actor)) return { all: true };
 
     const ids = new Set<number>();
