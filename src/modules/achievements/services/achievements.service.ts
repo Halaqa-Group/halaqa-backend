@@ -24,6 +24,7 @@ import type { ErrorType } from '../entities/achievement-position-error.entity';
 import { AttendanceQueryService } from '../../attendance/services/attendance-query.service';
 import { MemorizationService } from '../../students/services/memorization.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
+import { pageCoverage } from '../../../quran/page-coverage';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 import { SURAH_VERSES } from '../../../quran/quran.constants';
 
@@ -51,6 +52,18 @@ export type PositionInput = VerseRangeInput & {
   // Pages covered by this position (client-supplied, stored as-is). NULL = not sent.
   pages?: number | null;
 };
+
+/**
+ * The teacher's aggregate error counts, sent only when `recitation_method` is
+ * `untracked` — there are no positions to itemize them against. Omitted types
+ * count as zero.
+ */
+export interface ErrorCountsInput {
+  mistakes?: number;
+  warnings?: number;
+  tajweed?: number;
+  harakat?: number;
+}
 
 /** The four error types, all weighted by the halaqa's `evaluation_settings`. */
 export interface ErrorCounts {
@@ -94,6 +107,26 @@ function sumPositionCounts(positions: PositionInput[]): ErrorCounts {
 }
 
 /**
+ * Where the achievement's four counts come from. `full` and `test` derive them
+ * by counting error rows; `untracked` has no rows, so the teacher's aggregate
+ * counts are taken verbatim. Exactly one source per method — the create/update
+ * paths reject the other one with a 400.
+ */
+function resolveCounts(
+  method: RecitationMethod,
+  positions: PositionInput[],
+  supplied?: ErrorCountsInput,
+): ErrorCounts {
+  if (method !== 'untracked') return sumPositionCounts(positions);
+  return {
+    mistakesCount: supplied?.mistakes ?? 0,
+    warningsCount: supplied?.warnings ?? 0,
+    tajweedErrorsCount: supplied?.tajweed ?? 0,
+    harakatErrorsCount: supplied?.harakat ?? 0,
+  };
+}
+
+/**
  * Rounds a client-supplied page value to 4dp (matching the branch's DECIMAL(8,4)
  * page columns and `roundHalfUp` convention). null/undefined pass through as null.
  */
@@ -103,8 +136,23 @@ function roundPages(value: number | null | undefined): number | null {
 }
 
 /**
+ * The achievement's total pages (الصفحات الكلية) — the volume metric every
+ * dashboard KPI sums. The client's value wins (it comes off the mushaf view and
+ * may account for detail the verse range can't express); when it sends none we
+ * derive it from the range with `pageCoverage`, which is parity-tested against
+ * the frontend's implementation. Never NULL, so nothing silently reads as zero.
+ */
+function resolveTotalPages(
+  range: VerseRangeInput,
+  supplied?: number | null,
+): number {
+  return roundHalfUp(supplied ?? pageCoverage(range), 4);
+}
+
+/**
  * Rolls the positions' `pages` up into the achievement's `positions_pages`
  * (صفحات المواضع). NULL when no position supplied pages — "unknown", not zero.
+ * That is the permanent state for `untracked`, which has no positions at all.
  */
 function sumPositionPages(positions: PositionInput[]): number | null {
   const provided = positions.filter(
@@ -130,6 +178,8 @@ export interface CreateAchievementInput {
   testPositions?: PositionInput[];
   // `full` only — these errors attach to the single auto-created position.
   errors?: PositionErrorInput[];
+  // `untracked` only — aggregate counts with no locations.
+  errorCounts?: ErrorCountsInput;
   percentageScore: number;
   // Total pages of the whole range (الصفحات الكلية), client-supplied. NULL = not sent.
   totalPages?: number | null;
@@ -148,6 +198,8 @@ export interface UpdateAchievementInput {
   testPositions?: PositionInput[];
   // `full` only — see CreateAchievementInput.
   errors?: PositionErrorInput[];
+  // `untracked` only — see CreateAchievementInput.
+  errorCounts?: ErrorCountsInput;
   percentageScore?: number;
   totalPages?: number | null;
   teacherNotes?: string | null;
@@ -276,11 +328,40 @@ export class AchievementsService {
   }
 
   /**
+   * Guards the two rules that hold on both create and update:
+   * - New memorization (Hifz) is always a full recitation. Partial testing and
+   *   undocumented recitation are review-only.
+   * - Aggregate `error_counts` belong to `untracked` alone; everywhere else the
+   *   counts are derived from error rows and a client-set value would silently
+   *   contradict them.
+   */
+  private assertMethodInputs(
+    method: RecitationMethod,
+    trackType: TrackType,
+    errorCounts?: ErrorCountsInput,
+  ): void {
+    if (trackType === 'Hifz' && (method === 'test' || method === 'untracked')) {
+      throw new BadRequestException(
+        'New memorization (Hifz) must be a full recitation — not a partial test, and not untracked.',
+      );
+    }
+    if (errorCounts !== undefined && method !== 'untracked') {
+      throw new BadRequestException(
+        'error_counts is only valid when recitation_method is "untracked". Send itemized errors instead.',
+      );
+    }
+  }
+
+  /**
    * Resolves the recitation positions for an achievement, each carrying its own
    * itemized errors:
    * - `full` → one position spanning the whole range, holding the top-level errors.
    * - `test` → the supplied positions (>=1), each valid, within the range, and
    *   holding its own errors; top-level errors are rejected.
+   * - `untracked` → none at all; the teacher documented no locations, so both
+   *   positions and itemized errors are rejected (counts come in aggregate).
+   * A position that omits `pages` gets them derived from its own range, so
+   * `positions_pages` is only ever NULL when there are no positions.
    * Validates fully before any DB write. Does not persist.
    */
   private buildPositions(
@@ -290,6 +371,20 @@ export class AchievementsService {
     topLevelErrors?: PositionErrorInput[],
     totalPages?: number | null,
   ): PositionInput[] {
+    if (method === 'untracked') {
+      if (testPositions !== undefined) {
+        throw new BadRequestException(
+          'test_positions is only valid when recitation_method is "test".',
+        );
+      }
+      if (topLevelErrors !== undefined) {
+        throw new BadRequestException(
+          'Itemized errors need a position to attach to. For recitation_method "untracked" send aggregate error_counts instead.',
+        );
+      }
+      return [];
+    }
+
     if (method === 'test') {
       if (!testPositions || testPositions.length === 0) {
         throw new BadRequestException(
@@ -310,7 +405,10 @@ export class AchievementsService {
         }
         for (const e of p.errors ?? []) this.validatePositionError(e, p);
       }
-      return testPositions;
+      return testPositions.map((p) => ({
+        ...p,
+        pages: roundPages(p.pages ?? pageCoverage(p)),
+      }));
     }
 
     // full — one position over the whole range, holding the top-level errors.
@@ -323,7 +421,7 @@ export class AchievementsService {
     const position: PositionInput = {
       ...range,
       errors: topLevelErrors ?? [],
-      pages: roundPages(totalPages),
+      pages: resolveTotalPages(range, totalPages),
     };
     for (const e of position.errors ?? [])
       this.validatePositionError(e, position);
@@ -502,23 +600,26 @@ export class AchievementsService {
     const completionMethod: CompletionMethod =
       input.completionMethod ?? 'quick';
     const recitationMethod: RecitationMethod = input.recitationMethod ?? 'full';
-    // New memorization (Hifz) must always be a full recitation — no partial testing.
-    if (input.trackType === 'Hifz' && recitationMethod === 'test') {
-      throw new BadRequestException(
-        'New memorization (Hifz) must be a full recitation, not a partial test.',
-      );
-    }
+    this.assertMethodInputs(
+      recitationMethod,
+      input.trackType,
+      input.errorCounts,
+    );
+    // Pages: the client's value verbatim, else derived from the range.
+    const totalPages = resolveTotalPages(range, input.totalPages);
     const positions = this.buildPositions(
       recitationMethod,
       range,
       input.testPositions,
       input.errors,
-      input.totalPages,
+      totalPages,
     );
-    // The achievement's counts are the roll-up of its positions' errors, never client-set.
-    const totals = sumPositionCounts(positions);
-    // Pages are client-supplied and stored as-is: total_pages verbatim, positions_pages = SUM.
-    const totalPages = roundPages(input.totalPages);
+    const totals = resolveCounts(
+      recitationMethod,
+      positions,
+      input.errorCounts,
+    );
+    // NULL for `untracked` — no positions means the recited amount is unknown.
     const positionsPages = sumPositionPages(positions);
 
     // 2. Scope check
@@ -747,9 +848,6 @@ export class AchievementsService {
       achievement.percentageScore =
         Math.round(input.percentageScore * 100) / 100;
     }
-    if (input.totalPages !== undefined) {
-      achievement.totalPages = roundPages(input.totalPages);
-    }
     if (input.completionMethod !== undefined)
       achievement.completionMethod = input.completionMethod;
     if (input.recitationMethod !== undefined)
@@ -757,23 +855,32 @@ export class AchievementsService {
     if ('teacherNotes' in input)
       achievement.teacherNotes = input.teacherNotes ?? null;
 
-    // New memorization (Hifz) must always be a full recitation — no partial testing.
-    if (
-      achievement.trackType === 'Hifz' &&
-      achievement.recitationMethod === 'test'
-    ) {
-      throw new BadRequestException(
-        'New memorization (Hifz) must be a full recitation, not a partial test.',
-      );
-    }
+    this.assertMethodInputs(
+      achievement.recitationMethod,
+      achievement.trackType,
+      input.errorCounts,
+    );
 
-    if (input.startSurah !== undefined || input.endSurah !== undefined) {
-      this.rangeValidator.validate({
-        startSurah: achievement.startSurah,
-        startVerse: achievement.startVerse,
-        endSurah: achievement.endSurah,
-        endVerse: achievement.endVerse,
-      });
+    const range: VerseRangeInput = {
+      startSurah: achievement.startSurah,
+      startVerse: achievement.startVerse,
+      endSurah: achievement.endSurah,
+      endVerse: achievement.endVerse,
+    };
+    const rangeChanged =
+      input.startSurah !== undefined ||
+      input.startVerse !== undefined ||
+      input.endSurah !== undefined ||
+      input.endVerse !== undefined;
+    if (rangeChanged) this.rangeValidator.validate(range);
+
+    // A stored page count describes a stored range: an explicit value wins, but
+    // once the range moves the old number is stale, so re-derive it. Legacy rows
+    // that never had one get filled on their first edit.
+    if (input.totalPages !== undefined && input.totalPages !== null) {
+      achievement.totalPages = roundPages(input.totalPages);
+    } else if (rangeChanged || achievement.totalPages === null) {
+      achievement.totalPages = resolveTotalPages(range);
     }
 
     // Regenerate positions when the method, the positions, or the errors are
@@ -788,19 +895,28 @@ export class AchievementsService {
     ) {
       newPositions = this.buildPositions(
         achievement.recitationMethod,
-        {
-          startSurah: achievement.startSurah,
-          startVerse: achievement.startVerse,
-          endSurah: achievement.endSurah,
-          endVerse: achievement.endVerse,
-        },
+        range,
         input.testPositions,
         input.errors,
         achievement.totalPages,
       );
-      Object.assign(achievement, sumPositionCounts(newPositions));
       // Positions changed → recompute the pages roll-up (صفحات المواضع).
+      // Switching to `untracked` wipes them, so this lands back on NULL.
       achievement.positionsPages = sumPositionPages(newPositions);
+    }
+
+    // Counts follow the method: derived from the regenerated positions, or taken
+    // from the teacher's aggregate when the achievement is (or just became)
+    // untracked. Sending error_counts alone is a valid edit.
+    if (achievement.recitationMethod === 'untracked') {
+      if (input.errorCounts !== undefined || newPositions) {
+        Object.assign(
+          achievement,
+          resolveCounts('untracked', [], input.errorCounts),
+        );
+      }
+    } else if (newPositions) {
+      Object.assign(achievement, sumPositionCounts(newPositions));
     }
 
     await this.repo.save(achievement);

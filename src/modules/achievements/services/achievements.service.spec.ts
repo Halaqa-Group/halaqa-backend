@@ -14,6 +14,7 @@ import {
   CreateAchievementInput,
 } from './achievements.service';
 import { PlanReconciliationService } from './plan-reconciliation.service';
+import { pageCoverage } from '../../../quran/page-coverage';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
 
 // ─── Factories ────────────────────────────────────────────────────────────────
@@ -74,6 +75,21 @@ const EVAL_SETTINGS = {
     min_score: 0,
   }),
 };
+
+/** A single itemized error at a QUL word span, located in the given ayah. */
+const err = (
+  errorType: 'mistake' | 'warning' | 'tajweed' | 'harakat',
+  surah: number,
+  ayah: number,
+) => ({
+  errorType,
+  startWordId: 1,
+  endWordId: 1,
+  surah,
+  ayah,
+  juz: 1,
+  hizb: 1,
+});
 
 const CREATE_INPUT: CreateAchievementInput = {
   studentId: 5,
@@ -567,20 +583,6 @@ describe('AchievementsService', () => {
   // ─── error counts & positions ─────────────────────────────────────────────
 
   describe('error counts (derived from itemized errors)', () => {
-    const err = (
-      errorType: 'mistake' | 'warning' | 'tajweed' | 'harakat',
-      surah: number,
-      ayah: number,
-    ) => ({
-      errorType,
-      startWordId: 1,
-      endWordId: 1,
-      surah,
-      ayah,
-      juz: 1,
-      hizb: 1,
-    });
-
     it('full: top-level errors attach to the single position with derived counts', async () => {
       const repo = makeRepo();
       const positions = makePositionsRepo();
@@ -770,6 +772,260 @@ describe('AchievementsService', () => {
       expect(achievement.warningsCount).toBe(2);
       expect(achievement.tajweedErrorsCount).toBe(1);
       expect(achievement.harakatErrorsCount).toBe(0);
+    });
+  });
+
+  // ─── untracked recitation ─────────────────────────────────────────────────
+
+  describe('untracked recitation', () => {
+    const UNTRACKED_INPUT: CreateAchievementInput = {
+      ...CREATE_INPUT,
+      trackType: 'Near',
+      recitationMethod: 'untracked',
+    };
+
+    it('stores no positions and takes the counts from error_counts', async () => {
+      const repo = makeRepo();
+      const positions = makePositionsRepo();
+      const positionErrors = makePositionErrorsRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) =>
+        Promise.resolve(Object.assign(x, { id: 9 })),
+      );
+
+      const service = makeService({
+        repo,
+        positions,
+        positionErrors,
+        ds: makeDataSource([[EVAL_SETTINGS]]),
+      });
+      await service.create(
+        {
+          ...UNTRACKED_INPUT,
+          errorCounts: { mistakes: 3, warnings: 1, harakat: 2 },
+        },
+        makeActor(),
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mistakesCount: 3,
+          warningsCount: 1,
+          tajweedErrorsCount: 0, // omitted type counts as zero
+          harakatErrorsCount: 2,
+          // The recited amount is unknown — NULL, never 0.
+          positionsPages: null,
+        }),
+      );
+      expect(positions.save).not.toHaveBeenCalled();
+      expect(positionErrors.save).not.toHaveBeenCalled();
+    });
+
+    it('defaults every omitted count to zero', async () => {
+      const repo = makeRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) =>
+        Promise.resolve(Object.assign(x, { id: 9 })),
+      );
+
+      const service = makeService({
+        repo,
+        ds: makeDataSource([[EVAL_SETTINGS]]),
+      });
+      await service.create(UNTRACKED_INPUT, makeActor());
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mistakesCount: 0,
+          warningsCount: 0,
+          tajweedErrorsCount: 0,
+          harakatErrorsCount: 0,
+        }),
+      );
+    });
+
+    it('rejects test_positions', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create(
+          {
+            ...UNTRACKED_INPUT,
+            testPositions: [
+              { startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 },
+            ],
+          },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects itemized errors — they have no position to attach to', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create(
+          { ...UNTRACKED_INPUT, errors: [err('mistake', 1, 1)] },
+          makeActor(),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects Hifz — new memorization is always a full recitation', async () => {
+      const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+      await expect(
+        service.create({ ...UNTRACKED_INPUT, trackType: 'Hifz' }, makeActor()),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it.each(['full', 'test'] as const)(
+      'rejects error_counts for a %s recitation (counts are derived there)',
+      async (method) => {
+        const service = makeService({ ds: makeDataSource([[EVAL_SETTINGS]]) });
+
+        await expect(
+          service.create(
+            {
+              ...CREATE_INPUT,
+              trackType: 'Near',
+              recitationMethod: method,
+              testPositions:
+                method === 'test'
+                  ? [{ startSurah: 1, startVerse: 1, endSurah: 1, endVerse: 3 }]
+                  : undefined,
+              errorCounts: { mistakes: 3 },
+            },
+            makeActor(),
+          ),
+        ).rejects.toThrow(BadRequestException);
+      },
+    );
+
+    it('update: switching to untracked wipes the positions and resets the counts', async () => {
+      const repo = makeRepo();
+      const positions = makePositionsRepo();
+      const achievement = makeAchievement({
+        trackType: 'Near',
+        recitationMethod: 'full',
+        mistakesCount: 4,
+        warningsCount: 2,
+        positionsPages: 1.5,
+      });
+      repo.findOne.mockResolvedValue(achievement);
+      repo.save.mockResolvedValue(achievement);
+
+      const service = makeService({ repo, positions });
+      await service.update(
+        1,
+        { recitationMethod: 'untracked', errorCounts: { mistakes: 1 } },
+        makeActor(),
+      );
+
+      expect(achievement.mistakesCount).toBe(1);
+      expect(achievement.warningsCount).toBe(0);
+      expect(achievement.positionsPages).toBeNull();
+      expect(positions.delete).toHaveBeenCalledWith({ achievementId: 1 });
+      expect(positions.save).not.toHaveBeenCalled();
+    });
+
+    it('update: error_counts alone replaces the counts', async () => {
+      const repo = makeRepo();
+      const achievement = makeAchievement({
+        trackType: 'Far',
+        recitationMethod: 'untracked',
+        mistakesCount: 9,
+      });
+      repo.findOne.mockResolvedValue(achievement);
+      repo.save.mockResolvedValue(achievement);
+
+      const service = makeService({ repo });
+      await service.update(1, { errorCounts: { tajweed: 2 } }, makeActor());
+
+      expect(achievement.mistakesCount).toBe(0);
+      expect(achievement.tajweedErrorsCount).toBe(2);
+    });
+  });
+
+  // ─── total_pages fallback ─────────────────────────────────────────────────
+
+  describe('total_pages', () => {
+    const FATIHA = {
+      startSurah: 1,
+      startVerse: 1,
+      endSurah: 1,
+      endVerse: 7,
+    };
+
+    it('derives it from the verse range when the client omits it', async () => {
+      const repo = makeRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) =>
+        Promise.resolve(Object.assign(x, { id: 9 })),
+      );
+
+      const service = makeService({
+        repo,
+        ds: makeDataSource([[EVAL_SETTINGS]]),
+      });
+      await service.create(CREATE_INPUT, makeActor());
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ totalPages: pageCoverage(FATIHA) }),
+      );
+    });
+
+    it("keeps the client's value when it sends one", async () => {
+      const repo = makeRepo();
+      repo.create.mockImplementation((x) => x);
+      repo.save.mockImplementation((x) =>
+        Promise.resolve(Object.assign(x, { id: 9 })),
+      );
+
+      const service = makeService({
+        repo,
+        ds: makeDataSource([[EVAL_SETTINGS]]),
+      });
+      await service.create({ ...CREATE_INPUT, totalPages: 2.25 }, makeActor());
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ totalPages: 2.25 }),
+      );
+    });
+
+    it('re-derives it on update when the range moves', async () => {
+      const repo = makeRepo();
+      const achievement = makeAchievement({ ...FATIHA, totalPages: 1 });
+      repo.findOne.mockResolvedValue(achievement);
+      repo.save.mockResolvedValue(achievement);
+
+      const service = makeService({ repo });
+      await service.update(
+        1,
+        { startSurah: 2, startVerse: 1, endSurah: 2, endVerse: 5 },
+        makeActor(),
+      );
+
+      expect(achievement.totalPages).toBe(
+        pageCoverage({
+          startSurah: 2,
+          startVerse: 1,
+          endSurah: 2,
+          endVerse: 5,
+        }),
+      );
+    });
+
+    it('leaves it alone on an edit that does not touch the range', async () => {
+      const repo = makeRepo();
+      const achievement = makeAchievement({ ...FATIHA, totalPages: 3.5 });
+      repo.findOne.mockResolvedValue(achievement);
+      repo.save.mockResolvedValue(achievement);
+
+      const service = makeService({ repo });
+      await service.update(1, { teacherNotes: 'good' }, makeActor());
+
+      expect(achievement.totalPages).toBe(3.5);
     });
   });
 

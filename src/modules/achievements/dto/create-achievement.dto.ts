@@ -20,6 +20,7 @@ import type {
   RecitationMethod,
   TrackType,
 } from '../entities/achievement.entity';
+import { AchievementErrorCountsDto } from './achievement-error-counts.dto';
 import { AchievementTestPositionDto } from './achievement-test-position.dto';
 import { PositionErrorDto } from './position-error.dto';
 
@@ -60,14 +61,17 @@ export class CreateAchievementDto {
 
   @ApiProperty({
     required: false,
-    enum: ['full', 'test'],
+    enum: ['full', 'test', 'untracked'],
     default: 'full',
     description:
       'How it was recited. `full` auto-creates one position spanning the whole range. ' +
-      '`test` requires `test_positions` (each within the achievement range). Defaults to `full`.',
+      '`test` requires `test_positions` (each within the achievement range). ' +
+      '`untracked` records no positions at all — for a quick review evaluation where the ' +
+      'teacher has no time to document where; send aggregate `error_counts` instead of ' +
+      'itemized errors. Review tracks only: Hifz must be `full`. Defaults to `full`.',
   })
   @IsOptional()
-  @IsEnum(['full', 'test'])
+  @IsEnum(['full', 'test', 'untracked'])
   recitation_method?: RecitationMethod;
 
   @ApiProperty({
@@ -136,6 +140,19 @@ export class CreateAchievementDto {
   errors?: PositionErrorDto[];
 
   @ApiProperty({
+    required: false,
+    type: AchievementErrorCountsDto,
+    description:
+      'Aggregate error counts for `recitation_method = untracked` only — how many errors, ' +
+      'without where. Rejected for `full` and `test`, whose counts are derived from the ' +
+      'itemized errors. Omitted types count as zero.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AchievementErrorCountsDto)
+  error_counts?: AchievementErrorCountsDto;
+
+  @ApiProperty({
     example: 92.5,
     minimum: 0,
     maximum: 100,
@@ -155,8 +172,11 @@ export class CreateAchievementDto {
     minimum: 0,
     description:
       'Total pages of the whole range (الصفحات الكلية), computed on the frontend ' +
-      'from the mushaf. Stored as-is. For a `full` recitation this also becomes the ' +
-      "single position's pages; for `test`, send per-position pages inside `test_positions`.",
+      'from the mushaf and stored as-is. **Optional**: when omitted the backend derives ' +
+      'it from the verse range (same page math as the frontend), so it is never left ' +
+      'empty — it is the volume metric the dashboards sum. For a `full` recitation it ' +
+      "also becomes the single position's pages; for `test`, send per-position pages " +
+      'inside `test_positions`.',
   })
   @IsOptional()
   @Type(() => Number)

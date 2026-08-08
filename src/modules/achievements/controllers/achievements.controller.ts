@@ -78,6 +78,8 @@ export class AchievementsController {
     description:
       'Records a Quran recitation achievement for a student. ' +
       '`percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. ' +
+      '`total_pages` is optional — omit it and the backend derives it from the verse range. ' +
+      'For a quick review evaluation, send `recitation_method: "untracked"` with aggregate `error_counts` and no positions. ' +
       'Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). ' +
       'If the student is absent the request is rejected (400).',
   })
@@ -110,6 +112,7 @@ export class AchievementsController {
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
         errors: dto.errors?.map(mapErrorDto),
+        errorCounts: dto.error_counts,
         percentageScore: dto.percentage_score,
         totalPages: dto.total_pages,
         teacherNotes: dto.teacher_notes,
@@ -274,6 +277,7 @@ export class AchievementsController {
         endSurah: dto.end_surah,
         endVerse: dto.end_verse,
         errors: dto.errors?.map(mapErrorDto),
+        errorCounts: dto.error_counts,
         percentageScore: dto.percentage_score,
         totalPages: dto.total_pages,
         teacherNotes: dto.teacher_notes,

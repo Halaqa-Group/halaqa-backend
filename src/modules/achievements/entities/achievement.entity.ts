@@ -18,8 +18,10 @@ export type TrackType = 'Hifz' | 'Near' | 'Far';
 export type AchievementStatus = 'approved' | 'unapproved';
 // How the achievement was entered: a quick tap vs. picked on the mushaf.
 export type CompletionMethod = 'quick' | 'mushaf';
-// How it was recited: the whole range in one go vs. tested at chosen positions.
-export type RecitationMethod = 'full' | 'test';
+// How it was recited: the whole range in one go, tested at chosen positions, or
+// recited without documenting where (`untracked` — no positions, no error rows;
+// the teacher supplies the four error counts directly).
+export type RecitationMethod = 'full' | 'test' | 'untracked';
 
 @Entity('achievements')
 @Index('idx_achievement_lookup', ['studentId', 'halaqaId', 'date', 'trackType'])
@@ -60,7 +62,7 @@ export class Achievement {
   @Column({
     name: 'recitation_method',
     type: 'enum',
-    enum: ['full', 'test'],
+    enum: ['full', 'test', 'untracked'],
     default: 'full',
   })
   recitationMethod!: RecitationMethod;
@@ -78,7 +80,11 @@ export class Achievement {
   endVerse!: number;
 
   // Error counts are per-position (see AchievementRecitationPosition). The four
-  // columns below are the roll-up totals — always SUM(positions), never set directly.
+  // columns below are the roll-up totals — SUM(positions) for `full` and `test`.
+  // The one exception is `untracked`: it has no positions and no error rows, so
+  // the teacher's aggregate counts are stored here directly (the count is known,
+  // the location is not). Any future backfill that re-derives these from
+  // `achievement_position_errors` must exclude `untracked` rows or it zeroes them.
   @Column({ name: 'mistakes_count', type: 'int', unsigned: true, default: 0 })
   mistakesCount!: number;
 
@@ -104,12 +110,15 @@ export class Achievement {
   @Column({ name: 'percentage_score', type: 'decimal', precision: 5, scale: 2 })
   percentageScore!: number;
 
-  // Pages memorised/recited, computed on the frontend (from the mushaf) and
-  // stored as-is — the backend never derives them. `total_pages` is the breadth
-  // of the whole [start,end] range (الصفحات الكلية). `positions_pages` is the
-  // SUM of the recitation positions' `pages` (صفحات المواضع) — the amount
-  // actually recited; for a `full` recitation the two are equal, for a `test`
-  // it is the tested subset. NULL = the client did not supply pages.
+  // `total_pages` is the breadth of the whole [start,end] range (الصفحات الكلية)
+  // and is THE volume metric every dashboard KPI sums. The client's value wins;
+  // when it sends none the backend derives it from the range via `pageCoverage`,
+  // so it is never NULL on rows written after the backfill migration.
+  //
+  // `positions_pages` is the SUM of the recitation positions' `pages`
+  // (صفحات المواضع) — documentation of what was actually recited, not a metric.
+  // Equal to `total_pages` for `full`, the tested subset for `test`, and NULL for
+  // `untracked` (no positions → genuinely unknown, and nothing reads it as zero).
   @Column({
     name: 'total_pages',
     type: 'decimal',

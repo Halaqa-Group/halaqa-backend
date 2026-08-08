@@ -18,6 +18,7 @@ import type {
   RecitationMethod,
   TrackType,
 } from '../entities/achievement.entity';
+import { AchievementErrorCountsDto } from './achievement-error-counts.dto';
 import { AchievementTestPositionDto } from './achievement-test-position.dto';
 import { PositionErrorDto } from './position-error.dto';
 
@@ -38,12 +39,14 @@ export class UpdateAchievementDto {
 
   @ApiProperty({
     required: false,
-    enum: ['full', 'test'],
+    enum: ['full', 'test', 'untracked'],
     description:
-      'Changing to `full` replaces positions with one full-range row. Changing to `test` requires `test_positions`.',
+      'Changing to `full` replaces positions with one full-range row. Changing to `test` ' +
+      'requires `test_positions`. Changing to `untracked` deletes the positions and their ' +
+      'error rows, and resets the counts to `error_counts` (zeros when omitted).',
   })
   @IsOptional()
-  @IsEnum(['full', 'test'])
+  @IsEnum(['full', 'test', 'untracked'])
   recitation_method?: RecitationMethod;
 
   @ApiProperty({
@@ -102,6 +105,18 @@ export class UpdateAchievementDto {
   @Type(() => PositionErrorDto)
   errors?: PositionErrorDto[];
 
+  @ApiProperty({
+    required: false,
+    type: AchievementErrorCountsDto,
+    description:
+      'Aggregate error counts, `recitation_method = untracked` only. Valid on its own — ' +
+      'it replaces the four counts without touching anything else.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AchievementErrorCountsDto)
+  error_counts?: AchievementErrorCountsDto;
+
   @ApiProperty({ required: false, example: 92.5, minimum: 0, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
@@ -116,8 +131,10 @@ export class UpdateAchievementDto {
     example: 1.5,
     minimum: 0,
     description:
-      'Total pages of the whole range (الصفحات الكلية). Stored as-is. When positions ' +
-      'are regenerated (method/test_positions/errors sent), `positions_pages` is recomputed.',
+      'Total pages of the whole range (الصفحات الكلية). Stored as-is. Omit it and the ' +
+      'backend keeps the stored value — unless the verse range changed, in which case the ' +
+      'old number describes the old range and is re-derived. When positions are regenerated ' +
+      '(method/test_positions/errors sent), `positions_pages` is recomputed.',
   })
   @IsOptional()
   @Type(() => Number)

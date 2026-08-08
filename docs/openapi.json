@@ -4330,7 +4330,7 @@
     },
     "/achievements": {
       "post": {
-        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
+        "description": "Records a Quran recitation achievement for a student. `percentage_score` is computed on the frontend (from raw counts and the halaqa evaluation settings) and stored as-is. `total_pages` is optional — omit it and the backend derives it from the verse range. For a quick review evaluation, send `recitation_method: \"untracked\"` with aggregate `error_counts` and no positions. Pass `approve: true` to approve in the same request — caller must have halaqa scope (403 if not, never silently skipped). If the student is absent the request is rejected (400).",
         "operationId": "AchievementsController_create",
         "parameters": [],
         "requestBody": {
@@ -9500,6 +9500,35 @@
           "end_verse"
         ]
       },
+      "AchievementErrorCountsDto": {
+        "type": "object",
+        "properties": {
+          "mistakes": {
+            "type": "number",
+            "example": 3,
+            "minimum": 0,
+            "default": 0
+          },
+          "warnings": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0,
+            "default": 0
+          },
+          "tajweed": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "default": 0
+          },
+          "harakat": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
       "CreateAchievementDto": {
         "type": "object",
         "properties": {
@@ -9540,10 +9569,11 @@
             "type": "string",
             "enum": [
               "full",
-              "test"
+              "test",
+              "untracked"
             ],
             "default": "full",
-            "description": "How it was recited. `full` auto-creates one position spanning the whole range. `test` requires `test_positions` (each within the achievement range). Defaults to `full`."
+            "description": "How it was recited. `full` auto-creates one position spanning the whole range. `test` requires `test_positions` (each within the achievement range). `untracked` records no positions at all — for a quick review evaluation where the teacher has no time to document where; send aggregate `error_counts` instead of itemized errors. Review tracks only: Hifz must be `full`. Defaults to `full`."
           },
           "test_positions": {
             "description": "Required (>=1) when `recitation_method = test`. Rejected for `full`. Each position must fall within the achievement range and carries its own error counts; the achievement-level counts are their sum.",
@@ -9583,6 +9613,14 @@
               "$ref": "#/components/schemas/PositionErrorDto"
             }
           },
+          "error_counts": {
+            "description": "Aggregate error counts for `recitation_method = untracked` only — how many errors, without where. Rejected for `full` and `test`, whose counts are derived from the itemized errors. Omitted types count as zero.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchievementErrorCountsDto"
+              }
+            ]
+          },
           "percentage_score": {
             "type": "number",
             "example": 92.5,
@@ -9595,7 +9633,7 @@
             "nullable": true,
             "example": 1.5,
             "minimum": 0,
-            "description": "Total pages of the whole range (الصفحات الكلية), computed on the frontend from the mushaf. Stored as-is. For a `full` recitation this also becomes the single position's pages; for `test`, send per-position pages inside `test_positions`."
+            "description": "Total pages of the whole range (الصفحات الكلية), computed on the frontend from the mushaf and stored as-is. **Optional**: when omitted the backend derives it from the verse range (same page math as the frontend), so it is never left empty — it is the volume metric the dashboards sum. For a `full` recitation it also becomes the single position's pages; for `test`, send per-position pages inside `test_positions`."
           },
           "teacher_notes": {
             "type": "object",
@@ -9960,9 +9998,10 @@
             "type": "string",
             "enum": [
               "full",
-              "test"
+              "test",
+              "untracked"
             ],
-            "description": "Changing to `full` replaces positions with one full-range row. Changing to `test` requires `test_positions`."
+            "description": "Changing to `full` replaces positions with one full-range row. Changing to `test` requires `test_positions`. Changing to `untracked` deletes the positions and their error rows, and resets the counts to `error_counts` (zeros when omitted)."
           },
           "test_positions": {
             "description": "Replaces the achievement's positions. Required when setting `recitation_method = test`.",
@@ -10000,6 +10039,14 @@
               "$ref": "#/components/schemas/PositionErrorDto"
             }
           },
+          "error_counts": {
+            "description": "Aggregate error counts, `recitation_method = untracked` only. Valid on its own — it replaces the four counts without touching anything else.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchievementErrorCountsDto"
+              }
+            ]
+          },
           "percentage_score": {
             "type": "number",
             "example": 92.5,
@@ -10011,7 +10058,7 @@
             "nullable": true,
             "example": 1.5,
             "minimum": 0,
-            "description": "Total pages of the whole range (الصفحات الكلية). Stored as-is. When positions are regenerated (method/test_positions/errors sent), `positions_pages` is recomputed."
+            "description": "Total pages of the whole range (الصفحات الكلية). Stored as-is. Omit it and the backend keeps the stored value — unless the verse range changed, in which case the old number describes the old range and is re-derived. When positions are regenerated (method/test_positions/errors sent), `positions_pages` is recomputed."
           },
           "teacher_notes": {
             "type": "object",

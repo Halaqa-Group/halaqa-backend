@@ -93,11 +93,13 @@ The `status` enum has two values: `'approved'` and `'unapproved'`. Combined with
 {
   student_id, halaqa_id, date, track_type,         // identifiers
   completion_method?,      // 'quick' | 'mushaf'  — default 'quick'
-  recitation_method?,      // 'full'  | 'test'    — default 'full'
-  test_positions?,         // [{start_surah,start_verse,end_surah,end_verse, errors[]}] — required when recitation_method='test'
+  recitation_method?,      // 'full' | 'test' | 'untracked' — default 'full'
+  test_positions?,         // [{start_surah,start_verse,end_surah,end_verse, pages?, errors[]}] — required when recitation_method='test'
   start_surah, start_verse, end_surah, end_verse,  // verse range
   errors?,                 // [{error_type,start_word_id,end_word_id,surah,ayah,juz,hizb}] — 'full' only; see "Errors"
+  error_counts?,           // {mistakes?,warnings?,tajweed?,harakat?} — 'untracked' only; see "Errors"
   percentage_score,        // computed on the frontend, stored as-is
+  total_pages?,            // optional — derived from the range when omitted; see "Pages"
   teacher_notes?,
   approve?: boolean        // default false
 }
@@ -117,11 +119,12 @@ Errors are **itemized**, one row per occurrence in `achievement_position_errors`
 - `surah/ayah/juz/hizb` — **supplied by the client from QUL** at capture time. The backend has **no QUL dataset** to resolve a word id into a location, so it stores what the client sends. `juz/hizb` are the canonical values for reporting.
 - `school_id/student_id/date` — **denormalized by the backend** from the owning achievement (constant, no FK). The client never sends these.
 
-**All counts are derived by COUNT, never client-set:**
+**Counts are derived by COUNT, with exactly one exception:**
 - `achievement_recitation_positions.{mistakes,warnings,tajweed_errors,harakat_errors}_count` = COUNT of that position's error rows per type.
 - `achievements.{...}_count` = SUM across its positions = COUNT across all its error rows.
+- **`untracked` only:** there are no positions and no error rows, so the achievement's four columns hold the teacher's aggregate `error_counts` verbatim. Any future backfill that re-derives counts from `achievement_position_errors` **must exclude `untracked` rows** or it silently zeroes them.
 
-The columns are a denormalized cache the service fills on every create/update; the error rows are the source of truth.
+The columns are a denormalized cache the service fills on every create/update; for `full`/`test` the error rows are the source of truth.
 
 How the client sends errors depends on `recitation_method`:
 
@@ -129,6 +132,9 @@ How the client sends errors depends on `recitation_method`:
 |---|---|---|
 | `'full'` | top-level `errors[]`; they attach to the single auto-created position | sending `test_positions` → 400 |
 | `'test'` | `errors[]` inside each entry of `test_positions` | sending top-level `errors` → 400 `"Errors are per-position when recitation_method is "test"..."` |
+| `'untracked'` | top-level `error_counts` — how many, not where | sending `errors` or `test_positions` → 400 |
+
+Sending `error_counts` with `full` or `test` → 400 (their counts are derived; a client value would contradict them). The frontend still computes `percentage_score` from these counts and `evaluation_settings` exactly as it does for a documented recitation — `untracked` loses the locations, not the score math.
 
 **Validation.** Each error's `(surah, ayah)` must fall within its position's verse range (Quran order), `end_word_id >= start_word_id`, and `(surah, ayah)` must be a real location (`ayah <= SURAH_VERSES[surah]`) — else 400.
 
@@ -139,17 +145,28 @@ On update, sending `errors` (or `test_positions`, or `recitation_method`) **rege
 Two independent enums describe **how** the achievement was captured:
 
 - **`completion_method`** — `'quick'` (a fast tap) or `'mushaf'` (picked on the mushaf). Descriptive only; no downstream effect. Defaults to `'quick'`.
-- **`recitation_method`** — `'full'` (recited the whole range in one go) or `'test'` (examined at chosen positions). Defaults to `'full'`. Drives the `achievement_recitation_positions` rows (below).
+- **`recitation_method`** — `'full'` (recited the whole range in one go), `'test'` (examined at chosen positions), or `'untracked'` (recited and scored without documenting where). Defaults to `'full'`. Drives the `achievement_recitation_positions` rows (below).
+
+**Hifz is always `full`.** New memorization can be neither partially tested nor left undocumented — `test` and `untracked` are review-only (`Near`/`Far`), enforced on create *and* update with a 400.
 
 ### Recitation positions (`achievement_recitation_positions`)
 
-Every achievement has **≥1 position row**, each a verse range (`start_surah/start_verse/end_surah/end_verse`) with **derived error counts** and **itemized `errors[]`** (see "Errors"). The position **ranges** are descriptive only — they do **not** affect `percentage_score` or reconciliation, which use the achievement's own range.
+A position is a verse range (`start_surah/start_verse/end_surah/end_verse`) with **derived error counts** and **itemized `errors[]`** (see "Errors"). The position **ranges** are descriptive only — they do **not** affect `percentage_score` or reconciliation, which use the achievement's own range. Documenting them is a bonus, not a guarantee: an achievement is complete without them.
 
 - `recitation_method = 'full'` → the service auto-creates **exactly one** position spanning the whole achievement range, holding the top-level `errors[]`. `test_positions` in the payload is rejected (400, on create and update alike).
 - `recitation_method = 'test'` → the client supplies `test_positions` (**≥1**, else 400). Each must be a valid range **within** the achievement's range (Quran order), and holds its own `errors[]`.
+- `recitation_method = 'untracked'` → **zero positions**, and therefore zero error rows. Both `test_positions` and `errors` are rejected (400); the counts arrive as aggregate `error_counts`. `recitation_positions[]` comes back empty, so every consumer must tolerate an empty array.
 
 On **create**: positions and their errors are validated up front, then inserted after the achievement is saved.
-On **update** (unapproved only): positions are regenerated when `recitation_method`, `test_positions`, **or `errors`** is sent — a bare range edit leaves existing positions untouched (client's responsibility to resend). Setting `recitation_method='test'` requires `test_positions`; `='full'` replaces with a single full-range row. Regeneration is delete-all-then-insert; error rows cascade with their positions (neither is individually audited).
+On **update** (unapproved only): positions are regenerated when `recitation_method`, `test_positions`, **or `errors`** is sent — a bare range edit leaves existing positions untouched (client's responsibility to resend). Setting `recitation_method='test'` requires `test_positions`; `='full'` replaces with a single full-range row; `='untracked'` deletes them all and resets the counts to `error_counts` (zeros when omitted). Sending `error_counts` alone on an already-`untracked` achievement replaces just the counts. Regeneration is delete-all-then-insert; error rows cascade with their positions (neither is individually audited).
+
+### Pages (`total_pages`, `positions_pages`)
+
+**`total_pages` (الصفحات الكلية) is the volume metric** — the breadth of the whole `[start, end]` range, and what every dashboard KPI sums (`SUM(total_pages)` for the Hifz volume, `ORDER BY total_pages DESC` for the leaderboards). The client's value is stored as-is; **when the client omits it the backend derives it from the range** via `pageCoverage()` (`src/quran/page-coverage.ts`, parity-tested against the frontend's page math). It is therefore never NULL on new rows — important, because every dashboard query wraps it in `COALESCE(SUM(...),0)`, where a NULL would read as "memorised nothing" rather than "unknown". On update it survives untouched unless the range moves, in which case the stored number describes the old range and is re-derived.
+
+**`positions_pages` (صفحات المواضع) is documentation, not a metric.** It is the SUM of the positions' `pages` — a position that omits `pages` gets them derived from its own range. Equal to `total_pages` for `full`, the tested subset for `test`, and **NULL for `untracked`** (no positions → the recited amount is genuinely unknown). Nothing but a single display column in the dashboard's top-students list reads it; the daily report computes its own page coverage from the ranges and never touches either column.
+
+Historical NULLs were filled by `1781000000000-BackfillAchievementPages`, which is deliberately irreversible: a backfilled value is indistinguishable from a client-supplied one.
 
 Positions are returned in every achievement response as `recitation_positions[]`. All roles see the ranges; **parents do not see the per-position counts or the itemized `errors[]`** (same redaction as the achievement-level counts).
 
