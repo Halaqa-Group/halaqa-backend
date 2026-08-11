@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AuditLog } from '../modules/audit/audit-log.entity';
 import { Achievement } from '../modules/achievements/entities/achievement.entity';
+import { AchievementPlanItemLink } from '../modules/achievements/entities/achievement-plan-item-link.entity';
 import { AchievementRecitationPosition } from '../modules/achievements/entities/achievement-recitation-position.entity';
 import { AchievementPositionError } from '../modules/achievements/entities/achievement-position-error.entity';
 import { WeeklyPlan } from '../modules/achievements/entities/weekly-plan.entity';
@@ -74,6 +75,7 @@ export default new DataSource({
     AchievementPositionError,
     WeeklyPlan,
     WeeklyPlanItem,
+    AchievementPlanItemLink,
     StudentAttendance,
     TeacherAttendance,
     SchoolSchedule,

@@ -19,10 +19,13 @@ export class CreateAchievementPlanItemLinks1781200000000 implements MigrationInt
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE \`achievement_plan_item_links\` (
-        \`id\`                   INT NOT NULL AUTO_INCREMENT,
-        \`weekly_plan_id\`       INT NOT NULL,
-        \`weekly_plan_item_id\`  INT DEFAULT NULL,
-        \`achievement_id\`       INT NOT NULL,
+        -- Column types MUST match the referenced primary keys exactly, or MySQL
+        -- rejects the foreign keys: weekly_plans.id / weekly_plan_items.id are
+        -- INT UNSIGNED, achievements.id is BIGINT UNSIGNED, students.id is INT.
+        \`id\`                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        \`weekly_plan_id\`       INT UNSIGNED NOT NULL,
+        \`weekly_plan_item_id\`  INT UNSIGNED DEFAULT NULL,
+        \`achievement_id\`       BIGINT UNSIGNED NOT NULL,
         \`student_id\`           INT NOT NULL,
         \`track_type\`           ENUM('Hifz','Near','Far') NOT NULL,
         \`achievement_date\`     DATE NOT NULL,

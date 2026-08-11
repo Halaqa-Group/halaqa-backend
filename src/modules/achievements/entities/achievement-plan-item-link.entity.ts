@@ -30,17 +30,25 @@ import type { TrackType } from './achievement.entity';
 @Index('idx_apil_achievement', ['achievementId'])
 @Index('idx_apil_student_date', ['studentId', 'achievementDate'])
 export class AchievementPlanItemLink {
-  @PrimaryGeneratedColumn({ type: 'int' })
+  // Types mirror the referenced primary keys exactly — weekly_plans.id and
+  // weekly_plan_items.id are INT UNSIGNED, achievements.id is BIGINT UNSIGNED.
+  // MySQL refuses the foreign keys otherwise.
+  @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: number;
 
-  @Column({ name: 'weekly_plan_id', type: 'int' })
+  @Column({ name: 'weekly_plan_id', type: 'int', unsigned: true })
   weeklyPlanId!: number;
 
   /** NULL = this segment fell outside every plan item of the track that week. */
-  @Column({ name: 'weekly_plan_item_id', type: 'int', nullable: true })
+  @Column({
+    name: 'weekly_plan_item_id',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+  })
   weeklyPlanItemId!: number | null;
 
-  @Column({ name: 'achievement_id', type: 'int' })
+  @Column({ name: 'achievement_id', type: 'bigint', unsigned: true })
   achievementId!: number;
 
   @Column({ name: 'student_id', type: 'int' })

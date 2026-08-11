@@ -576,7 +576,9 @@ export class DailyReportService {
       const list = byTrack.get(r.trackType) ?? [];
       list.push({
         planItemId: r.weeklyPlanItemId,
-        achievementId: r.achievementId,
+        // achievement_id is BIGINT — coerce so it never reaches the stored JSON
+        // as a string if the driver ever switches to bigNumberStrings.
+        achievementId: Number(r.achievementId),
         achievementDate: r.achievementDate,
         percentageScore: Number(r.percentageScore),
         startGlobalAyah: r.startGlobalAyah,
