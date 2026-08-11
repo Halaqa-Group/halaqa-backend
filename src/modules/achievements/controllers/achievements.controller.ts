@@ -250,14 +250,16 @@ export class AchievementsController {
       'Updates mutable fields on an **unapproved** achievement. ' +
       'Returns 400 if the achievement is approved (unapprove it first). ' +
       '`percentage_score` is updated only when the client sends it (recomputed on the frontend). ' +
-      'If surah/verse fields change, the range is re-validated.',
+      'If surah/verse fields change, the range is re-validated. ' +
+      'Sending `date` moves the record to another day and re-checks attendance there.',
   })
   @ApiParam({ name: 'id', description: 'Achievement ID' })
   @ApiBody({ type: UpdateAchievementDto })
   @ApiResponse({ status: 200, type: AchievementDto })
   @ApiResponse({
     status: 400,
-    description: 'Achievement is approved, or invalid verse range.',
+    description:
+      'Achievement is approved, invalid verse range, or no/absent attendance on the new date.',
   })
   @ApiResponse({ status: 404, description: 'Not found or no halaqa scope.' })
   async update(
@@ -268,6 +270,7 @@ export class AchievementsController {
     const achievement = await this.service.update(
       id,
       {
+        date: dto.date,
         trackType: dto.track_type,
         completionMethod: dto.completion_method,
         recitationMethod: dto.recitation_method,

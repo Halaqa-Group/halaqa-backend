@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { DomainEvents } from '../../../common/events/domain-events';
 import { shortNameSql } from '../../../common/person-name';
 import { roundHalfUp } from '../../../common/rounding';
@@ -189,6 +189,8 @@ export interface CreateAchievementInput {
 }
 
 export interface UpdateAchievementInput {
+  // Moves the record to another day. Re-checks attendance for the new date.
+  date?: string;
   trackType?: TrackType;
   startSurah?: number;
   startVerse?: number;
@@ -254,6 +256,35 @@ export class AchievementsService {
       halaqaId: achievement.halaqaId,
       date: achievement.date,
     });
+  }
+
+  /**
+   * An achievement may only sit on a day the student was actually there: the day
+   * needs a recorded attendance row, and it must not say absent. Enforced on
+   * create and on any edit that moves the record to another date. Returns the
+   * row it checked, which create cites in its audit entry.
+   */
+  private async assertAttendanceAllows(
+    studentId: number,
+    halaqaId: number,
+    date: string,
+  ) {
+    const attendance = await this.attendanceQuery.findForStudentOnDate(
+      studentId,
+      halaqaId,
+      date,
+    );
+    if (attendance.id === null && attendance.status !== 'present') {
+      throw new BadRequestException(
+        'Attendance must be recorded for this student before achievements can be entered.',
+      );
+    }
+    if (attendance.status === 'absent') {
+      throw new BadRequestException(
+        'Cannot record achievement: student was absent.',
+      );
+    }
+    return attendance;
   }
 
   private readonly logger = new Logger(AchievementsService.name);
@@ -636,21 +667,11 @@ export class AchievementsService {
     );
 
     // 4. Attendance check
-    const attendance = await this.attendanceQuery.findForStudentOnDate(
+    const attendance = await this.assertAttendanceAllows(
       input.studentId,
       input.halaqaId,
       input.date,
     );
-    if (attendance.id === null && attendance.status !== 'present') {
-      throw new BadRequestException(
-        'Attendance must be recorded for this student before achievements can be entered.',
-      );
-    }
-    if (attendance.status === 'absent') {
-      throw new BadRequestException(
-        'Cannot record achievement: student was absent.',
-      );
-    }
 
     // 5. Score is computed on the frontend and supplied in the request — stored as-is.
     const percentageScore = Math.round(input.percentageScore * 100) / 100;
@@ -838,6 +859,19 @@ export class AchievementsService {
       throw new NotFoundException();
     }
 
+    // Moving the record to another day has to clear the same gate create does —
+    // the student must have been marked present on the day it lands on.
+    const dateChanged =
+      input.date !== undefined && input.date !== achievement.date;
+    if (dateChanged) {
+      await this.assertAttendanceAllows(
+        achievement.studentId,
+        achievement.halaqaId,
+        input.date!,
+      );
+      achievement.date = input.date!;
+    }
+
     if (input.trackType !== undefined) achievement.trackType = input.trackType;
     if (input.startSurah !== undefined)
       achievement.startSurah = input.startSurah;
@@ -923,11 +957,30 @@ export class AchievementsService {
     await this.repo.save(achievement);
 
     if (newPositions) {
+      // Rebuilt rows are written with the achievement's current (possibly new)
+      // date, so a move needs nothing extra here.
       await this.replacePositions(achievement.id, newPositions, {
         schoolId: achievement.schoolId,
         studentId: achievement.studentId,
         date: achievement.date,
       });
+    } else if (dateChanged) {
+      // Error rows carry a denormalized `date` — it backs idx_position_error_student
+      // and the error reporting built on it. A move that doesn't regenerate
+      // positions has to drag the existing rows along, or those reports keep
+      // counting the errors under the old day.
+      const positionIds = (
+        await this.positions.find({
+          where: { achievementId: achievement.id },
+          select: { id: true },
+        })
+      ).map((p) => p.id);
+      if (positionIds.length) {
+        await this.positionErrors.update(
+          { positionId: In(positionIds) },
+          { date: achievement.date },
+        );
+      }
     }
 
     await this.auditService.log({

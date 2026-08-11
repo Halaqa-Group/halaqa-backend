@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNumber,
@@ -23,6 +24,19 @@ import { AchievementTestPositionDto } from './achievement-test-position.dto';
 import { PositionErrorDto } from './position-error.dto';
 
 export class UpdateAchievementDto {
+  @ApiProperty({
+    required: false,
+    format: 'date',
+    example: '2026-05-11',
+    description:
+      'Moves the record to another day. The student must have attendance recorded ' +
+      'for the new date and must not be marked absent — the same rule create enforces. ' +
+      'Denormalized error rows are moved with it.',
+  })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
   @ApiProperty({
     required: false,
     enum: ['Hifz', 'Near', 'Far'],
