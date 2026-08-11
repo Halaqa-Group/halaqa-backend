@@ -6,6 +6,7 @@ import { AchievementsController } from './controllers/achievements.controller';
 import { PlanItemsController } from './controllers/plan-items.controller';
 import { WeeklyPlansController } from './controllers/weekly-plans.controller';
 import { Achievement } from './entities/achievement.entity';
+import { AchievementPlanItemLink } from './entities/achievement-plan-item-link.entity';
 import { AchievementRecitationPosition } from './entities/achievement-recitation-position.entity';
 import { AchievementPositionError } from './entities/achievement-position-error.entity';
 import { WeeklyPlanItem } from './entities/weekly-plan-item.entity';
@@ -22,6 +23,7 @@ import { StudentsModule } from '../students/students.module';
   imports: [
     TypeOrmModule.forFeature([
       Achievement,
+      AchievementPlanItemLink,
       AchievementRecitationPosition,
       AchievementPositionError,
       WeeklyPlan,

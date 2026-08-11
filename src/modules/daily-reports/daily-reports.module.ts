@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Achievement } from '../achievements/entities/achievement.entity';
+import { AchievementPlanItemLink } from '../achievements/entities/achievement-plan-item-link.entity';
 import { WeeklyPlan } from '../achievements/entities/weekly-plan.entity';
 import { StudentAttendance } from '../attendance/entities/student-attendance.entity';
 import { Halaqa } from '../halaqat/entities/halaqa.entity';
@@ -26,7 +26,7 @@ import { HistoricalRecalcListener } from './services/historical-recalc.listener'
       StudentHalaqaEnrollment,
       StudentAttendance,
       WeeklyPlan,
-      Achievement,
+      AchievementPlanItemLink,
       DailyHalaqaReport,
       DailyStudentEvaluation,
     ]),

@@ -6,7 +6,6 @@ import {
   type VerseRangeLike,
 } from '../../../quran/page-coverage';
 import {
-  intersectIntervals,
   subtractIntervals,
   toInterval,
   unionIntervals,
@@ -26,16 +25,19 @@ export interface PlannedItemInput extends VerseRangeLike {
 }
 
 /**
- * An approved achievement for one track/day. `covered` is the verse set credited
- * against the plan — the achievement's whole range, for `test` recitations too
- * (the tested positions affect `percentageScore`, not coverage). `approvedAt` is
- * epoch ms; `percentageScore` is `achievements.percentage_score` as-is (§15.1).
+ * One `achievement_plan_item_links` row, as the report consumes it. The matching
+ * was already done and persisted by `PlanReconciliationService`; the report only
+ * reads. `planItemId` is null for the part of an achievement that no plan item of
+ * the week covered.
  */
-export interface AchievementInput {
-  id: number;
+export interface SettledLinkInput {
+  planItemId: number | null;
+  achievementId: number;
+  achievementDate: string;
   percentageScore: number;
-  approvedAt: number;
-  covered: VerseRangeLike[];
+  startGlobalAyah: number;
+  endGlobalAyah: number;
+  creditedPages: number;
 }
 
 export interface ReconcileResult {
@@ -66,27 +68,24 @@ function segmentOf(interval: Interval): VerseSegment {
   };
 }
 
-/** Highest score, then latest approvedAt, then highest id — deterministic (§13.2). */
-function betterAchievement(
-  a: AchievementInput,
-  b: AchievementInput,
-): AchievementInput {
-  if (a.percentageScore !== b.percentageScore)
-    return a.percentageScore > b.percentageScore ? a : b;
-  if (a.approvedAt !== b.approvedAt) return a.approvedAt > b.approvedAt ? a : b;
-  return a.id > b.id ? a : b;
-}
-
 /**
- * Reconciles one track for one student on one day (§13). Splits the plan into
- * atomic segments, credits each to the highest-scoring covering achievement,
- * records gaps and out-of-plan recitation, and computes page/completion/quality
- * without counting a verse twice.
+ * Assembles one track's report figures for one student/day from the day's plan
+ * items and the already-persisted settlement links (§13).
+ *
+ * No range matching happens here: which achievement credited which part of which
+ * plan item was decided once, by the plan reconciliation, and stored. That is
+ * what makes an achievement spanning two plan items attributable — each link row
+ * names its `planItemId` — and what keeps a plan edit from silently re-deriving
+ * a different answer at report time.
+ *
+ * Links are disjoint by construction (each verse is consumed by exactly one plan
+ * item, and credited to exactly one achievement), so pages sum without double
+ * counting.
  */
-export function reconcileTrack(
+export function assembleTrack(
   trackType: TrackType,
   plannedItems: PlannedItemInput[],
-  achievements: AchievementInput[],
+  links: SettledLinkInput[],
 ): ReconcileResult {
   const plannedIntervalsByItem = plannedItems.map(
     (p) => [p, toInterval(p)] as const,
@@ -95,114 +94,44 @@ export function reconcileTrack(
     plannedIntervalsByItem.map(([, iv]) => iv),
   );
 
-  // Each achievement's covered set, and its portion inside/outside the plan.
-  const enriched = achievements.map((a) => {
-    const covered = unionIntervals(a.covered.map(toInterval));
-    return {
-      a,
-      covered,
-      inPlan: intersectIntervals(covered, plannedUnion),
-      outside: subtractIntervals(covered, plannedUnion),
-    };
-  });
+  const settled = links.filter((l) => l.planItemId !== null);
+  const outside = links.filter((l) => l.planItemId === null);
 
-  // Cut points → atomic segments fully inside the plan (§13.2 steps 5–6).
-  const cuts = new Set<number>();
-  for (const [pa, pb] of plannedUnion) {
-    cuts.add(pa);
-    cuts.add(pb + 1);
-  }
-  for (const e of enriched)
-    for (const [ra, rb] of e.inPlan) {
-      cuts.add(ra);
-      cuts.add(rb + 1);
-    }
-  const sortedCuts = [...cuts].sort((x, y) => x - y);
-
-  type Credited = {
-    interval: Interval;
-    score: number;
-    selectedId: number;
-    candidateIds: number[];
-  };
-  const credited: Credited[] = [];
-
-  for (let i = 0; i < sortedCuts.length - 1; i++) {
-    const s = sortedCuts[i];
-    const e = sortedCuts[i + 1] - 1;
-    if (e < s) continue;
-    if (!plannedUnion.some(([pa, pb]) => pa <= s && pb >= e)) continue; // outside plan
-
-    const covering = enriched.filter((x) =>
-      x.inPlan.some(([ra, rb]) => ra <= s && rb >= e),
-    );
-    if (!covering.length) continue; // gap — derived later via subtraction
-
-    const winner = covering.map((x) => x.a).reduce(betterAchievement);
-    credited.push({
-      interval: [s, e],
-      score: winner.percentageScore,
-      selectedId: winner.id,
-      candidateIds: covering.map((x) => x.a.id).sort((m, n) => m - n),
-    });
-  }
-
-  // Merge adjacent segments with the same winner and score (§13.2 step 9).
-  const mergedApproved: Credited[] = [];
-  for (const c of credited) {
-    const last = mergedApproved[mergedApproved.length - 1];
-    if (
-      last &&
-      last.selectedId === c.selectedId &&
-      last.score === c.score &&
-      last.interval[1] + 1 === c.interval[0]
-    ) {
-      last.interval[1] = c.interval[1];
-      last.candidateIds = [
-        ...new Set([...last.candidateIds, ...c.candidateIds]),
-      ].sort((m, n) => m - n);
-    } else {
-      mergedApproved.push({
-        interval: [c.interval[0], c.interval[1]],
-        score: c.score,
-        selectedId: c.selectedId,
-        candidateIds: [...c.candidateIds],
-      });
-    }
-  }
-
-  // ── Assemble output pieces ──────────────────────────────────────────────────
   const plannedRanges: PlannedRange[] = plannedIntervalsByItem.map(
     ([p, iv]) => ({ ...segmentOf(iv), planItemId: p.planItemId }),
   );
 
-  const approvedSegments: ApprovedSegment[] = mergedApproved.map((c) => ({
-    ...segmentOf(c.interval),
-    percentageScore: roundHalfUp(c.score, RATE_DP),
-    selectedAchievementId: c.selectedId,
-    candidateAchievementIds: c.candidateIds,
-  }));
+  const approvedSegments: ApprovedSegment[] = settled
+    .slice()
+    .sort((a, b) => a.startGlobalAyah - b.startGlobalAyah)
+    .map((l) => ({
+      ...segmentOf([l.startGlobalAyah, l.endGlobalAyah]),
+      percentageScore: roundHalfUp(l.percentageScore, RATE_DP),
+      selectedAchievementId: l.achievementId,
+      achievementDate: l.achievementDate,
+      planItemId: l.planItemId as number,
+    }));
 
-  const approvedIntervals = mergedApproved.map((c) => c.interval);
+  const approvedIntervals: Interval[] = settled.map((l) => [
+    l.startGlobalAyah,
+    l.endGlobalAyah,
+  ]);
   const gaps: VerseSegment[] = subtractIntervals(
     plannedUnion,
     approvedIntervals,
   ).map(segmentOf);
 
-  const outsidePlanSegments: OutsidePlanSegment[] = [];
-  for (const e of enriched) {
-    for (const iv of e.outside) {
-      const seg = segmentOf(iv);
-      outsidePlanSegments.push({
-        achievementId: e.a.id,
-        startSurah: seg.startSurah,
-        startVerse: seg.startVerse,
-        endSurah: seg.endSurah,
-        endVerse: seg.endVerse,
-        pageCoverage: seg.pageCoverage,
-      });
-    }
-  }
+  const outsidePlanSegments: OutsidePlanSegment[] = outside.map((l) => {
+    const seg = segmentOf([l.startGlobalAyah, l.endGlobalAyah]);
+    return {
+      achievementId: l.achievementId,
+      startSurah: seg.startSurah,
+      startVerse: seg.startVerse,
+      endSurah: seg.endSurah,
+      endVerse: seg.endVerse,
+      pageCoverage: seg.pageCoverage,
+    };
+  });
 
   // ── Full-precision figures (§27) ────────────────────────────────────────────
   const plannedPages = plannedUnion.reduce(
@@ -218,10 +147,10 @@ export function reconcileTrack(
 
   let weight = 0;
   let weighted = 0;
-  for (const c of mergedApproved) {
-    const cov = pageCoverageGlobal(c.interval[0], c.interval[1]);
+  for (const l of settled) {
+    const cov = pageCoverageGlobal(l.startGlobalAyah, l.endGlobalAyah);
     weight += cov;
-    weighted += cov * c.score;
+    weighted += cov * l.percentageScore;
   }
   const qualityRate = weight > 0 ? weighted / weight : 0;
 

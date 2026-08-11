@@ -5,7 +5,7 @@ description: Implement, extend, or modify the achievements and weekly plans modu
 
 # Achievements & Weekly Plans Module
 
-This module owns four tables: `achievements`, `achievement_recitation_positions`, `weekly_plans`, and `weekly_plan_items`. It enforces:
+This module owns five tables: `achievements`, `achievement_recitation_positions`, `weekly_plans`, `weekly_plan_items`, and `achievement_plan_item_links`. It enforces:
 
 - The achievement approval state machine (create → approve → unapprove → re-approve, with locks).
 - The percentage-score computation from raw error counts.
@@ -39,7 +39,10 @@ src/achievements/
 │   ├── achievement.entity.ts
 │   ├── achievement-recitation-position.entity.ts
 │   ├── weekly-plan.entity.ts
-│   └── weekly-plan-item.entity.ts
+│   ├── weekly-plan-item.entity.ts
+│   └── achievement-plan-item-link.entity.ts
+├── logic/
+│   └── settlement.ts                       # pure: consume + credit-to-best-achievement
 ├── dto/
 │   ├── create-achievement.dto.ts
 │   ├── update-achievement.dto.ts
@@ -51,7 +54,7 @@ src/achievements/
 │   ├── achievements.service.ts            # CRUD + approval state machine + count roll-up
 │   ├── weekly-plans.service.ts            # plan CRUD + approval
 │   ├── plan-items.service.ts              # item CRUD + reconciliation entrypoint
-│   ├── plan-reconciliation.service.ts     # the matching/union math
+│   ├── plan-reconciliation.service.ts     # matching math + rewrites the settlement links
 │   └── overdue-cron.service.ts            # daily transition
 ├── controllers/
 │   ├── achievements.controller.ts
@@ -441,7 +444,29 @@ for each item (ordered by day_of_week asc, then order asc, then id asc):
       else:                                'overdue'
 ```
 
-Set union, not arithmetic addition — two achievements covering the same verses don't double-count. Consumption means two *items* planning the same verse don't both get credit; the earlier one wins. For the small ranges typical of daily Quran sessions (tens to low hundreds of verses), expand ranges to a `Set` of `"surah:verse"` keys and use `Set` operations.
+Set union, not arithmetic addition — two achievements covering the same verses don't double-count. Consumption means two *items* planning the same verse don't both get credit; the earlier one wins. All of it is interval arithmetic over **global ayah indices** (`src/quran/range-union.ts`), shared with the report's page math — never re-expand ranges into per-verse `Set`s.
+
+### The settlement links (`achievement_plan_item_links`)
+
+Counting verses isn't enough: the report needs to know *which* achievement covered *which part* of *which item*. `reconcilePlan` therefore also materializes the match, in `src/modules/achievements/logic/settlement.ts`:
+
+```ts
+settleTrack(items /* already in priority order */, achievements): {
+  byItem: Map<planItemId, CreditedSegment[]>,   // disjoint, each credited to one achievement
+  outside: OutsideSegment[],                    // recited but planned by no item that week
+}
+```
+
+Within a claimed stretch, overlapping achievements are split at their boundaries and each atomic segment goes to the **best** covering achievement — highest `percentage_score`, then latest `approved_at`, then highest `id`. Adjacent segments with the same winner merge.
+
+Each segment becomes one `achievement_plan_item_links` row (`weekly_plan_item_id` NULL for `outside`), carrying the credited global-ayah span, verses, pages, and the winner's score.
+
+Two rules make this safe:
+
+- **The plan owns its links.** Every `reconcilePlan` run deletes the plan's rows and re-inserts them. There is no incremental update and no frozen link — editing an item (including moving it to another day) reshapes the whole week's linkage, so an achievement is never left bound to an item's old range.
+- **The report only reads them.** `daily-reports/logic/reconciliation.ts` exposes `assembleTrack(track, plannedItems, links)`, which sums and formats. It performs no range matching, so the report and the plan items can never disagree.
+
+Because the link rows are the report's input, **any new reconciliation trigger must reconcile, not just recompute counts** — a trigger that updates `achieved_verses` without re-running `reconcilePlan` leaves the report reading stale links.
 
 ### Cross-day / cross-week
 
@@ -449,7 +474,7 @@ Within a week, day-of-week is irrelevant to *matching* — it only sets **priori
 
 ### Unmatched achievements
 
-An approved achievement whose verses overlap no plan item (or whose verses are all consumed by earlier items) still exists — it's just not credited. Reports surface this as "unmatched achievement work." The achievement isn't lost or hidden.
+An approved achievement whose verses overlap no plan item (or whose verses are all consumed by earlier items) still exists — it's just not credited. The part planned by no item is stored as an `achievement_plan_item_links` row with a NULL `weekly_plan_item_id`, which is what the report renders as `outsidePlanSegments`. The achievement isn't lost or hidden.
 
 ### Future async swap
 

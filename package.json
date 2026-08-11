@@ -23,6 +23,7 @@
     "reset-password": "ts-node scripts/reset-user-password.ts",
     "bootstrap:school": "ts-node scripts/bootstrap-school.ts",
     "ensure:admin": "ts-node scripts/ensure-school-admin.ts",
+    "backfill:plan-links": "ts-node scripts/backfill-plan-item-links.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/config/data-source.ts",
     "migration:generate": "pnpm typeorm migration:generate",
     "migration:run": "pnpm typeorm migration:run",

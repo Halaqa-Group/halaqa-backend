@@ -24,7 +24,8 @@ function build(opts: {
   students: { id: number; name: string }[];
   attendances?: unknown[];
   plans?: unknown[];
-  achievements?: unknown[];
+  /** `achievement_plan_item_links` rows, as the plan reconciliation persisted them. */
+  links?: unknown[];
   workingDay?: boolean;
   existingHeader?: Record<string, unknown> | null;
   snapshotHeader?: Record<string, unknown> | null;
@@ -64,8 +65,8 @@ function build(opts: {
     find: jest.fn().mockResolvedValue(opts.attendances ?? []),
   };
   const plans = { find: jest.fn().mockResolvedValue(opts.plans ?? []) };
-  const achievements = {
-    find: jest.fn().mockResolvedValue(opts.achievements ?? []),
+  const links = {
+    find: jest.fn().mockResolvedValue(opts.links ?? []),
   };
   const reports = {
     findOne: jest.fn().mockResolvedValue(opts.snapshotHeader ?? null),
@@ -114,7 +115,7 @@ function build(opts: {
     enrollments as never,
     attendances as never,
     plans as never,
-    achievements as never,
+    links as never,
     reports as never,
     evaluations as never,
     dataSource as never,
@@ -123,6 +124,7 @@ function build(opts: {
 }
 
 const hifzPlan = {
+  id: 7,
   studentId: 55,
   items: [
     {
@@ -136,17 +138,20 @@ const hifzPlan = {
     },
   ],
 };
-const hifzAchievement = {
-  id: 100,
+// Al-Baqarah 1-20 → global ayat 8..27 (Al-Fatiha is the first 7).
+const hifzLink = {
+  weeklyPlanId: 7,
+  weeklyPlanItemId: 1,
+  achievementId: 100,
   studentId: 55,
   trackType: 'Hifz',
-  recitationMethod: 'full',
+  achievementDate: DATE,
+  planDayOfWeek: dow,
+  startGlobalAyah: 8,
+  endGlobalAyah: 27,
+  creditedVerses: 20,
+  creditedPages: '2.0000',
   percentageScore: '90',
-  approvedAt: new Date('2026-07-20T09:00:00Z'),
-  startSurah: 2,
-  startVerse: 1,
-  endSurah: 2,
-  endVerse: 20,
 };
 const presentFull = {
   students: [{ id: 55, name: 'محمد' }],
@@ -154,7 +159,7 @@ const presentFull = {
     { studentId: 55, status: 'present', ethicsRating: 5, dailyNote: 'ممتاز' },
   ],
   plans: [hifzPlan],
-  achievements: [hifzAchievement],
+  links: [hifzLink],
 };
 
 describe('DailyReportService.getDailyReport (live)', () => {
@@ -208,6 +213,7 @@ describe('DailyReportService.getDailyReport (live)', () => {
       attendances: [{ studentId: 55, status: 'present', ethicsRating: 5 }],
       plans: [
         {
+          id: 7,
           studentId: 55,
           items: [
             {
@@ -222,18 +228,22 @@ describe('DailyReportService.getDailyReport (live)', () => {
           ],
         },
       ],
-      achievements: [
+      // A `test` recitation is credited over its whole range by the settlement,
+      // so the link covers 2:1-20 and only the score reflects the sampling.
+      links: [
         {
-          id: 101,
+          weeklyPlanId: 7,
+          weeklyPlanItemId: 2,
+          achievementId: 101,
           studentId: 55,
           trackType: 'Near',
-          recitationMethod: 'test',
+          achievementDate: DATE,
+          planDayOfWeek: dow,
+          startGlobalAyah: 8,
+          endGlobalAyah: 27,
+          creditedVerses: 20,
+          creditedPages: '2.0000',
           percentageScore: '92',
-          approvedAt: new Date('2026-07-20T09:00:00Z'),
-          startSurah: 2,
-          startVerse: 1,
-          endSurah: 2,
-          endVerse: 20,
         },
       ],
     });

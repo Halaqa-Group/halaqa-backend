@@ -73,6 +73,17 @@ describe('PlanReconciliationService', () => {
   let itemsRepo: jest.Mocked<{ findOne: jest.Mock; update: jest.Mock }>;
   let achievementsRepo: jest.Mocked<{ findOne: jest.Mock; find: jest.Mock }>;
   let plansRepo: jest.Mocked<{ findOne: jest.Mock; find: jest.Mock }>;
+  let linksRepo: jest.Mocked<{
+    create: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+  }>;
+
+  /** The link rows the last reconcilePlan run persisted. */
+  const savedLinks = (): any[] =>
+    linksRepo.save.mock.calls.length
+      ? (linksRepo.save.mock.calls.at(-1)![0] as any[])
+      : [];
 
   beforeEach(() => {
     itemsRepo = {
@@ -84,11 +95,17 @@ describe('PlanReconciliationService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
     plansRepo = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
+    linksRepo = {
+      create: jest.fn((row: unknown) => row),
+      save: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new PlanReconciliationService(
       itemsRepo as any,
       achievementsRepo as any,
       plansRepo as any,
+      linksRepo as any,
     );
   });
 
@@ -372,6 +389,121 @@ describe('PlanReconciliationService', () => {
       await service.reconcilePlan(999);
 
       expect(itemsRepo.update).not.toHaveBeenCalled();
+      // A vanished plan's links are meaningless — clean them up.
+      expect(linksRepo.delete).toHaveBeenCalledWith({ weeklyPlanId: 999 });
+    });
+  });
+
+  // ─── Settlement links ─────────────────────────────────────────────────────
+
+  describe('achievement_plan_item_links', () => {
+    it('splits one achievement across the two plan items it covers', async () => {
+      // Two Hifz items, Al-Fatiha 1-3 and 4-7; one achievement covering 1-7.
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({
+          items: [
+            makeItem({ id: 1, endVerse: 3, totalVerses: 3 }),
+            makeItem({ id: 2, startVerse: 4, endVerse: 7, totalVerses: 4 }),
+          ],
+        }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, startVerse: 1, endVerse: 7 }),
+      ]);
+
+      await service.reconcilePlan(1);
+
+      const links = savedLinks().filter((l) => l.weeklyPlanItemId !== null);
+      expect(links).toHaveLength(2);
+      expect(links).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            weeklyPlanItemId: 1,
+            achievementId: 100,
+            startGlobalAyah: 1,
+            endGlobalAyah: 3,
+            creditedVerses: 3,
+          }),
+          expect.objectContaining({
+            weeklyPlanItemId: 2,
+            achievementId: 100,
+            startGlobalAyah: 4,
+            endGlobalAyah: 7,
+            creditedVerses: 4,
+          }),
+        ]),
+      );
+    });
+
+    it('rewrites the plan links wholesale on every run', async () => {
+      plansRepo.findOne.mockResolvedValue(makePlan());
+      achievementsRepo.find.mockResolvedValue([makeAchievement()]);
+
+      await service.reconcilePlan(1);
+
+      // Stale links from a previous shape of the week never survive: a plan-item
+      // edit (which re-runs this) reshapes the whole week's linkage.
+      expect(linksRepo.delete).toHaveBeenCalledWith({ weeklyPlanId: 1 });
+    });
+
+    it('links an achievement to an item planned on a different day of the week', async () => {
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: [makeItem({ id: 1, dayOfWeek: 0 })] }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        // Recorded on week_start + 2, settles the week_start + 0 item.
+        makeAchievement({ id: 100, date: '2026-05-11' }),
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(savedLinks()).toEqual([
+        expect.objectContaining({
+          weeklyPlanItemId: 1,
+          achievementId: 100,
+          achievementDate: '2026-05-11',
+          planDayOfWeek: 0,
+        }),
+      ]);
+    });
+
+    it('records the unplanned part of an achievement with a null item', async () => {
+      // Item plans 1:1-3; the student recited 1:1-7 — verses 4-7 are outside.
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: [makeItem({ id: 1, endVerse: 3, totalVerses: 3 })] }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, startVerse: 1, endVerse: 7 }),
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(savedLinks()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            weeklyPlanItemId: null,
+            achievementId: 100,
+            startGlobalAyah: 4,
+            endGlobalAyah: 7,
+            creditedVerses: 4,
+          }),
+        ]),
+      );
+    });
+
+    it('credits a contested verse to the higher-scoring achievement', async () => {
+      plansRepo.findOne.mockResolvedValue(makePlan());
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, percentageScore: 70 }),
+        makeAchievement({ id: 101, percentageScore: 95 }),
+      ]);
+
+      await service.reconcilePlan(1);
+
+      const links = savedLinks().filter((l) => l.weeklyPlanItemId !== null);
+      expect(links).toEqual([
+        expect.objectContaining({ achievementId: 101, percentageScore: 95 }),
+      ]);
     });
   });
 

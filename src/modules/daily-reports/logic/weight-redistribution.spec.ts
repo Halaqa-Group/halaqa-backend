@@ -17,25 +17,61 @@ describe('redistributeWeights (§6.2 examples)', () => {
     expect(redistributeWeights(BASE, tracks('Far')).far).toBeCloseTo(95, 9);
   });
 
-  it('near + far without hifz redistribute by their base ratio', () => {
+  it('no hifz → its weight is split over the planned reviews by base ratio', () => {
     const w = redistributeWeights(BASE, tracks('Near', 'Far'));
     expect(w.hifz).toBe(0);
     expect(w.near).toBeCloseTo((25 / 55) * 95, 9); // 43.18
     expect(w.far).toBeCloseTo((30 / 55) * 95, 9); // 51.82
   });
 
-  it('hifz + near without far', () => {
+  it('no far → its weight goes to near only, hifz untouched', () => {
     const w = redistributeWeights(BASE, tracks('Hifz', 'Near'));
-    expect(w.hifz).toBeCloseTo((40 / 65) * 95, 9); // 58.46
-    expect(w.near).toBeCloseTo((25 / 65) * 95, 9); // 36.54
+    expect(w.hifz).toBeCloseTo(40, 9);
+    expect(w.near).toBeCloseTo(55, 9);
     expect(w.far).toBe(0);
+  });
+
+  it('no near → its weight goes to far only, hifz untouched', () => {
+    const w = redistributeWeights(BASE, tracks('Hifz', 'Far'));
+    expect(w.hifz).toBeCloseTo(40, 9);
+    expect(w.near).toBe(0);
+    expect(w.far).toBeCloseTo(55, 9);
+  });
+
+  it('neither review planned → the whole review pool falls back to hifz', () => {
+    const w = redistributeWeights(BASE, tracks('Hifz'));
+    expect(w.hifz).toBeCloseTo(95, 9);
+    expect(w.near).toBe(0);
+    expect(w.far).toBe(0);
+  });
+
+  it('one review only → review pool plus hifz weight land on it', () => {
+    const near = redistributeWeights(BASE, tracks('Near'));
+    expect(near.near).toBeCloseTo(95, 9);
+    expect(near.hifz).toBe(0);
+    const far = redistributeWeights(BASE, tracks('Far'));
+    expect(far.far).toBeCloseTo(95, 9);
+    expect(far.hifz).toBe(0);
+  });
+
+  it('splits equally when the planned reviews both have base weight 0', () => {
+    const w = redistributeWeights(
+      { hifz: 95, near: 0, far: 0, ethics: 5 },
+      tracks('Near', 'Far'),
+    );
+    expect(w.near).toBeCloseTo(47.5, 9);
+    expect(w.far).toBeCloseTo(47.5, 9);
   });
 
   it('effective academic weights always total the academic weight', () => {
     for (const set of [
       tracks('Hifz', 'Near', 'Far'),
       tracks('Near', 'Far'),
+      tracks('Hifz', 'Near'),
+      tracks('Hifz', 'Far'),
       tracks('Hifz'),
+      tracks('Near'),
+      tracks('Far'),
     ]) {
       const w = redistributeWeights(BASE, set);
       expect(w.hifz + w.near + w.far).toBeCloseTo(95, 9);

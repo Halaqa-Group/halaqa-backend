@@ -30,11 +30,18 @@ export interface PlannedRange extends VerseSegment {
   planItemId: number;
 }
 
-/** An atomic reconciled segment that credited a chosen achievement (§12). */
+/**
+ * An atomic reconciled segment that credited a chosen achievement (§12), read
+ * straight from `achievement_plan_item_links`. `planItemId` names the plan item
+ * this stretch settled — an achievement spanning two items produces one segment
+ * per item. `achievementDate` may differ from the report date: an achievement
+ * anywhere in the week can settle the day's item.
+ */
 export interface ApprovedSegment extends VerseSegment {
   percentageScore: number;
   selectedAchievementId: number;
-  candidateAchievementIds: number[];
+  achievementDate: string;
+  planItemId: number;
 }
 
 /** A portion of an achievement that fell outside the plan (§12). */

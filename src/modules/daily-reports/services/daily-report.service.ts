@@ -1,11 +1,19 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, EntityManager, In, Repository } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  EntityManager,
+  In,
+  IsNull,
+  Repository,
+  type FindOptionsWhere,
+} from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
 import { shortNameSql } from '../../../common/person-name';
 import { roundHalfUp } from '../../../common/rounding';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
-import { Achievement } from '../../achievements/entities/achievement.entity';
+import { AchievementPlanItemLink } from '../../achievements/entities/achievement-plan-item-link.entity';
 import type { TrackType } from '../../achievements/entities/achievement.entity';
 import { WeeklyPlan } from '../../achievements/entities/weekly-plan.entity';
 import { activeOnDate } from '../../attendance/attendance-visibility.sql';
@@ -23,10 +31,10 @@ import { DailyStudentEvaluation } from '../entities/daily-student-evaluation.ent
 import type { EvaluationAttendanceStatus } from '../entities/daily-student-evaluation.entity';
 import { ALERTS } from '../logic/alerts';
 import {
-  reconcileTrack,
-  type AchievementInput,
+  assembleTrack,
   type PlannedItemInput,
   type ReconcileResult,
+  type SettledLinkInput,
 } from '../logic/reconciliation';
 import { computeStudentScores } from '../logic/scoring';
 import { redistributeWeights } from '../logic/weight-redistribution';
@@ -65,8 +73,8 @@ export class DailyReportService {
     private readonly attendances: Repository<StudentAttendance>,
     @InjectRepository(WeeklyPlan)
     private readonly plans: Repository<WeeklyPlan>,
-    @InjectRepository(Achievement)
-    private readonly achievements: Repository<Achievement>,
+    @InjectRepository(AchievementPlanItemLink)
+    private readonly links: Repository<AchievementPlanItemLink>,
     @InjectRepository(DailyHalaqaReport)
     private readonly reports: Repository<DailyHalaqaReport>,
     @InjectRepository(DailyStudentEvaluation)
@@ -478,9 +486,11 @@ export class DailyReportService {
       number,
       Map<TrackType, PlannedItemInput[]>
     >();
+    const studentOfItem = new Map<number, number>();
     for (const plan of plans) {
       for (const item of plan.items ?? []) {
         if (item.dayOfWeek !== dow) continue;
+        studentOfItem.set(item.id, plan.studentId);
         let byTrack = plannedByStudent.get(plan.studentId);
         if (!byTrack) {
           byTrack = new Map();
@@ -498,60 +508,84 @@ export class DailyReportService {
       }
     }
 
-    // Approved achievements for the date. The whole recited range counts toward
-    // the plan, `test` recitations included: sampling positions is a way to fit a
-    // long review into the time available, not a shortfall in the plan. The tested
-    // positions' errors already shape `percentage_score`, so they drive quality
-    // only. This matches how plan items are reconciled (PlanReconciliationService).
-    const achievements = await this.achievements.find({
-      where: {
-        halaqaId: halaqa.id,
-        studentId: In(studentIds),
-        status: 'approved',
-        date,
-      },
-    });
-    const achievedByStudent = new Map<
-      number,
-      Map<TrackType, AchievementInput[]>
-    >();
-    for (const ach of achievements) {
-      const covered = [
-        {
-          startSurah: ach.startSurah,
-          startVerse: ach.startVerse,
-          endSurah: ach.endSurah,
-          endVerse: ach.endVerse,
-        },
-      ];
-      let byTrack = achievedByStudent.get(ach.studentId);
-      if (!byTrack) {
-        byTrack = new Map();
-        achievedByStudent.set(ach.studentId, byTrack);
-      }
-      const list = byTrack.get(ach.trackType) ?? [];
-      list.push({
-        id: ach.id,
-        percentageScore: Number(ach.percentageScore),
-        approvedAt: ach.approvedAt ? ach.approvedAt.getTime() : 0,
-        covered,
-      });
-      byTrack.set(ach.trackType, list);
-    }
+    // The settlement links, computed and stored once by the plan reconciliation.
+    // The report does no range matching of its own — it reads which achievement
+    // credited which part of which plan item.
+    //
+    // Two sets are loaded: the links of the items planned for THIS weekday (an
+    // achievement anywhere in the plan's week may settle them — reconciliation is
+    // week-scoped), and the outside-plan links recorded ON this date (recitation
+    // that no item of the week planned).
+    const linkedByStudent = await this.loadLinks(
+      plans.map((p) => p.id),
+      [...studentOfItem.keys()],
+      studentOfItem,
+      date,
+    );
 
     const base = this.weightsOf(halaqa);
 
     const emptyPlanned = new Map<TrackType, PlannedItemInput[]>();
-    const emptyAchieved = new Map<TrackType, AchievementInput[]>();
+    const emptyLinks = new Map<TrackType, SettledLinkInput[]>();
     return students.map((student) =>
       this.computeOne(
         student,
         base,
         attendanceByStudent.get(student.id),
         plannedByStudent.get(student.id) ?? emptyPlanned,
-        achievedByStudent.get(student.id) ?? emptyAchieved,
+        linkedByStudent.get(student.id) ?? emptyLinks,
       ),
     );
+  }
+
+  /**
+   * Settlement links for the day, grouped student → track. Returns nothing when
+   * the day has no planned items (there is then nothing to attribute against).
+   */
+  private async loadLinks(
+    planIds: number[],
+    dayItemIds: number[],
+    studentOfItem: Map<number, number>,
+    date: string,
+  ): Promise<Map<number, Map<TrackType, SettledLinkInput[]>>> {
+    const byStudent = new Map<number, Map<TrackType, SettledLinkInput[]>>();
+    if (!planIds.length) return byStudent;
+
+    const where: FindOptionsWhere<AchievementPlanItemLink>[] = [
+      {
+        weeklyPlanId: In(planIds),
+        weeklyPlanItemId: IsNull(),
+        achievementDate: date,
+      },
+    ];
+    if (dayItemIds.length) where.push({ weeklyPlanItemId: In(dayItemIds) });
+
+    const rows = await this.links.find({ where });
+
+    for (const r of rows) {
+      // Outside-plan rows carry no item, so their student comes off the row.
+      const studentId =
+        r.weeklyPlanItemId != null
+          ? (studentOfItem.get(r.weeklyPlanItemId) ?? r.studentId)
+          : r.studentId;
+      let byTrack = byStudent.get(studentId);
+      if (!byTrack) {
+        byTrack = new Map();
+        byStudent.set(studentId, byTrack);
+      }
+      const list = byTrack.get(r.trackType) ?? [];
+      list.push({
+        planItemId: r.weeklyPlanItemId,
+        achievementId: r.achievementId,
+        achievementDate: r.achievementDate,
+        percentageScore: Number(r.percentageScore),
+        startGlobalAyah: r.startGlobalAyah,
+        endGlobalAyah: r.endGlobalAyah,
+        creditedPages: Number(r.creditedPages),
+      });
+      byTrack.set(r.trackType, list);
+    }
+    return byStudent;
   }
 
   private computeOne(
@@ -559,7 +593,7 @@ export class DailyReportService {
     base: { hifz: number; near: number; far: number; ethics: number },
     attendance: StudentAttendance | undefined,
     planned: Map<TrackType, PlannedItemInput[]>,
-    achieved: Map<TrackType, AchievementInput[]>,
+    links: Map<TrackType, SettledLinkInput[]>,
   ): StudentComputation {
     const attendanceStatus: EvaluationAttendanceStatus = attendance
       ? attendance.status
@@ -580,7 +614,8 @@ export class DailyReportService {
       Far: base.far,
     };
 
-    // Reconcile each planned track; absent achievements are handled by the scorer.
+    // Assemble each planned track from its stored links; absent achievements are
+    // handled by the scorer.
     const recon: Record<TrackType, ReconcileResult | null> = {
       Hifz: null,
       Near: null,
@@ -588,7 +623,7 @@ export class DailyReportService {
     };
     for (const t of TRACKS) {
       if (!plannedTracks.has(t)) continue;
-      recon[t] = reconcileTrack(t, planned.get(t) ?? [], achieved.get(t) ?? []);
+      recon[t] = assembleTrack(t, planned.get(t) ?? [], links.get(t) ?? []);
     }
 
     const trackInput = (t: TrackType) => ({
