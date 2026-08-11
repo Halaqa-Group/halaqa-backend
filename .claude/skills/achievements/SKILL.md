@@ -409,9 +409,10 @@ The core service method reconciles a **whole plan (week)** as a unit, because it
 PlanReconciliationService.reconcilePlan(planId: number): Promise<void>
 ```
 
-Convenience entry points delegate to it:
-- `reconcileItem(planItemId)` — loads the item's plan and calls `reconcilePlan`. Kept for callers that only hold an item id (e.g. after a range edit).
-- `reconcileForAchievement(achievementId)` — finds every plan whose week contains the achievement's `date` and reconciles each whole.
+Entry points delegate to it. **All of them are student-week-scoped, never single-plan** — the owner's rule is "any change re-links that student's whole week":
+- `reconcileStudentWeek(studentId, weekStartDate)` — reconciles *every* plan of that student whose week overlaps. This is what the plan-side mutations call (plan create/approve, item add/edit/delete). Usually one plan; it matters when the student holds plans in two halaqat for the same week, or when two `week_start_date`s aren't Saturdays and their 7-day windows overlap — reconciling only the edited plan would leave the other's links describing a shape of the week that no longer exists.
+- `reconcileItem(planItemId)` — resolves the item's plan, then delegates to `reconcileStudentWeek`. For callers that only hold an item id (e.g. after a range edit).
+- `reconcileForAchievement(achievementId)` — every plan of that student whose week contains the achievement's `date`. Deliberately **not** filtered by halaqa: `reconcilePlan` only ever credits achievements from its own halaqa, so including the student's other plans costs one cheap rebuild and guarantees no stale link survives. It loads the achievement `withDeleted`, because `delete` soft-removes the row *before* reconciling — skipping would leave a deleted achievement still credited.
 
 ### Matching rule
 

@@ -291,7 +291,10 @@ export class WeeklyPlansService {
     // Items are seeded at achieved_verses = 0 / 'due'. If approved achievements
     // already exist in this week (plan created mid-week or backdated), those
     // seeds are wrong the moment they are written — reconcile before returning.
-    await this.reconciliation.reconcilePlan(plan.id);
+    await this.reconciliation.reconcileStudentWeek(
+      plan.studentId,
+      plan.weekStartDate,
+    );
     plan.items = await this.planItems.find({
       where: { weeklyPlanId: plan.id },
       order: { id: 'ASC' },
@@ -386,8 +389,11 @@ export class WeeklyPlansService {
       newValues: { approvedBy: actor.id },
     });
 
-    // Reconcile the whole plan now that it is approved
-    await this.reconciliation.reconcilePlan(id);
+    // Reconcile the student's whole week now that this plan is approved.
+    await this.reconciliation.reconcileStudentWeek(
+      plan.studentId,
+      plan.weekStartDate,
+    );
     await this.emitForPlanDays(plan);
 
     return this.loadOrFail(id, actor.schoolId);

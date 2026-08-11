@@ -210,9 +210,12 @@ export class PlanItemsService {
     });
 
     // Seeded at achieved_verses = 0 / 'due'; the week's approved achievements may
-    // already cover this range. Plan-wide because the new item consumes from the
+    // already cover this range. Week-wide because the new item consumes from the
     // same pool as its siblings.
-    await this.reconciliation.reconcilePlan(planId);
+    await this.reconciliation.reconcileStudentWeek(
+      plan.studentId,
+      plan.weekStartDate,
+    );
 
     return (await this.planItems.findOne({ where: { id: item.id } })) ?? item;
   }
@@ -251,7 +254,10 @@ export class PlanItemsService {
 
     // The deleted item released whatever verses it had consumed — later items in
     // the week can now claim them.
-    await this.reconciliation.reconcilePlan(plan.id);
+    await this.reconciliation.reconcileStudentWeek(
+      plan.studentId,
+      plan.weekStartDate,
+    );
   }
 
   // ─── Update item ──────────────────────────────────────────────────────────

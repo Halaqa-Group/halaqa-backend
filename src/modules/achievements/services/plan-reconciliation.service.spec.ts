@@ -491,6 +491,74 @@ describe('PlanReconciliationService', () => {
       );
     });
 
+    it('drops the link when the item range moves off the achievement', async () => {
+      // The owner's case: a Near item planning An-Nas (114), settled by an
+      // An-Nas achievement. The item is then re-pointed at Al-Ikhlas (112).
+      // The achievement must NOT stay credited to the item just because the
+      // item id is unchanged — the whole week is re-linked from the ranges.
+      const nas = {
+        startSurah: 114,
+        startVerse: 1,
+        endSurah: 114,
+        endVerse: 6,
+      };
+      const achievement = makeAchievement({
+        id: 100,
+        trackType: 'Near',
+        ...nas,
+      });
+
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({
+          items: [
+            makeItem({
+              id: 1,
+              trackType: 'Near',
+              order: 1,
+              ...nas,
+              totalVerses: 6,
+            }),
+          ],
+        }),
+      );
+      achievementsRepo.find.mockResolvedValue([achievement]);
+      await service.reconcilePlan(1);
+
+      expect(savedLinks()).toEqual([
+        expect.objectContaining({ weeklyPlanItemId: 1, achievementId: 100 }),
+      ]);
+
+      // Now the item is re-pointed at Al-Ikhlas; the achievement is untouched.
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({
+          items: [
+            makeItem({
+              id: 1,
+              trackType: 'Near',
+              order: 1,
+              startSurah: 112,
+              startVerse: 1,
+              endSurah: 112,
+              endVerse: 4,
+              totalVerses: 4,
+            }),
+          ],
+        }),
+      );
+      await service.reconcilePlan(1);
+
+      const links = savedLinks();
+      expect(links).toHaveLength(1);
+      expect(links[0]).toMatchObject({
+        weeklyPlanItemId: null, // out-of-plan now, not credited to the item
+        achievementId: 100,
+      });
+      expect(itemsRepo.update).toHaveBeenLastCalledWith(1, {
+        achievedVerses: 0,
+        status: expect.stringMatching(/due|overdue/),
+      });
+    });
+
     it('credits a contested verse to the higher-scoring achievement', async () => {
       plansRepo.findOne.mockResolvedValue(makePlan());
       achievementsRepo.find.mockResolvedValue([
@@ -510,8 +578,14 @@ describe('PlanReconciliationService', () => {
   // ─── reconcileItem ────────────────────────────────────────────────────────
 
   describe('reconcileItem', () => {
-    it('reconciles the plan that owns the item', async () => {
-      itemsRepo.findOne.mockResolvedValue({ id: 7, weeklyPlanId: 42 });
+    it("reconciles every plan in the owning student's week, not just this one", async () => {
+      itemsRepo.findOne.mockResolvedValue({
+        id: 7,
+        weeklyPlanId: 42,
+        weeklyPlan: { id: 42, studentId: 10, weekStartDate: '2026-05-09' },
+      });
+      // The student holds two plans covering that week (e.g. two halaqat).
+      plansRepo.find.mockResolvedValue([{ id: 42 }, { id: 43 }]);
       const spy = jest
         .spyOn(service, 'reconcilePlan')
         .mockResolvedValue(undefined);
@@ -519,6 +593,7 @@ describe('PlanReconciliationService', () => {
       await service.reconcileItem(7);
 
       expect(spy).toHaveBeenCalledWith(42);
+      expect(spy).toHaveBeenCalledWith(43);
     });
 
     it('returns without reconciling when the item is not found', async () => {

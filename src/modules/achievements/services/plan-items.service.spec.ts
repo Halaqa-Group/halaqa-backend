@@ -109,6 +109,7 @@ const makeReconciliation = () =>
   ({
     reconcilePlan: jest.fn().mockResolvedValue(undefined),
     reconcileItem: jest.fn().mockResolvedValue(undefined),
+    reconcileStudentWeek: jest.fn().mockResolvedValue(undefined),
   }) as unknown as PlanReconciliationService;
 
 const makeService = (
@@ -217,7 +218,7 @@ describe('PlanItemsService', () => {
       const service = makeService({ plans, recon, ds: makeDataSource([HIT]) });
       await service.addItem(1, ADD_INPUT, makeTeacherActor());
 
-      expect(recon.reconcilePlan).toHaveBeenCalledWith(1);
+      expect(recon.reconcileStudentWeek).toHaveBeenCalledWith(5, '2026-05-10');
     });
   });
 
@@ -242,7 +243,7 @@ describe('PlanItemsService', () => {
       const service = makeService({ items, recon, ds: makeDataSource([HIT]) });
       await service.deleteItem(20, makeTeacherActor());
 
-      expect(recon.reconcilePlan).toHaveBeenCalledWith(1);
+      expect(recon.reconcileStudentWeek).toHaveBeenCalledWith(5, '2026-05-10');
     });
 
     it('throws ForbiddenException when the teacher is out of scope', async () => {

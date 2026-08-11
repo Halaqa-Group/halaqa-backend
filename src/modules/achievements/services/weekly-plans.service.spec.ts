@@ -112,6 +112,7 @@ const makeReconciliation = () =>
   ({
     reconcilePlan: jest.fn().mockResolvedValue(undefined),
     reconcileItem: jest.fn().mockResolvedValue(undefined),
+    reconcileStudentWeek: jest.fn().mockResolvedValue(undefined),
   }) as unknown as PlanReconciliationService;
 
 const makeService = (
@@ -231,7 +232,7 @@ describe('WeeklyPlansService', () => {
       const service = makeService({ plans, items, recon });
       const plan = await service.create(CREATE_INPUT, makeActor());
 
-      expect(recon.reconcilePlan).toHaveBeenCalledWith(7);
+      expect(recon.reconcileStudentWeek).toHaveBeenCalledWith(5, '2026-05-10');
       // Reconciliation writes straight to the DB, so the returned items must be
       // re-read — otherwise the response reports 0 for work already credited.
       expect(plan.items[0].achievedVerses).toBe(7);
@@ -282,7 +283,7 @@ describe('WeeklyPlansService', () => {
 
       expect(plan.status).toBe('approved');
       expect(plan.approvedBy).toBe(2);
-      expect(recon.reconcilePlan).toHaveBeenCalledWith(1);
+      expect(recon.reconcileStudentWeek).toHaveBeenCalledWith(5, '2026-05-10');
     });
 
     it('throws ForbiddenException when the teacher is out of scope', async () => {

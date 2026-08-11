@@ -197,19 +197,55 @@ export class PlanReconciliationService {
   async reconcileItem(planItemId: number): Promise<void> {
     const item = await this.items.findOne({
       where: { id: planItemId },
-      select: { id: true, weeklyPlanId: true },
+      relations: ['weeklyPlan'],
     });
-    if (!item) return;
-    await this.reconcilePlan(item.weeklyPlanId);
+    if (!item?.weeklyPlan) return;
+    await this.reconcileStudentWeek(
+      item.weeklyPlan.studentId,
+      item.weeklyPlan.weekStartDate,
+    );
+  }
+
+  /**
+   * Rebuilds **every link the student has for that week**, across all their plans
+   * — the unit the owner asked for, not just the one plan that was touched.
+   *
+   * A student normally has one plan per week, so this is usually a single
+   * `reconcilePlan`. It matters when they hold plans in two halaqat for the same
+   * week, or when two plans' 7-day windows overlap because a `week_start_date`
+   * wasn't a Saturday: reconciling only the edited plan would leave the other
+   * one's links pointing at a shape of the week that no longer exists.
+   */
+  async reconcileStudentWeek(
+    studentId: number,
+    weekStartDate: string,
+  ): Promise<void> {
+    const plans = await this.plans.find({
+      where: {
+        studentId,
+        // Any plan whose own week overlaps this one.
+        weekStartDate: Between(
+          this.addDays(weekStartDate, -6),
+          this.addDays(weekStartDate, 6),
+        ),
+      },
+      select: { id: true },
+    });
+    // Sequential: reconcilePlan rewrites link rows and updates items.
+    for (const p of plans) await this.reconcilePlan(p.id);
   }
 
   /**
    * Entry point called from AchievementsService after approve/unapprove/delete.
-   * Finds every plan whose week contains the achievement's date and reconciles
-   * each one whole.
+   * Reconciles every plan of that student whose week contains the achievement's
+   * date. Deliberately **not** filtered by halaqa: `reconcilePlan` already only
+   * credits achievements from its own halaqa, so including the student's other
+   * plans costs one cheap rebuild and guarantees no stale link survives anywhere
+   * in the week.
    */
   async reconcileForAchievement(achievementId: number): Promise<void> {
-    // TypeORM automatically excludes soft-deleted achievements via @DeleteDateColumn.
+    // Soft-deleted achievements must still be found here: `delete` soft-removes
+    // the row *before* reconciling, and skipping would leave it credited.
     const achievement = await this.achievements.findOne({
       where: { id: achievementId },
       withDeleted: true,
@@ -220,7 +256,6 @@ export class PlanReconciliationService {
     const plans = await this.plans.find({
       where: {
         studentId: achievement.studentId,
-        halaqaId: achievement.halaqaId,
         weekStartDate: Between(
           this.addDays(achievement.date, -6),
           achievement.date,
@@ -229,7 +264,6 @@ export class PlanReconciliationService {
       select: { id: true },
     });
 
-    // Sequential: reconcilePlan rewrites shared link rows and updates items.
     for (const p of plans) await this.reconcilePlan(p.id);
   }
 }
