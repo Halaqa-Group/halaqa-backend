@@ -4,10 +4,15 @@
  * اسم العائلة (family).
  *
  * Each table keeps a `name` column that MySQL derives from the four parts as a
- * STORED generated column, so every existing reader — `name LIKE` search,
- * `ORDER BY name`, and the denormalized `teacher_name` / `student_name`
- * projections in the halaqat and achievements modules — keeps working unchanged.
- * Only writers changed: write the parts, never `name`.
+ * STORED generated column, so `name LIKE` search and `ORDER BY name` keep
+ * working against the full name. Only writers changed: write the parts, never
+ * `name`.
+ *
+ * Responses never show the full four-part name: every display field — the
+ * `name` of a person's own response and the denormalized `*_name` projections
+ * on other modules' responses — carries {@link buildShortName}, first / father
+ * / family. Clients that need اسم الجد compose it from the parts, which every
+ * person response still returns individually.
  */
 
 /** Max length of a single name part. */
@@ -61,10 +66,14 @@ export function namePartsPatch(dto: NamePartsInput): Partial<NameParts> {
 }
 
 /**
- * snake_case projection of the four parts plus the database-derived display
- * name, matching the response convention of the students module.
+ * snake_case projection of the four parts plus the display name, matching the
+ * response convention of the students module.
+ *
+ * `name` is the *short* name, not the database-derived `name` column: responses
+ * carry all four parts, so a client that wants اسم الجد can compose it, while
+ * `name` stays the one form used for display everywhere.
  */
-export function toNameFields(entity: NameParts & { name: string }): {
+export function toNameFields(entity: NameParts): {
   first_name: string;
   second_name: string;
   third_name: string;
@@ -76,7 +85,7 @@ export function toNameFields(entity: NameParts & { name: string }): {
     second_name: entity.secondName,
     third_name: entity.thirdName,
     family_name: entity.familyName,
-    name: entity.name,
+    name: buildShortName(entity),
   };
 }
 
@@ -90,4 +99,37 @@ export function buildFullName(parts: NameParts): string {
     .map((part) => part?.trim() ?? '')
     .filter((part) => part.length > 0)
     .join(' ');
+}
+
+/**
+ * Shortened display name — first / father / family, dropping اسم الجد. This is
+ * the display form on every response: the denormalized `*_name` projections
+ * (student_name, teacher_name, actor_name, recorded_by_name, …) and the `name`
+ * field of a person's own response alike.
+ */
+export function buildShortName(
+  parts: Pick<NameParts, 'firstName' | 'secondName' | 'familyName'>,
+): string {
+  return [parts.firstName, parts.secondName, parts.familyName]
+    .map((part) => part?.trim() ?? '')
+    .filter((part) => part.length > 0)
+    .join(' ');
+}
+
+/**
+ * The SQL mirror of {@link buildShortName}, for the raw queries that project a
+ * display name out of `users` or `students`. Pass the table alias used by the
+ * query, or omit it for an unaliased single-table SELECT.
+ *
+ * The inner `NULLIF`s matter for the same reason they do in
+ * {@link FULL_NAME_EXPRESSION}: legacy rows have missing parts stored as `''`,
+ * and `CONCAT_WS` skips NULLs but not empty strings. The outer one restores the
+ * NULL that a missed LEFT JOIN used to produce — `CONCAT_WS` over all-NULL
+ * arguments yields `''`, which would turn a nullable `*_name` into an empty
+ * string instead of `null`.
+ */
+export function shortNameSql(alias?: string): string {
+  const col = (part: string) =>
+    `NULLIF(${alias ? `${alias}.` : ''}${part}, '')`;
+  return `NULLIF(CONCAT_WS(' ', ${col('first_name')}, ${col('second_name')}, ${col('family_name')}), '')`;
 }

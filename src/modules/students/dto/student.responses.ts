@@ -18,8 +18,10 @@ export class GuardianUserResponse {
   family_name!: string;
 
   @ApiProperty({
-    example: 'محمد أحمد سالم الحسني',
-    description: 'Read-only display name derived from the four name parts.',
+    example: 'محمد أحمد الحسني',
+    description:
+      'Read-only display name: first / father / family, without اسم الجد. ' +
+      'Compose the full four-part name from the parts above if you need it.',
   })
   name!: string;
 
@@ -81,8 +83,10 @@ export class StudentResponse {
   family_name!: string;
 
   @ApiProperty({
-    example: 'يوسف محمد أحمد الحسني',
-    description: 'Read-only display name derived from the four name parts.',
+    example: 'يوسف محمد الحسني',
+    description:
+      'Read-only display name: first / father / family, without اسم الجد. ' +
+      'Compose the full four-part name from the parts above if you need it.',
   })
   name!: string;
 

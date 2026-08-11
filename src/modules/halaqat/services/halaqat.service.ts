@@ -7,6 +7,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
+import { shortNameSql } from '../../../common/person-name';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { CreateHalaqaDto } from '../dto/create-halaqa.dto';
 import { resolveEvaluationSettings } from '../dto/evaluation-settings.dto';
@@ -129,7 +130,7 @@ export class HalaqatService {
       is_acting: number;
     };
     const rows: Row[] = await this.dataSource.manager.query(
-      `SELECT ht.halaqa_id, ht.teacher_user_id, u.name AS teacher_name,
+      `SELECT ht.halaqa_id, ht.teacher_user_id, ${shortNameSql('u')} AS teacher_name,
               ht.acting_as_primary AS is_acting
        FROM halaqa_teachers ht
        JOIN users u ON u.id = ht.teacher_user_id
@@ -195,7 +196,7 @@ export class HalaqatService {
       end_reason: string | null;
     };
     const teacherRows: TeacherRow[] = await runner.query(
-      `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
+      `SELECT ht.id, ht.teacher_user_id, ${shortNameSql('u')} AS teacher_name,
               ht.role, ht.acting_as_primary,
               ht.acting_starts_at, ht.acting_ends_at,
               ht.start_date, ht.end_date, ht.end_reason
@@ -207,7 +208,7 @@ export class HalaqatService {
 
     type SupervisorRow = { user_id: number; name: string; assigned_at: Date };
     const supervisorRows: SupervisorRow[] = await runner.query(
-      `SELECT sh.supervisor_user_id AS user_id, u.name, sh.assigned_at
+      `SELECT sh.supervisor_user_id AS user_id, ${shortNameSql('u')} AS name, sh.assigned_at
        FROM supervisor_halaqat sh
        JOIN users u ON u.id = sh.supervisor_user_id
        WHERE sh.halaqa_id = ?`,

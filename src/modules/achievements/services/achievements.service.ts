@@ -8,6 +8,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DomainEvents } from '../../../common/events/domain-events';
+import { shortNameSql } from '../../../common/person-name';
 import { roundHalfUp } from '../../../common/rounding';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
@@ -1016,13 +1017,17 @@ export class AchievementsService {
     const ph = unique.map(() => '?').join(', ');
     const rows: { id: number; name: string }[] =
       await this.dataSource.manager.query(
-        `SELECT id, name FROM users WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
+        `SELECT id, ${shortNameSql()} AS name FROM users
+           WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
         [...unique, schoolId],
       );
     return new Map(rows.map((r) => [r.id, r.name]));
   }
 
-  /** studentId → name, for display denormalization on achievement responses. */
+  /**
+   * studentId → short name (first / father / family, without اسم الجد), for
+   * display denormalization on achievement responses.
+   */
   async resolveStudentNames(
     ids: number[],
     schoolId: number,
@@ -1032,7 +1037,8 @@ export class AchievementsService {
     const ph = unique.map(() => '?').join(', ');
     const rows: { id: number; name: string }[] =
       await this.dataSource.manager.query(
-        `SELECT id, name FROM students WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
+        `SELECT id, ${shortNameSql()} AS name FROM students
+           WHERE id IN (${ph}) AND school_id = ? LIMIT ${unique.length}`,
         [...unique, schoolId],
       );
     return new Map(rows.map((r) => [r.id, r.name]));

@@ -7,6 +7,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
+import { shortNameSql } from '../../../common/person-name';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { EnrollStudentDto } from '../dto/enroll-student.dto';
 import type { StudentEnrollmentResponse } from '../dto/halaqa.responses';
@@ -98,7 +99,7 @@ export class StudentEnrollmentService {
     halaqaId: number,
   ): Promise<StudentEnrollmentResponse> {
     const rows: EnrollmentRow[] = await this.dataSource.manager.query(
-      `SELECT sh.student_id, s.name AS student_name, sh.enrollment_date, sh.status
+      `SELECT sh.student_id, ${shortNameSql('s')} AS student_name, sh.enrollment_date, sh.status
        FROM student_halaqa sh
        JOIN students s ON s.id = sh.student_id
        WHERE sh.student_id = ? AND sh.halaqa_id = ?`,
@@ -187,7 +188,7 @@ export class StudentEnrollmentService {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
 
     const rows: EnrollmentRow[] = await this.dataSource.manager.query(
-      `SELECT sh.student_id, s.name AS student_name, sh.enrollment_date, sh.status
+      `SELECT sh.student_id, ${shortNameSql('s')} AS student_name, sh.enrollment_date, sh.status
        FROM student_halaqa sh
        JOIN students s ON s.id = sh.student_id
        WHERE sh.halaqa_id = ? AND sh.status = 'active'

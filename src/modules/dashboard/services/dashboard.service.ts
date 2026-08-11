@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { shortNameSql } from '../../../common/person-name';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import type { TrackType } from '../../achievements/entities/achievement.entity';
 import {
@@ -535,7 +536,7 @@ export class DashboardService {
     if (ids.length === 0) return map;
     const rows: Array<{ id: number; name: string }> =
       await this.dataSource.query(
-        `SELECT id, name FROM students
+        `SELECT id, ${shortNameSql()} AS name FROM students
           WHERE id IN (${this.inList(ids)}) AND school_id = ?`,
         [...ids, schoolId],
       );
@@ -872,7 +873,7 @@ export class DashboardService {
     if (ids.length === 0) return map;
     const rows: Array<{ id: number; name: string }> =
       await this.dataSource.query(
-        `SELECT id, name FROM users
+        `SELECT id, ${shortNameSql()} AS name FROM users
           WHERE id IN (${this.inList(ids)}) AND school_id = ?`,
         [...ids, schoolId],
       );
@@ -959,7 +960,7 @@ export class DashboardService {
       studentName: string;
       lastDate: string | null;
     }> = await this.dataSource.query(
-      `SELECT s.id AS studentId, s.name AS studentName, MAX(a.date) AS lastDate
+      `SELECT s.id AS studentId, ${shortNameSql('s')} AS studentName, MAX(a.date) AS lastDate
          FROM students s
          JOIN student_halaqa sh ON sh.student_id = s.id AND sh.status = 'active'
          LEFT JOIN achievements a
@@ -969,7 +970,7 @@ export class DashboardService {
         WHERE s.school_id = ?
           AND s.status = 'active'
           AND s.deleted_at IS NULL${filter.clause}
-        GROUP BY s.id, s.name
+        GROUP BY s.id, s.first_name, s.second_name, s.family_name
        HAVING lastDate IS NULL OR lastDate < ?
         ORDER BY MAX(a.date) IS NOT NULL, MAX(a.date) ASC
         LIMIT 100`,

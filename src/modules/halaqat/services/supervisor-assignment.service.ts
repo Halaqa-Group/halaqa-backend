@@ -6,6 +6,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
+import { shortNameSql } from '../../../common/person-name';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AssignSupervisorDto } from '../dto/assign-supervisor.dto';
 import type { SupervisorSummaryResponse } from '../dto/halaqa.responses';
@@ -44,7 +45,7 @@ export class SupervisorAssignmentService {
     halaqaId: number,
   ): Promise<SupervisorSummaryResponse> {
     const rows: SupervisorRow[] = await this.dataSource.manager.query(
-      `SELECT sh.supervisor_user_id AS user_id, u.name, sh.assigned_at
+      `SELECT sh.supervisor_user_id AS user_id, ${shortNameSql('u')} AS name, sh.assigned_at
        FROM supervisor_halaqat sh
        JOIN users u ON u.id = sh.supervisor_user_id
        WHERE sh.supervisor_user_id = ? AND sh.halaqa_id = ?`,
@@ -102,7 +103,7 @@ export class SupervisorAssignmentService {
     await this.halaqatService.loadAndCheckAccess(halaqaId, actor);
 
     const rows: SupervisorRow[] = await this.dataSource.manager.query(
-      `SELECT sh.supervisor_user_id AS user_id, u.name, sh.assigned_at
+      `SELECT sh.supervisor_user_id AS user_id, ${shortNameSql('u')} AS name, sh.assigned_at
        FROM supervisor_halaqat sh
        JOIN users u ON u.id = sh.supervisor_user_id
        WHERE sh.halaqa_id = ?

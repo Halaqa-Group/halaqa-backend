@@ -28,6 +28,12 @@ const CTX: RequestContext = {
 const ACTIVE_USER = {
   id: 7,
   schoolId: 1,
+  // The login view derives `name` from the parts (short name), so a fixture
+  // carrying only the generated `name` column would render as ''.
+  firstName: 'Admin',
+  secondName: '',
+  thirdName: '',
+  familyName: '',
   name: 'Admin',
   idNumber: '400000006',
   email: 'admin@school.com',

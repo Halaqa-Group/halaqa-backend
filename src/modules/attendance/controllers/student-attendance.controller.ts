@@ -91,7 +91,8 @@ export class StudentAttendanceController {
   @ApiOperation({
     summary: 'List student attendance (role-scoped)',
     description:
-      'Paginated attendance visible to the caller.\n' +
+      'Paginated attendance visible to the caller, newest date first and ' +
+      'alphabetical by student name within each date.\n' +
       '- **principal / vice_principal**: whole school.\n' +
       '- **supervisor**: students in supervised halaqat (read-only).\n' +
       '- **teacher**: students in their halaqat.\n' +

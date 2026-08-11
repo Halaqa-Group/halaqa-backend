@@ -7,6 +7,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
+import { shortNameSql } from '../../../common/person-name';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { ActingSubstituteDto } from '../dto/acting-substitute.dto';
 import { ExtendActingDto } from '../dto/extend-acting.dto';
@@ -65,7 +66,7 @@ export class ActingTeacherService {
     halaqaId: number,
   ): Promise<AssignmentRow> {
     const rows: AssignmentRow[] = await this.dataSource.manager.query(
-      `SELECT ht.id, ht.teacher_user_id, u.name AS teacher_name,
+      `SELECT ht.id, ht.teacher_user_id, ${shortNameSql('u')} AS teacher_name,
               ht.role, ht.acting_as_primary,
               ht.acting_starts_at, ht.acting_ends_at,
               ht.start_date, ht.end_date, ht.end_reason

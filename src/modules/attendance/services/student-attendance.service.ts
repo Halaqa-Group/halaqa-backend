@@ -421,7 +421,25 @@ export class StudentAttendanceService {
       qb.andWhere('a.status = :status', { status: filter.status });
     }
 
-    qb.orderBy('a.attendanceDate', 'DESC').addOrderBy('a.id', 'DESC');
+    // Newest day first, then the day's roster alphabetically by student name
+    // (the generated four-part `name` column, same sort the halaqa roster and
+    // daily report use). `a.id` only breaks ties between identical names.
+    //
+    // Two things this ordering needs:
+    //  - `addSelect`, because `skip`/`take` makes TypeORM wrap the query in a
+    //    DISTINCT id subquery that can only ORDER BY columns the inner SELECT
+    //    projected — ordering on a joined-but-unselected column fails with
+    //    "Unknown column 'distinctAlias.s_name'".
+    //  - the join on the raw `students` table rather than the `a.student`
+    //    relation, so TypeORM does not append its soft-delete condition. A
+    //    relation join nulls out `s.name` for a soft-deleted student, and MySQL
+    //    sorts those NULLs to the very top — but such rows legitimately remain
+    //    visible for the dates before the deletion (see `activeStudentAttendance`).
+    qb.leftJoin('students', 's', 's.id = a.studentId')
+      .addSelect('s.name', 's_name')
+      .orderBy('a.attendanceDate', 'DESC')
+      .addOrderBy('s.name', 'ASC')
+      .addOrderBy('a.id', 'DESC');
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();

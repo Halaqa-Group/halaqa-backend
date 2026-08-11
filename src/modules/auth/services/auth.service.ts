@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { ThrottledException } from '../../../common/exceptions/throttled.exception';
+import { buildShortName } from '../../../common/person-name';
 import {
   ID_NUMBER_VALIDATOR,
   type IdNumberValidator,
@@ -220,7 +221,7 @@ export class AuthService {
   private toAuthUserView(user: User): AuthUserView {
     return {
       id: user.id,
-      name: user.name,
+      name: buildShortName(user),
       email: user.email,
       roles: (user.userRoles ?? []).map((ur) => ur.role.slug),
     };

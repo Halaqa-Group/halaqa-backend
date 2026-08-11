@@ -22,7 +22,7 @@ import {
   ID_NUMBER_VALIDATOR,
   type IdNumberValidator,
 } from '../../common/validators/id-number-validator.interface';
-import { namePartsPatch } from '../../common/person-name';
+import { buildShortName, namePartsPatch } from '../../common/person-name';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Role, type RoleSlug } from '../roles/role.entity';
 import { UserRole } from '../roles/user-role.entity';
@@ -431,7 +431,7 @@ export class UsersService {
       secondName: user.secondName,
       thirdName: user.thirdName,
       familyName: user.familyName,
-      name: user.name,
+      name: buildShortName(user),
       idNumber: user.idNumber,
       email: user.email,
       phone: user.phone,

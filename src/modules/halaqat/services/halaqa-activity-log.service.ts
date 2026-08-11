@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { shortNameSql } from '../../../common/person-name';
 import { ActivityLogData, ActivityLogItem } from '../dto/halaqa.responses';
 import { ListActivityQuery } from '../dto/list-activity.query';
 import {
@@ -59,9 +60,9 @@ export class HalaqaActivityLogService {
     const [rows, countRows] = await Promise.all([
       this.dataSource.manager.query<ActivityLogItem[]>(
         `SELECT al.id, al.action,
-                al.actor_user_id, actor.name AS actor_name,
-                al.target_user_id, tu.name AS target_user_name,
-                al.target_student_id, s.name AS target_student_name,
+                al.actor_user_id, ${shortNameSql('actor')} AS actor_name,
+                al.target_user_id, ${shortNameSql('tu')} AS target_user_name,
+                al.target_student_id, ${shortNameSql('s')} AS target_student_name,
                 al.from_halaqa_id, al.to_halaqa_id,
                 al.metadata, al.notes, al.created_at
          FROM halaqa_activity_logs al

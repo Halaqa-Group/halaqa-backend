@@ -3728,7 +3728,7 @@
     },
     "/attendance/students": {
       "get": {
-        "description": "Paginated attendance visible to the caller.\n- **principal / vice_principal**: whole school.\n- **supervisor**: students in supervised halaqat (read-only).\n- **teacher**: students in their halaqat.\n- **parent**: their own children (stripped view — no recorder/modifier fields).",
+        "description": "Paginated attendance visible to the caller, newest date first and alphabetical by student name within each date.\n- **principal / vice_principal**: whole school.\n- **supervisor**: students in supervised halaqat (read-only).\n- **teacher**: students in their halaqat.\n- **parent**: their own children (stripped view — no recorder/modifier fields).",
         "operationId": "StudentAttendanceController_list",
         "parameters": [
           {
@@ -6120,8 +6120,8 @@
           },
           "name": {
             "type": "string",
-            "example": "أحمد محمد علي المدير",
-            "description": "Read-only display name derived from the four name parts."
+            "example": "أحمد محمد المدير",
+            "description": "Read-only display name: first / father / family, without اسم الجد. Compose the full four-part name from the parts above if you need it."
           },
           "idNumber": {
             "type": "string",
@@ -6627,8 +6627,8 @@
           },
           "name": {
             "type": "string",
-            "example": "أحمد محمد علي المدير",
-            "description": "Read-only display name derived from the four name parts."
+            "example": "أحمد محمد المدير",
+            "description": "Read-only display name: first / father / family, without اسم الجد."
           },
           "idNumber": {
             "type": "string",
@@ -7614,8 +7614,8 @@
           },
           "name": {
             "type": "string",
-            "example": "يوسف محمد أحمد الحسني",
-            "description": "Read-only display name derived from the four name parts."
+            "example": "يوسف محمد الحسني",
+            "description": "Read-only display name: first / father / family, without اسم الجد. Compose the full four-part name from the parts above if you need it."
           },
           "gender": {
             "type": "string",
@@ -7840,8 +7840,8 @@
           },
           "name": {
             "type": "string",
-            "example": "محمد أحمد سالم الحسني",
-            "description": "Read-only display name derived from the four name parts."
+            "example": "محمد أحمد الحسني",
+            "description": "Read-only display name: first / father / family, without اسم الجد. Compose the full four-part name from the parts above if you need it."
           },
           "email": {
             "type": "string",
@@ -9119,8 +9119,8 @@
           "user_name": {
             "type": "object",
             "nullable": true,
-            "example": "أحمد محمد علي المدير",
-            "description": "Full display name of the staff member (null if unavailable)."
+            "example": "أحمد محمد المدير",
+            "description": "Display name of the staff member — first / father / family, without اسم الجد (null if unavailable)."
           },
           "user_photo_url": {
             "type": "object",
@@ -9787,8 +9787,8 @@
           "student_name": {
             "type": "object",
             "nullable": true,
-            "example": "Yusuf Ahmad",
-            "description": "Student's name (denormalized for display)."
+            "example": "يوسف أحمد الغامدي",
+            "description": "Student's display name (denormalized): first / father / family, without اسم الجد."
           },
           "halaqa_id": {
             "type": "number",

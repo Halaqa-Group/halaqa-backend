@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Between, DataSource, EntityManager, In, Repository } from 'typeorm';
 import { ApiMessage } from '../../../common/api-message';
+import { shortNameSql } from '../../../common/person-name';
 import { roundHalfUp } from '../../../common/rounding';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { Achievement } from '../../achievements/entities/achievement.entity';
@@ -388,7 +389,7 @@ export class DailyReportService {
     const map = new Map<number, string>();
     if (!studentIds.length) return map;
     const rows: { id: number; name: string }[] = await this.dataSource.query(
-      `SELECT id, name FROM students WHERE id IN (${studentIds
+      `SELECT id, ${shortNameSql()} AS name FROM students WHERE id IN (${studentIds
         .map(() => '?')
         .join(',')}) AND school_id = ?`,
       [...studentIds, schoolId],
@@ -417,7 +418,7 @@ export class DailyReportService {
     return Boolean(Number(rows[0]?.ok ?? 0));
   }
 
-  /** Active members of the halaqa on `date` (§8.2), with generated full name. */
+  /** Active members of the halaqa on `date` (§8.2), with short display name. */
   private async loadStudents(
     halaqaId: number,
     date: string,
@@ -426,7 +427,7 @@ export class DailyReportService {
       .createQueryBuilder('e')
       .innerJoin('students', 's', 's.id = e.studentId')
       .select('e.studentId', 'id')
-      .addSelect('s.name', 'name')
+      .addSelect(shortNameSql('s'), 'name')
       .where('e.halaqaId = :halaqaId', { halaqaId })
       .andWhere('e.startDate <= :date', { date })
       .andWhere('(e.endDate IS NULL OR e.endDate >= :date)', { date })

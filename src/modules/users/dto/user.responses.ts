@@ -17,8 +17,10 @@ export class UserResponse {
   familyName!: string;
 
   @ApiProperty({
-    example: 'أحمد محمد علي المدير',
-    description: 'Read-only display name derived from the four name parts.',
+    example: 'أحمد محمد المدير',
+    description:
+      'Read-only display name: first / father / family, without اسم الجد. ' +
+      'Compose the full four-part name from the parts above if you need it.',
   })
   name!: string;
 

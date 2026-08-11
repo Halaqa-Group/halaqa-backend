@@ -109,8 +109,9 @@ export class AchievementDto {
   @ApiProperty({
     required: false,
     nullable: true,
-    example: 'Yusuf Ahmad',
-    description: "Student's name (denormalized for display).",
+    example: 'يوسف أحمد الغامدي',
+    description:
+      "Student's display name (denormalized): first / father / family, without اسم الجد.",
   })
   student_name?: string | null;
 

@@ -155,8 +155,9 @@ export class MeResponse {
   familyName!: string;
 
   @ApiProperty({
-    example: 'أحمد محمد علي المدير',
-    description: 'Read-only display name derived from the four name parts.',
+    example: 'أحمد محمد المدير',
+    description:
+      'Read-only display name: first / father / family, without اسم الجد.',
   })
   name!: string;
 

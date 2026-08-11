@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { buildShortName } from '../../../common/person-name';
 import { ATTENDANCE_STATUSES } from '../entities/student-attendance.entity';
 import type { AttendanceStatus } from '../entities/student-attendance.entity';
 import { TeacherAttendance } from '../entities/teacher-attendance.entity';
@@ -12,8 +13,10 @@ export class TeacherAttendanceDto {
 
   @ApiProperty({
     nullable: true,
-    example: 'أحمد محمد علي المدير',
-    description: 'Full display name of the staff member (null if unavailable).',
+    example: 'أحمد محمد المدير',
+    description:
+      'Display name of the staff member — first / father / family, without ' +
+      'اسم الجد (null if unavailable).',
   })
   user_name!: string | null;
 
@@ -66,7 +69,7 @@ export class TeacherAttendanceDto {
     dto.user_id = a.userId;
     // `user` is only populated when the caller joined it (the list query).
     // Fall back to null so the single-row PATCH response stays valid.
-    dto.user_name = a.user?.name ?? null;
+    dto.user_name = a.user ? buildShortName(a.user) : null;
     dto.user_photo_url = a.user?.photoUrl ?? null;
     dto.user_is_deleted = a.user?.deletedAt != null;
     dto.date = a.attendanceDate;
