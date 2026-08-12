@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -24,13 +25,54 @@ import type { AuthenticatedUser } from '../../../common/types/authenticated-user
 import { CreateWeeklyPlanItemDto } from '../dto/create-weekly-plan-item.dto';
 import { UpdateWeeklyPlanItemDto } from '../dto/update-weekly-plan-item.dto';
 import { WeeklyPlanItemDto } from '../mappers/plan-item.dto';
+import { PlanItemLinksData, PlanLinkDto } from '../mappers/plan-link.dto';
 import { PlanItemsService } from '../services/plan-items.service';
+import { WeeklyPlansService } from '../services/weekly-plans.service';
 
 @ApiTags('Plan Items')
 @ApiBearerAuth('access-token')
 @Controller()
 export class PlanItemsController {
-  constructor(private readonly service: PlanItemsService) {}
+  constructor(
+    private readonly service: PlanItemsService,
+    // Link reads reuse the plan's read-scope rules (parents included).
+    private readonly plans: WeeklyPlansService,
+  ) {}
+
+  // ─── Settlement links ─────────────────────────────────────────────────────
+
+  @Get('weekly-plan-items/:id/links')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher', 'parent')
+  @ApiOperation({
+    summary: "Get one item's achievement links",
+    description:
+      'Returns the **stored** settlement rows credited to this plan item — which ' +
+      'approved achievement covered which verse span of it. Written solely by ' +
+      'reconciliation; a client must never infer the linkage by comparing ranges. ' +
+      '`links[].credited_verses` always sums to `achieved_verses`, so an item ' +
+      'showing 0 achieved returns an empty list by construction.\n\n' +
+      'Spans recited outside every item of the week are **not** here — they carry ' +
+      'no item and are returned by `GET /weekly-plans/:id/links` under ' +
+      '`outside_plan`.',
+  })
+  @ApiParam({ name: 'id', description: 'Plan item ID' })
+  @ApiResponse({ status: 200, type: PlanItemLinksData })
+  @ApiResponse({ status: 404, description: 'Item not found or out of scope.' })
+  async findLinks(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<PlanItemLinksData> {
+    const { item, links, achievements } = await this.plans.findItemLinks(
+      id,
+      actor,
+    );
+    return PlanItemLinksData.fromEntity(
+      item,
+      links.map((l) =>
+        PlanLinkDto.fromEntity(l, achievements.get(l.achievementId)),
+      ),
+    );
+  }
 
   // ─── Add item to plan ─────────────────────────────────────────────────────
 

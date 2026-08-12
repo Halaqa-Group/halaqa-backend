@@ -24,8 +24,12 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { CreateWeeklyPlanDto } from '../dto/create-weekly-plan.dto';
-import { ListWeeklyPlansQuery } from '../dto/list-weekly-plans.query';
+import {
+  ListWeeklyPlansQuery,
+  WeeklyPlanIncludeQuery,
+} from '../dto/list-weekly-plans.query';
 import { WeeklyPlanDto, WeeklyPlanListData } from '../mappers/plan-item.dto';
+import { PlanLinkDto, PlanLinksData } from '../mappers/plan-link.dto';
 import { WeeklyPlansService } from '../services/weekly-plans.service';
 
 @ApiTags('Weekly Plans')
@@ -111,13 +115,18 @@ export class WeeklyPlansController {
       '- **principal / vice_principal**: all plans in the school.\n' +
       '- **supervisor**: plans for halaqat they supervise.\n' +
       '- **teacher**: plans for halaqat they are assigned to.\n' +
-      '- **parent**: plans for their linked students only.',
+      '- **parent**: plans for their linked students only.\n\n' +
+      'Pass `?include=links` to embed each plan’s stored settlement (`links` + ' +
+      '`outside_plan`) — one extra query for the whole page, so a halaqa- or ' +
+      'student-scoped week needs a single request. Costly on wide pages: narrow ' +
+      'with `halaqa_id` / `student_id` / `week_start_date` before asking for it.',
   })
   @ApiResponse({ status: 200, type: WeeklyPlanListData })
   async findAll(
     @Query() query: ListWeeklyPlansQuery,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<WeeklyPlanListData> {
+    const withLinks = query.include === 'links';
     const result = await this.service.findAll(
       {
         studentId: query.student_id,
@@ -126,14 +135,73 @@ export class WeeklyPlansController {
         status: query.status,
         page: query.page,
         limit: query.limit,
+        includeLinks: withLinks,
       },
       actor,
     );
+
+    const byPlan = new Map<number, PlanLinkDto[]>();
+    for (const link of result.links) {
+      const dto = PlanLinkDto.fromEntity(
+        link,
+        result.achievements.get(link.achievementId),
+      );
+      const list = byPlan.get(link.weeklyPlanId);
+      if (list) list.push(dto);
+      else byPlan.set(link.weeklyPlanId, [dto]);
+    }
+
     return {
-      items: result.items.map(WeeklyPlanDto.fromEntity),
+      // `?? []` and not `undefined`: a plan with no links still reports an empty
+      // list, so the client can tell "none" from "not requested".
+      items: result.items.map((plan) =>
+        WeeklyPlanDto.fromEntity(
+          plan,
+          withLinks ? (byPlan.get(plan.id) ?? []) : undefined,
+        ),
+      ),
       total: result.total,
       page: result.page,
       limit: result.limit,
+    };
+  }
+
+  // ─── Settlement links ─────────────────────────────────────────────────────
+
+  @Get(':id/links')
+  @Roles('principal', 'vice_principal', 'supervisor', 'teacher', 'parent')
+  @ApiOperation({
+    summary: "Get the plan's achievement ↔ plan-item links",
+    description:
+      'Returns the **stored** settlement for the week: which approved achievement ' +
+      'credited which verse span of which plan item, as materialized by ' +
+      'reconciliation. Clients must render this, never infer a link by comparing ' +
+      'an achievement range to an item range — reconciliation is week-scoped and ' +
+      'consumption-ordered, so overlap alone does not imply a link.\n\n' +
+      '- `links` — credited to an item; group by `weekly_plan_item_id`. ' +
+      "Each item's rows sum to its `achieved_verses`.\n" +
+      '- `outside_plan` — recited but planned by no item that week. Belongs to ' +
+      'the week; do not render under an item.\n\n' +
+      'Same visibility as `GET /weekly-plans/:id`.',
+  })
+  @ApiParam({ name: 'id', description: 'Weekly plan ID' })
+  @ApiResponse({ status: 200, type: PlanLinksData })
+  @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
+  async findLinks(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<PlanLinksData> {
+    const { plan, links, achievements } = await this.service.findLinks(
+      id,
+      actor,
+    );
+    const mapped = links.map((l) =>
+      PlanLinkDto.fromEntity(l, achievements.get(l.achievementId)),
+    );
+    return {
+      weekly_plan_id: plan.id,
+      links: mapped.filter((l) => l.weekly_plan_item_id !== null),
+      outside_plan: mapped.filter((l) => l.weekly_plan_item_id === null),
     };
   }
 
@@ -145,6 +213,8 @@ export class WeeklyPlansController {
     summary: 'Get weekly plan detail',
     description:
       'Returns the plan with all its items. ' +
+      'Pass `?include=links` to embed its settlement (`links` + `outside_plan`) ' +
+      'in the same response. ' +
       'Out-of-scope or cross-school access returns 404 (never 403).',
   })
   @ApiParam({ name: 'id', description: 'Weekly plan ID' })
@@ -152,8 +222,22 @@ export class WeeklyPlansController {
   @ApiResponse({ status: 404, description: 'Not found or out of scope.' })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @Query() query: WeeklyPlanIncludeQuery,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<WeeklyPlanDto> {
+    if (query.include === 'links') {
+      // findLinks already loads the plan with its items under the same scope check.
+      const { plan, links, achievements } = await this.service.findLinks(
+        id,
+        actor,
+      );
+      return WeeklyPlanDto.fromEntity(
+        plan,
+        links.map((l) =>
+          PlanLinkDto.fromEntity(l, achievements.get(l.achievementId)),
+        ),
+      );
+    }
     const plan = await this.service.findOne(id, actor);
     return WeeklyPlanDto.fromEntity(plan);
   }

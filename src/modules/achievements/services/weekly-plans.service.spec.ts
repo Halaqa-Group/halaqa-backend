@@ -88,6 +88,7 @@ const makePlansRepo = () => ({
 const makeItemsRepo = () => ({
   create: jest.fn().mockImplementation((x: unknown) => x),
   find: jest.fn().mockResolvedValue([]),
+  findOne: jest.fn(),
 });
 
 /** Returns query results in call order; the last entry repeats once exhausted. */
@@ -115,10 +116,20 @@ const makeReconciliation = () =>
     reconcileStudentWeek: jest.fn().mockResolvedValue(undefined),
   }) as unknown as PlanReconciliationService;
 
+const makeLinksRepo = () => ({
+  find: jest.fn().mockResolvedValue([]),
+});
+
+const makeAchievementsRepo = () => ({
+  find: jest.fn().mockResolvedValue([]),
+});
+
 const makeService = (
   overrides: {
     plans?: ReturnType<typeof makePlansRepo>;
     items?: ReturnType<typeof makeItemsRepo>;
+    links?: ReturnType<typeof makeLinksRepo>;
+    achievements?: ReturnType<typeof makeAchievementsRepo>;
     ds?: DataSource;
     audit?: AuditService;
     recon?: PlanReconciliationService;
@@ -127,6 +138,8 @@ const makeService = (
   new WeeklyPlansService(
     (overrides.plans ?? makePlansRepo()) as never,
     (overrides.items ?? makeItemsRepo()) as never,
+    (overrides.links ?? makeLinksRepo()) as never,
+    (overrides.achievements ?? makeAchievementsRepo()) as never,
     overrides.ds ?? makeDataSource(),
     overrides.audit ?? makeAudit(),
     overrides.recon ?? makeReconciliation(),
@@ -488,6 +501,174 @@ describe('WeeklyPlansService', () => {
       await expect(service.findOne(1, makeTeacherActor())).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  // ─── Settlement links ───────────────────────────────────────────────────────
+
+  /** Chainable QueryBuilder stub returning a fixed page. */
+  const makeQb = (rows: WeeklyPlan[]) => {
+    const qb: Record<string, jest.Mock> = {};
+    for (const method of [
+      'leftJoinAndSelect',
+      'where',
+      'andWhere',
+      'orderBy',
+      'addOrderBy',
+      'skip',
+      'take',
+    ])
+      qb[method] = jest.fn(() => qb);
+    qb.getManyAndCount = jest.fn().mockResolvedValue([rows, rows.length]);
+    return qb;
+  };
+
+  describe('findAll({ includeLinks })', () => {
+    it('loads the whole page’s links in one query, not one per plan', async () => {
+      const plans = makePlansRepo();
+      plans.createQueryBuilder.mockReturnValue(
+        makeQb([makePlan({ id: 1 }), makePlan({ id: 2 })]),
+      );
+      const links = makeLinksRepo();
+      links.find.mockResolvedValue([{ achievementId: 7, weeklyPlanId: 2 }]);
+      const achievements = makeAchievementsRepo();
+      achievements.find.mockResolvedValue([{ id: 7 }]);
+
+      const service = makeService({ plans, links, achievements });
+      const result = await service.findAll({ includeLinks: true }, makeActor());
+
+      expect(links.find).toHaveBeenCalledTimes(1);
+      expect(result.links).toHaveLength(1);
+      expect(result.achievements.get(7)).toEqual({ id: 7 });
+    });
+
+    it('does not touch the links table when not asked', async () => {
+      const plans = makePlansRepo();
+      plans.createQueryBuilder.mockReturnValue(makeQb([makePlan()]));
+      const links = makeLinksRepo();
+
+      const service = makeService({ plans, links });
+      const result = await service.findAll({}, makeActor());
+
+      expect(links.find).not.toHaveBeenCalled();
+      expect(result.links).toEqual([]);
+    });
+
+    it('skips the links query for an empty page', async () => {
+      const plans = makePlansRepo();
+      plans.createQueryBuilder.mockReturnValue(makeQb([]));
+      const links = makeLinksRepo();
+
+      const service = makeService({ plans, links });
+
+      await service.findAll({ includeLinks: true }, makeActor());
+      expect(links.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findLinks()', () => {
+    it('returns the plan’s stored rows and the achievements they credit', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(makePlan());
+      const links = makeLinksRepo();
+      links.find.mockResolvedValue([
+        { achievementId: 7, weeklyPlanItemId: 44 },
+        { achievementId: 7, weeklyPlanItemId: null },
+      ]);
+      const achievements = makeAchievementsRepo();
+      achievements.find.mockResolvedValue([{ id: 7 }]);
+
+      const service = makeService({ plans, links, achievements });
+      const result = await service.findLinks(1, makeActor());
+
+      expect(result.links).toHaveLength(2);
+      expect(result.achievements.get(7)).toEqual({ id: 7 });
+      // One lookup for the whole set, not one per row.
+      expect(achievements.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips the achievement lookup when the plan has no links', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(makePlan());
+      const achievements = makeAchievementsRepo();
+
+      const service = makeService({ plans, achievements });
+      const result = await service.findLinks(1, makeActor());
+
+      expect(result.links).toEqual([]);
+      expect(achievements.find).not.toHaveBeenCalled();
+    });
+
+    it('lets a parent read their own child’s links', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(makePlan());
+      const ds = makeDataSource([HIT]);
+
+      const service = makeService({ plans, ds });
+
+      await expect(
+        service.findLinks(1, makeParentActor()),
+      ).resolves.toBeDefined();
+    });
+
+    it('throws NotFoundException for an out-of-scope teacher', async () => {
+      const plans = makePlansRepo();
+      plans.findOne.mockResolvedValue(makePlan());
+      const ds = makeDataSource([MISS]);
+
+      const service = makeService({ plans, ds });
+
+      await expect(service.findLinks(1, makeTeacherActor())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('findItemLinks()', () => {
+    const makeItem = (plan = makePlan()) => ({
+      id: 44,
+      weeklyPlanId: plan.id,
+      totalVerses: 137,
+      achievedVerses: 137,
+      status: 'completed',
+      weeklyPlan: plan,
+    });
+
+    it('queries only that item’s rows — outside-plan rows carry no item', async () => {
+      const items = makeItemsRepo();
+      items.findOne.mockResolvedValue(makeItem());
+      const links = makeLinksRepo();
+
+      const service = makeService({ items, links });
+      const result = await service.findItemLinks(44, makeActor());
+
+      expect(result.item.id).toBe(44);
+      expect(links.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { weeklyPlanItemId: 44 } }),
+      );
+    });
+
+    it('throws NotFoundException across schools', async () => {
+      const items = makeItemsRepo();
+      items.findOne.mockResolvedValue(makeItem(makePlan({ schoolId: 99 })));
+
+      const service = makeService({ items });
+
+      await expect(service.findItemLinks(44, makeActor())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException for an out-of-scope teacher', async () => {
+      const items = makeItemsRepo();
+      items.findOne.mockResolvedValue(makeItem());
+      const ds = makeDataSource([MISS]);
+
+      const service = makeService({ items, ds });
+
+      await expect(
+        service.findItemLinks(44, makeTeacherActor()),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -6,11 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { DomainEvents } from '../../../common/events/domain-events';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user';
 import { AuditService } from '../../audit/audit.service';
 import { QuranRangeValidator } from '../../../quran/quran-range.validator';
+import { AchievementPlanItemLink } from '../entities/achievement-plan-item-link.entity';
+import { Achievement } from '../entities/achievement.entity';
 import type { TrackType } from '../entities/achievement.entity';
 import { WeeklyPlanItem } from '../entities/weekly-plan-item.entity';
 import type { WeeklyPlanStatus } from '../entities/weekly-plan.entity';
@@ -48,6 +50,8 @@ export interface ListWeeklyPlansFilter {
   status?: WeeklyPlanStatus;
   page?: number;
   limit?: number;
+  /** Also load the page's settlement rows (one extra query, not one per plan). */
+  includeLinks?: boolean;
 }
 
 export interface WeeklyPlanListResult {
@@ -55,6 +59,22 @@ export interface WeeklyPlanListResult {
   total: number;
   page: number;
   limit: number;
+  /** Every returned plan's rows, flat. Empty unless `includeLinks` was set. */
+  links: AchievementPlanItemLink[];
+  achievements: Map<number, Achievement>;
+}
+
+/** Settlement rows plus the achievements they credit, keyed by id. */
+export interface PlanLinksResult {
+  plan: WeeklyPlan;
+  links: AchievementPlanItemLink[];
+  achievements: Map<number, Achievement>;
+}
+
+export interface PlanItemLinksResult {
+  item: WeeklyPlanItem;
+  links: AchievementPlanItemLink[];
+  achievements: Map<number, Achievement>;
 }
 
 @Injectable()
@@ -64,6 +84,10 @@ export class WeeklyPlansService {
     private readonly plans: Repository<WeeklyPlan>,
     @InjectRepository(WeeklyPlanItem)
     private readonly planItems: Repository<WeeklyPlanItem>,
+    @InjectRepository(AchievementPlanItemLink)
+    private readonly links: Repository<AchievementPlanItemLink>,
+    @InjectRepository(Achievement)
+    private readonly achievements: Repository<Achievement>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly reconciliation: PlanReconciliationService,
@@ -351,7 +375,29 @@ export class WeeklyPlansService {
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
-    return { items, total, page, limit };
+
+    // One IN-query for the whole page, never one per plan.
+    const links =
+      filter.includeLinks && items.length
+        ? await this.links.find({
+            where: { weeklyPlanId: In(items.map((p) => p.id)) },
+            order: {
+              weeklyPlanId: 'ASC',
+              planDayOfWeek: 'ASC',
+              startGlobalAyah: 'ASC',
+              id: 'ASC',
+            },
+          })
+        : [];
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      links,
+      achievements: await this.loadLinkAchievements(links),
+    };
   }
 
   async findOne(id: number, actor: AuthenticatedUser): Promise<WeeklyPlan> {
@@ -360,6 +406,77 @@ export class WeeklyPlansService {
       throw new NotFoundException();
     }
     return plan;
+  }
+
+  // ─── Settlement links (read-only) ─────────────────────────────────────────
+
+  private async loadLinkAchievements(
+    links: AchievementPlanItemLink[],
+  ): Promise<Map<number, Achievement>> {
+    const ids = [...new Set(links.map((l) => l.achievementId))];
+    if (!ids.length) return new Map();
+    const rows = await this.achievements.find({ where: { id: In(ids) } });
+    return new Map(rows.map((a) => [a.id, a]));
+  }
+
+  /**
+   * The plan's materialized settlement — which achievement credited which span of
+   * which item. Read-only: these rows are written solely by
+   * `PlanReconciliationService`, so a client must never re-derive the linkage by
+   * comparing ranges itself (it has no way to know what an earlier item already
+   * consumed, and would happily attach a non-overlapping achievement to an item).
+   */
+  async findLinks(
+    planId: number,
+    actor: AuthenticatedUser,
+  ): Promise<PlanLinksResult> {
+    const plan = await this.loadOrFail(planId, actor.schoolId);
+    if (!(await this.hasReadScope(plan.halaqaId, plan.studentId, actor))) {
+      throw new NotFoundException();
+    }
+
+    const links = await this.links.find({
+      where: { weeklyPlanId: plan.id },
+      order: { planDayOfWeek: 'ASC', startGlobalAyah: 'ASC', id: 'ASC' },
+    });
+    return {
+      plan,
+      links,
+      achievements: await this.loadLinkAchievements(links),
+    };
+  }
+
+  /** One item's settlement rows. Outside-plan rows are NULL-item and never match. */
+  async findItemLinks(
+    itemId: number,
+    actor: AuthenticatedUser,
+  ): Promise<PlanItemLinksResult> {
+    const item = await this.planItems.findOne({
+      where: { id: itemId },
+      relations: ['weeklyPlan'],
+    });
+    if (!item || item.weeklyPlan.schoolId !== actor.schoolId) {
+      throw new NotFoundException();
+    }
+    if (
+      !(await this.hasReadScope(
+        item.weeklyPlan.halaqaId,
+        item.weeklyPlan.studentId,
+        actor,
+      ))
+    ) {
+      throw new NotFoundException();
+    }
+
+    const links = await this.links.find({
+      where: { weeklyPlanItemId: item.id },
+      order: { startGlobalAyah: 'ASC', id: 'ASC' },
+    });
+    return {
+      item,
+      links,
+      achievements: await this.loadLinkAchievements(links),
+    };
   }
 
   // ─── Approve ──────────────────────────────────────────────────────────────

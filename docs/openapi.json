@@ -4544,7 +4544,7 @@
         ]
       },
       "patch": {
-        "description": "Updates mutable fields on an **unapproved** achievement. Returns 400 if the achievement is approved (unapprove it first). `percentage_score` is updated only when the client sends it (recomputed on the frontend). If surah/verse fields change, the range is re-validated.",
+        "description": "Updates mutable fields on an **unapproved** achievement. Returns 400 if the achievement is approved (unapprove it first). `percentage_score` is updated only when the client sends it (recomputed on the frontend). If surah/verse fields change, the range is re-validated. Sending `date` moves the record to another day and re-checks attendance there.",
         "operationId": "AchievementsController_update",
         "parameters": [
           {
@@ -4579,7 +4579,7 @@
             }
           },
           "400": {
-            "description": "Achievement is approved, or invalid verse range."
+            "description": "Achievement is approved, invalid verse range, or no/absent attendance on the new date."
           },
           "404": {
             "description": "Not found or no halaqa scope."
@@ -4800,9 +4800,22 @@
         ]
       },
       "get": {
-        "description": "Returns a paginated list of weekly plans visible to the caller.\n- **principal / vice_principal**: all plans in the school.\n- **supervisor**: plans for halaqat they supervise.\n- **teacher**: plans for halaqat they are assigned to.\n- **parent**: plans for their linked students only.",
+        "description": "Returns a paginated list of weekly plans visible to the caller.\n- **principal / vice_principal**: all plans in the school.\n- **supervisor**: plans for halaqat they supervise.\n- **teacher**: plans for halaqat they are assigned to.\n- **parent**: plans for their linked students only.\n\nPass `?include=links` to embed each plan’s stored settlement (`links` + `outside_plan`) — one extra query for the whole page, so a halaqa- or student-scoped week needs a single request. Costly on wide pages: narrow with `halaqa_id` / `student_id` / `week_start_date` before asking for it.",
         "operationId": "WeeklyPlansController_findAll",
         "parameters": [
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "Set to `links` to embed each plan’s stored achievement ↔ plan-item settlement as `links` (credited to an item) and `outside_plan` (credited to none). Omitted entirely when not requested — an empty array means \"asked, and there are none\".",
+            "schema": {
+              "example": "links",
+              "type": "string",
+              "enum": [
+                "links"
+              ]
+            }
+          },
           {
             "name": "page",
             "required": false,
@@ -4894,9 +4907,50 @@
         ]
       }
     },
+    "/weekly-plans/{id}/links": {
+      "get": {
+        "description": "Returns the **stored** settlement for the week: which approved achievement credited which verse span of which plan item, as materialized by reconciliation. Clients must render this, never infer a link by comparing an achievement range to an item range — reconciliation is week-scoped and consumption-ordered, so overlap alone does not imply a link.\n\n- `links` — credited to an item; group by `weekly_plan_item_id`. Each item's rows sum to its `achieved_verses`.\n- `outside_plan` — recited but planned by no item that week. Belongs to the week; do not render under an item.\n\nSame visibility as `GET /weekly-plans/:id`.",
+        "operationId": "WeeklyPlansController_findLinks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Weekly plan ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanLinksData"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the plan's achievement ↔ plan-item links",
+        "tags": [
+          "Weekly Plans"
+        ]
+      }
+    },
     "/weekly-plans/{id}": {
       "get": {
-        "description": "Returns the plan with all its items. Out-of-scope or cross-school access returns 404 (never 403).",
+        "description": "Returns the plan with all its items. Pass `?include=links` to embed its settlement (`links` + `outside_plan`) in the same response. Out-of-scope or cross-school access returns 404 (never 403).",
         "operationId": "WeeklyPlansController_findOne",
         "parameters": [
           {
@@ -4906,6 +4960,19 @@
             "description": "Weekly plan ID",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "description": "Set to `links` to embed each plan’s stored achievement ↔ plan-item settlement as `links` (credited to an item) and `outside_plan` (credited to none). Omitted entirely when not requested — an empty array means \"asked, and there are none\".",
+            "schema": {
+              "example": "links",
+              "type": "string",
+              "enum": [
+                "links"
+              ]
             }
           }
         ],
@@ -5068,6 +5135,47 @@
         "summary": "Unapprove a weekly plan",
         "tags": [
           "Weekly Plans"
+        ]
+      }
+    },
+    "/weekly-plan-items/{id}/links": {
+      "get": {
+        "description": "Returns the **stored** settlement rows credited to this plan item — which approved achievement covered which verse span of it. Written solely by reconciliation; a client must never infer the linkage by comparing ranges. `links[].credited_verses` always sums to `achieved_verses`, so an item showing 0 achieved returns an empty list by construction.\n\nSpans recited outside every item of the week are **not** here — they carry no item and are returned by `GET /weekly-plans/:id/links` under `outside_plan`.",
+        "operationId": "PlanItemsController_findLinks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Plan item ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanItemLinksData"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found or out of scope."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one item's achievement links",
+        "tags": [
+          "Plan Items"
         ]
       }
     },
@@ -9978,6 +10086,12 @@
       "UpdateAchievementDto": {
         "type": "object",
         "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-05-11",
+            "description": "Moves the record to another day. The student must have attendance recorded for the new date and must not be marked absent — the same rule create enforces. Denormalized error rows are moved with it."
+          },
           "track_type": {
             "type": "string",
             "enum": [
@@ -10247,6 +10361,161 @@
           "created_at"
         ]
       },
+      "LinkedAchievementDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 812
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-08-03"
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 58
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 66
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 12
+          },
+          "percentage_score": {
+            "type": "number",
+            "example": 100
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse",
+          "percentage_score"
+        ]
+      },
+      "PlanLinkDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 91
+          },
+          "weekly_plan_id": {
+            "type": "number",
+            "example": 12
+          },
+          "weekly_plan_item_id": {
+            "type": "object",
+            "nullable": true,
+            "example": 44,
+            "description": "NULL means the span was recited but planned by no item of that track in that week (\"outside plan\"). Never render such a row under an item."
+          },
+          "track_type": {
+            "type": "string",
+            "enum": [
+              "Hifz",
+              "Near",
+              "Far"
+            ],
+            "example": "Far"
+          },
+          "plan_day_of_week": {
+            "type": "object",
+            "nullable": true,
+            "example": 2,
+            "description": "The credited item's day (0=Saturday). NULL for outside-plan."
+          },
+          "achievement_id": {
+            "type": "number",
+            "example": 812
+          },
+          "achievement_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-08-03",
+            "description": "The achievement's own date — may differ from the item's planned day."
+          },
+          "start_surah": {
+            "type": "number",
+            "example": 58,
+            "description": "Credited span — start."
+          },
+          "start_verse": {
+            "type": "number",
+            "example": 1
+          },
+          "end_surah": {
+            "type": "number",
+            "example": 66,
+            "description": "Credited span — end."
+          },
+          "end_verse": {
+            "type": "number",
+            "example": 12
+          },
+          "start_global_ayah": {
+            "type": "number",
+            "example": 5127
+          },
+          "end_global_ayah": {
+            "type": "number",
+            "example": 5263
+          },
+          "credited_verses": {
+            "type": "number",
+            "example": 137
+          },
+          "credited_pages": {
+            "type": "number",
+            "example": 20.25
+          },
+          "percentage_score": {
+            "type": "number",
+            "example": 100,
+            "description": "The crediting achievement's score at settlement time."
+          },
+          "achievement": {
+            "nullable": true,
+            "description": "NULL only if the achievement row has since vanished.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkedAchievementDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "weekly_plan_id",
+          "weekly_plan_item_id",
+          "track_type",
+          "plan_day_of_week",
+          "achievement_id",
+          "achievement_date",
+          "start_surah",
+          "start_verse",
+          "end_surah",
+          "end_verse",
+          "start_global_ayah",
+          "end_global_ayah",
+          "credited_verses",
+          "credited_pages",
+          "percentage_score",
+          "achievement"
+        ]
+      },
       "WeeklyPlanDto": {
         "type": "object",
         "properties": {
@@ -10289,6 +10558,20 @@
           "created_at": {
             "type": "string",
             "example": "2026-05-09T10:00:00.000Z"
+          },
+          "links": {
+            "description": "Only present with `?include=links`. Settlement rows credited to an item — group by `weekly_plan_item_id`; each item’s rows sum to its `achieved_verses`. Never infer this linkage client-side.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLinkDto"
+            }
+          },
+          "outside_plan": {
+            "description": "Only present with `?include=links`. Recited but planned by no item that week (`weekly_plan_item_id` is always null). Belongs to the week — do not render under an item.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLinkDto"
+            }
           }
         },
         "required": [
@@ -10329,6 +10612,79 @@
           "total",
           "page",
           "limit"
+        ]
+      },
+      "PlanLinksData": {
+        "type": "object",
+        "properties": {
+          "weekly_plan_id": {
+            "type": "number",
+            "example": 12
+          },
+          "links": {
+            "description": "Rows credited to an item; `weekly_plan_item_id` is always set. Group by it to render per item.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLinkDto"
+            }
+          },
+          "outside_plan": {
+            "description": "Recited but planned by no item that week; `weekly_plan_item_id` is always null. Belongs to the week, not to any single item or day.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLinkDto"
+            }
+          }
+        },
+        "required": [
+          "weekly_plan_id",
+          "links",
+          "outside_plan"
+        ]
+      },
+      "PlanItemLinksData": {
+        "type": "object",
+        "properties": {
+          "weekly_plan_item_id": {
+            "type": "number",
+            "example": 44
+          },
+          "weekly_plan_id": {
+            "type": "number",
+            "example": 12
+          },
+          "total_verses": {
+            "type": "number",
+            "example": 137
+          },
+          "achieved_verses": {
+            "type": "number",
+            "example": 137,
+            "description": "Always equals the sum of `links[].credited_verses`."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "due",
+              "overdue",
+              "partial",
+              "completed"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLinkDto"
+            }
+          }
+        },
+        "required": [
+          "weekly_plan_item_id",
+          "weekly_plan_id",
+          "total_verses",
+          "achieved_verses",
+          "status",
+          "links"
         ]
       },
       "UpdateWeeklyPlanItemDto": {

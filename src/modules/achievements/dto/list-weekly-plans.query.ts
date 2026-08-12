@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   Max,
@@ -10,7 +11,24 @@ import {
 } from 'class-validator';
 import type { WeeklyPlanStatus } from '../entities/weekly-plan.entity';
 
-export class ListWeeklyPlansQuery {
+/** Opt-in embedding of the plan's materialized settlement rows. */
+export class WeeklyPlanIncludeQuery {
+  @ApiProperty({
+    required: false,
+    enum: ['links'],
+    example: 'links',
+    description:
+      'Set to `links` to embed each plan’s stored achievement ↔ plan-item ' +
+      'settlement as `links` (credited to an item) and `outside_plan` ' +
+      '(credited to none). Omitted entirely when not requested — an empty ' +
+      'array means "asked, and there are none".',
+  })
+  @IsOptional()
+  @IsIn(['links'])
+  include?: 'links';
+}
+
+export class ListWeeklyPlansQuery extends WeeklyPlanIncludeQuery {
   @ApiProperty({
     required: false,
     example: 1,
