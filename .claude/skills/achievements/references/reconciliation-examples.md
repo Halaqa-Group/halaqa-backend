@@ -1,6 +1,6 @@
 # Reconciliation — worked examples
 
-The model is **invoice + payments**, reconciled **per week, not per day**. Each plan item is an invoice with a target verse range. Each approved achievement recorded anywhere in the plan's week is a payment. Reconciliation runs over the whole plan at once: it builds a per-track pool of all achieved verses in the week, then walks items in priority order (`day_of_week` ascending, then `id`) and lets each item **consume** the pool verses it covers. Consumed verses are removed, so a verse planned in two items credits only the earlier one. The item is `completed` when its planned verse range is fully claimed.
+The model is **invoice + payments**, reconciled **per week, not per day**. Each plan item is an invoice with a target verse range. Each approved achievement recorded anywhere in the plan's week is a payment that **keeps its own unspent verses**. Reconciliation runs over the whole plan at once: it walks items in priority order (`day_of_week` ascending, then `order`, then `id`), and each item is paid by the achievements in chronological order (`date`, then `approved_at`, then `id`). A verse of a payment is spent once, so one recitation of a twice-planned range settles only the earlier item — but a **repeat** recitation settles the next one. The item is `completed` when its planned verse range is fully paid.
 
 ## Notation
 
@@ -149,11 +149,28 @@ The item's history shows the round-trip in the audit log (unapprove, update, app
 **Achievement A:** Tuesday, Hifz, `2:1–2:10`, approved. Covers the verses once.
 
 Reconciliation walks items in priority order (day asc): Monday first, then Wednesday.
-- Pool (Hifz) = `{2:1 … 2:10}`.
-- **Monday M:** claims `2:1–2:10` = 10. Pool now empty. `achieved_verses` = 10 → **completed**.
-- **Wednesday W:** claims `∅` (verses already consumed). `achieved_verses` = 0 → **due** (if today ≤ Wed) or **overdue**.
+- **Monday M:** A pays `2:1–2:10` = 10. A is now fully spent. `achieved_verses` = 10 → **completed**.
+- **Wednesday W:** nothing unspent covers its range. `achieved_verses` = 0 → **due** (if today ≤ Wed) or **overdue**.
 
-The single achievement settles the earliest item only. This is "priority to the earliest item in the week." If instead A covered `2:1–2:20`, Monday would take `2:1–2:10` and Wednesday would still get `∅` for its `2:1–2:10` range (the extra `2:11–2:20` is unmatched unless another item plans it).
+The single achievement settles the earliest item only — the student recited that content once, so only one item is paid. This is "priority to the earliest item in the week." If instead A covered `2:1–2:20`, Monday would take `2:1–2:10` and Wednesday would still get nothing for its `2:1–2:10` range (the extra `2:11–2:20` is unmatched unless another item plans it).
+
+## Example 12 — repetition: the repeat settles the duplicate item
+
+Same plan as example 11 (Monday M and Wednesday W both plan `2:1–2:10`), but the student actually recited the range twice.
+
+**Achievement A:** Monday, Hifz, `2:1–2:10`, score 85, approved.
+**Achievement B:** Wednesday, Hifz, `2:1–2:10`, score 95, approved.
+
+Reconciliation:
+- **Monday M** is paid first, by the **oldest** achievement that covers it → A. `achieved_verses` = 10 → **completed**, linked to A (score 85).
+- **Wednesday W:** A is spent, but B is untouched → B pays `2:1–2:10`. `achieved_verses` = 10 → **completed**, linked to B (score 95).
+
+Note the attribution is **chronological, not by score**: the higher-scoring B does not displace A on the Monday item.
+
+Variations:
+- **A third recitation C** (same range, Friday): both items are already paid, so C stays unspent and is stored as an outside-plan link (`weekly_plan_item_id` NULL) — extra work beyond the week's plan, even though its verses lie inside a planned range.
+- **B covers only `2:1–2:3`:** Monday completes from A, Wednesday gets 3 verses → **partial**.
+- **Only one item plans the range but the student recited twice:** the item completes from A, and B lands outside-plan.
 
 ## Implementation note
 

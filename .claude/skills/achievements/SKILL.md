@@ -386,7 +386,9 @@ Audit: `weekly_plan.delete`.
 
 ## Reconciliation — achievements ↔ plan items
 
-This is the central piece of business logic. Model it as **invoice + payments**: each plan item is an invoice with a target verse range; each approved achievement is a payment. Reconciliation is **week-scoped, not day-scoped**: a payment made on *any* day of the plan's week settles the week's items, and each achieved verse is *consumed* by exactly one item — the earliest in the week claims it first.
+This is the central piece of business logic. Model it as **invoice + payments**: each plan item is an invoice with a target verse range; each approved achievement is a payment. Reconciliation is **week-scoped, not day-scoped**: a payment made on *any* day of the plan's week settles the week's items, and each verse of a payment is spent on exactly one item — the earliest in the week is paid first.
+
+**Repetition counts.** Payments are *not* deduplicated into one pool: reciting the same range twice is two payments, so two items planning that range settle one each (the older recitation pays the earlier item). One recitation of a twice-planned range still pays only the first item.
 
 ### When reconciliation runs
 
@@ -421,22 +423,25 @@ An achievement contributes to a plan item when **all** of:
 - Same `halaqa_id`.
 - Same `track_type`.
 - Achievement's `date` falls **anywhere within the plan's week** (`week_start_date … week_start_date + 6`). The achievement's day-of-week does **not** need to equal the item's `day_of_week`.
-- The verse ranges overlap (any verse in common) **and** the overlapping verses haven't already been consumed by an earlier item.
+- The verse ranges overlap (any verse in common) **and** the achievement's overlapping verses haven't already been spent on an earlier item.
 
 An achievement may contribute to zero, one, or more plan items.
 
 ### The math
 
-For each plan, per `track_type`, build a **pool** = the set union of all approved, non-deleted achievement verses recorded anywhere in the week. Then walk items in **priority order** (`day_of_week` ascending, then `order` ascending, then `id` ascending), letting each item consume the pool verses it covers:
+For each plan, per `track_type`, take the approved, non-deleted achievements recorded anywhere in the week; **each keeps its own unspent verses** (`unspentₐ`, initially its whole range). Walk items in **priority order** (`day_of_week` ascending, then `order` ascending, then `id` ascending); each item is paid by the achievements in **chronological order** (`date`, then `approved_at`, then `id`):
 
 ```
-poolₜ = ⋃ (achievement.range)   over approved, non-deleted achievements in the week with track t
-
 for each item (ordered by day_of_week asc, then order asc, then id asc):
-    claimed        = item.range ∩ pool[item.track]
-    achieved_verses = |claimed|
-    pool[item.track] -= claimed          // consume — a later item can't reclaim these verses
-    total_verses    = |item.range|        // stored; changes only on range edit
+    want = item.range
+    for each achievement a of item.track (ordered by date asc, approved_at asc, id asc):
+        paid    = want ∩ unspentₐ
+        credit  paid to (item, a)          // one achievement_plan_item_links row per stretch
+        want   -= paid                     // no verse of the item is credited twice
+        unspentₐ -= paid                   // a spent payment can't settle another item
+
+    achieved_verses = |item.range| - |want|
+    total_verses    = |item.range|          // stored; changes only on range edit
 
     status:
       if achieved_verses >= total_verses:  'completed'
@@ -445,7 +450,12 @@ for each item (ordered by day_of_week asc, then order asc, then id asc):
       else:                                'overdue'
 ```
 
-Set union, not arithmetic addition — two achievements covering the same verses don't double-count. Consumption means two *items* planning the same verse don't both get credit; the earlier one wins. All of it is interval arithmetic over **global ayah indices** (`src/quran/range-union.ts`), shared with the report's page math — never re-expand ranges into per-verse `Set`s.
+Two consequences to keep straight:
+
+- **Within one item**, overlapping achievements never double-count — `want` shrinks as each pays in, so `achieved_verses ≤ total_verses` always.
+- **Across items**, a payment is spent once. One recitation of a range planned on both Monday and Wednesday settles Monday only; a **second** recitation settles Wednesday. This is the difference from the old union-pool model, where the repeat was invisible and the Wednesday item stayed at 0 forever.
+
+All of it is interval arithmetic over **global ayah indices** (`src/quran/range-union.ts`), shared with the report's page math — never re-expand ranges into per-verse `Set`s.
 
 ### The settlement links (`achievement_plan_item_links`)
 
@@ -458,9 +468,9 @@ settleTrack(items /* already in priority order */, achievements): {
 }
 ```
 
-Within a claimed stretch, overlapping achievements are split at their boundaries and each atomic segment goes to the **best** covering achievement — highest `percentage_score`, then latest `approved_at`, then highest `id`. Adjacent segments with the same winner merge.
+Each item is paid by the **oldest** achievements first — `date`, then `approved_at`, then `id`. `percentage_score` does **not** select the payer: when a range is recited twice, the Monday recitation belongs on the Monday item, not the better-scoring one. Adjacent segments credited to the same achievement merge.
 
-Each segment becomes one `achievement_plan_item_links` row (`weekly_plan_item_id` NULL for `outside`), carrying the credited global-ayah span, verses, pages, and the winner's score.
+Each segment becomes one `achievement_plan_item_links` row (`weekly_plan_item_id` NULL for `outside`), carrying the credited global-ayah span, verses, pages, and the paying achievement's score.
 
 Two rules make this safe:
 
@@ -471,11 +481,11 @@ Because the link rows are the report's input, **any new reconciliation trigger m
 
 ### Cross-day / cross-week
 
-Within a week, day-of-week is irrelevant to *matching* — it only sets **priority order** for consumption. An achievement on Wednesday can complete a Monday item (and vice-versa), as long as ranges overlap and the verses aren't already consumed by an earlier-ordered item. An achievement outside the plan's `[week_start, week_start+6]` window doesn't contribute.
+Within a week, day-of-week is irrelevant to *matching* — it only sets **priority order** for payment. An achievement on Wednesday can complete a Monday item (and vice-versa), as long as ranges overlap and the achievement isn't already spent on an earlier-ordered item. An achievement outside the plan's `[week_start, week_start+6]` window doesn't contribute.
 
 ### Unmatched achievements
 
-An approved achievement whose verses overlap no plan item (or whose verses are all consumed by earlier items) still exists — it's just not credited. The part planned by no item is stored as an `achievement_plan_item_links` row with a NULL `weekly_plan_item_id`, which is what the report renders as `outsidePlanSegments`. The achievement isn't lost or hidden.
+An approved achievement whose verses overlap no plan item still exists — it's just not credited. So does a **surplus repeat**: recite a range three times where only two items plan it, and the third recitation is unspent. Either way the unspent part is stored as an `achievement_plan_item_links` row with a NULL `weekly_plan_item_id`, which is what the report renders as `outsidePlanSegments`. Note that a surplus repeat therefore produces an outside-plan row whose verses *are* inside a planned range — that's intended: it's extra work beyond what the week planned, and it's never lost or hidden.
 
 ### Future async swap
 

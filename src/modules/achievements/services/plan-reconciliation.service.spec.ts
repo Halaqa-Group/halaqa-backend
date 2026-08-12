@@ -559,19 +559,120 @@ describe('PlanReconciliationService', () => {
       });
     });
 
-    it('credits a contested verse to the higher-scoring achievement', async () => {
+    it('credits a contested verse to the earliest achievement, not the best score', async () => {
       plansRepo.findOne.mockResolvedValue(makePlan());
       achievementsRepo.find.mockResolvedValue([
-        makeAchievement({ id: 100, percentageScore: 70 }),
-        makeAchievement({ id: 101, percentageScore: 95 }),
+        makeAchievement({ id: 100, date: '2026-05-11', percentageScore: 70 }),
+        makeAchievement({ id: 101, date: '2026-05-13', percentageScore: 95 }),
       ]);
 
       await service.reconcilePlan(1);
 
       const links = savedLinks().filter((l) => l.weeklyPlanItemId !== null);
       expect(links).toEqual([
-        expect.objectContaining({ achievementId: 101, percentageScore: 95 }),
+        expect.objectContaining({ achievementId: 100, percentageScore: 70 }),
       ]);
+      // The later repeat is unspent — recited, planned by no remaining item.
+      expect(savedLinks().filter((l) => l.weeklyPlanItemId === null)).toEqual([
+        expect.objectContaining({ achievementId: 101 }),
+      ]);
+    });
+  });
+
+  // ─── Repetition: one payment per recitation ───────────────────────────────
+
+  describe('repeated recitation of the same range', () => {
+    /** Two items planning Al-Fatiha 1–7, Monday (day 1) then Wednesday (day 3). */
+    const duplicateItems = () => [
+      makeItem({ id: 1, dayOfWeek: 1, endVerse: 7, totalVerses: 7 }),
+      makeItem({ id: 2, dayOfWeek: 3, endVerse: 7, totalVerses: 7 }),
+    ];
+
+    it('settles the next duplicate item once the first is paid', async () => {
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: duplicateItems() }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, date: '2026-05-10' }), // Monday
+        makeAchievement({ id: 101, date: '2026-05-12' }), // Wednesday repeat
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(itemsRepo.update).toHaveBeenCalledWith(1, {
+        achievedVerses: 7,
+        status: 'completed',
+      });
+      expect(itemsRepo.update).toHaveBeenCalledWith(2, {
+        achievedVerses: 7,
+        status: 'completed',
+      });
+      // Chronological: the Monday recitation pays the Monday item.
+      expect(savedLinks()).toEqual([
+        expect.objectContaining({ weeklyPlanItemId: 1, achievementId: 100 }),
+        expect.objectContaining({ weeklyPlanItemId: 2, achievementId: 101 }),
+      ]);
+    });
+
+    it('leaves the duplicate item unsettled when the range was recited once', async () => {
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: duplicateItems() }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, date: '2026-05-10' }),
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(itemsRepo.update).toHaveBeenCalledWith(1, {
+        achievedVerses: 7,
+        status: 'completed',
+      });
+      expect(itemsRepo.update).toHaveBeenCalledWith(2, {
+        achievedVerses: 0,
+        status: 'overdue',
+      });
+    });
+
+    it('records a repeat beyond the planned items as outside-plan', async () => {
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: duplicateItems() }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, date: '2026-05-10' }),
+        makeAchievement({ id: 101, date: '2026-05-12' }),
+        makeAchievement({ id: 102, date: '2026-05-14' }), // third recitation
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(savedLinks().filter((l) => l.weeklyPlanItemId === null)).toEqual([
+        expect.objectContaining({
+          achievementId: 102,
+          creditedVerses: 7,
+        }),
+      ]);
+    });
+
+    it('spends a partial repeat only on what it actually covers', async () => {
+      plansRepo.findOne.mockResolvedValue(
+        makePlan({ items: duplicateItems() }),
+      );
+      achievementsRepo.find.mockResolvedValue([
+        makeAchievement({ id: 100, date: '2026-05-10' }), // 1:1–1:7
+        makeAchievement({ id: 101, date: '2026-05-12', endVerse: 3 }), // 1:1–1:3
+      ]);
+
+      await service.reconcilePlan(1);
+
+      expect(itemsRepo.update).toHaveBeenCalledWith(1, {
+        achievedVerses: 7,
+        status: 'completed',
+      });
+      expect(itemsRepo.update).toHaveBeenCalledWith(2, {
+        achievedVerses: 3,
+        status: 'partial',
+      });
     });
   });
 

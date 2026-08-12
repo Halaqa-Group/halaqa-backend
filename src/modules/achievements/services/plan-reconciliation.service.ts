@@ -17,11 +17,12 @@ import { settleTrack, type SettlementAchievement } from '../logic/settlement';
  *
  * The whole plan (week) reconciles as a unit, not one item in isolation: an
  * approved achievement on ANY day of the week can settle ANY item in that week
- * whose range it overlaps. Each achieved verse is *consumed* by a single item —
- * the earliest one (lowest day_of_week, then `order`, then id) claims it, so a
- * verse planned in two items only credits the first. That's why an item can't be
- * reconciled alone: what an earlier item consumes changes what's left for later
- * items.
+ * whose range it overlaps. Each achievement is a payment that can be spent once —
+ * the earliest item (lowest day_of_week, then `order`, then id) is paid first,
+ * and it spends the oldest achievements available. So one recitation of a range
+ * planned twice settles only the first item, while a **repeat** recitation pays
+ * the second. That's why an item can't be reconciled alone: what an earlier item
+ * spends changes what's left for later items.
  *
  * Every run also **rewrites the plan's `achievement_plan_item_links`** — the
  * materialized "this achievement covered this part of this item" record. The link
@@ -56,11 +57,11 @@ export class PlanReconciliationService {
 
   /**
    * Reconciles every item in a plan (week) as a unit and rewrites the plan's
-   * settlement links. Builds a per-track pool of verses achieved anywhere in the
-   * week, then walks items in priority order (day_of_week asc, `order` asc, id
-   * asc), letting each item consume the pool verses it covers. Consumed verses
-   * are removed so a later item planning the same verse won't be credited again —
-   * "priority to the earliest item in the week".
+   * settlement links. Collects the week's approved achievements per track, then
+   * walks items in priority order (day_of_week asc, `order` asc, id asc), each
+   * item settled by the oldest achievements covering what it plans. A spent
+   * achievement can't pay twice, so a later item planning the same verses needs
+   * its own (repeat) recitation — "priority to the earliest item in the week".
    */
   async reconcilePlan(planId: number): Promise<void> {
     // Soft-deleted plans are excluded automatically via @DeleteDateColumn.

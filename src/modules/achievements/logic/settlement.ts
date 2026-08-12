@@ -2,7 +2,6 @@ import { pageCoverageGlobal } from '../../../quran/page-coverage';
 import {
   intersectIntervals,
   subtractIntervals,
-  unionIntervals,
   type Interval,
 } from '../../../quran/range-union';
 
@@ -34,15 +33,21 @@ export interface CreditedSegment {
   pages: number;
 }
 
-/** Highest score, then latest approvedAt, then highest id — deterministic. */
-function better(
+/**
+ * Chronological spending order: earliest date, then earliest approval, then
+ * lowest id — deterministic. The first achievement of the week settles the first
+ * item that plans those verses; a repeat of the same range is spent on the next
+ * item. Score does **not** decide attribution: when the same verses are recited
+ * twice, the teacher expects the Monday recitation on the Monday item, not the
+ * best-scoring one.
+ */
+function chronologically(
   a: SettlementAchievement,
   b: SettlementAchievement,
-): SettlementAchievement {
-  if (a.percentageScore !== b.percentageScore)
-    return a.percentageScore > b.percentageScore ? a : b;
-  if (a.approvedAt !== b.approvedAt) return a.approvedAt > b.approvedAt ? a : b;
-  return a.id > b.id ? a : b;
+): number {
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+  if (a.approvedAt !== b.approvedAt) return a.approvedAt - b.approvedAt;
+  return a.id - b.id;
 }
 
 function segmentOf(
@@ -60,56 +65,21 @@ function segmentOf(
   };
 }
 
-/**
- * Splits `claimed` (already intersected with the plan item's range and with what
- * is still unconsumed) into atomic segments and credits each to the best covering
- * achievement. Segments are disjoint, so their verses and pages sum exactly.
- * Verses in `claimed` that no achievement covers are simply not returned — the
- * caller derives gaps by subtraction.
- */
-export function attributeSegments(
-  claimed: Interval[],
-  achievements: SettlementAchievement[],
-): CreditedSegment[] {
-  if (!claimed.length || !achievements.length) return [];
-
-  const cuts = new Set<number>();
-  for (const [a, b] of claimed) {
-    cuts.add(a);
-    cuts.add(b + 1);
-  }
-  for (const { interval } of achievements) {
-    cuts.add(interval[0]);
-    cuts.add(interval[1] + 1);
-  }
-  const sorted = [...cuts].sort((x, y) => x - y);
-
+/** Contiguous segments credited to the same achievement collapse into one row. */
+function mergeAdjacent(segments: CreditedSegment[]): CreditedSegment[] {
   const out: CreditedSegment[] = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const from = sorted[i];
-    const to = sorted[i + 1] - 1;
-    if (to < from) continue;
-    if (!claimed.some(([a, b]) => a <= from && b >= to)) continue;
-
-    const covering = achievements.filter(
-      ({ interval }) => interval[0] <= from && interval[1] >= to,
-    );
-    if (!covering.length) continue;
-
-    const winner = covering.reduce(better);
+  for (const s of segments) {
     const last = out[out.length - 1];
     if (
       last &&
-      last.achievementId === winner.id &&
-      last.percentageScore === winner.percentageScore &&
-      last.interval[1] + 1 === from
+      last.achievementId === s.achievementId &&
+      last.interval[1] + 1 === s.interval[0]
     ) {
-      // Merge with the previous segment — same winner, contiguous.
-      last.interval[1] = to;
+      last.interval[1] = s.interval[1];
       last.verses = last.interval[1] - last.interval[0] + 1;
       last.pages = pageCoverageGlobal(last.interval[0], last.interval[1]);
     } else {
-      out.push(segmentOf([from, to], winner));
+      out.push(s);
     }
   }
   return out;
@@ -138,32 +108,59 @@ export interface TrackSettlement {
 }
 
 /**
- * Settles one track of one week: walks `items` in priority order, letting each
- * consume the verses it plans out of the achievement pool, and credits every
- * consumed stretch to the best covering achievement. A verse claimed by an
- * earlier item is gone — a later item planning it again gets no credit.
+ * Settles one track of one week. Each achievement is an **independent payment**:
+ * it carries its own unspent verses, and every verse of it can be credited to at
+ * most one item. Items are walked in priority order and each one spends the
+ * oldest achievements that cover what it plans.
+ *
+ * That is what makes repetition count. Two items planning the same range and two
+ * recitations of it settle one item each — the Monday recitation pays the Monday
+ * item, the Wednesday repeat pays the Wednesday item. (A single recitation still
+ * pays only the first of them; the later item stays unsettled, since nothing was
+ * recited for it.) Collapsing the achievements into one union pool, as this used
+ * to, made the repeat invisible.
  *
  * `items` MUST already be sorted (day_of_week, then `order`, then id): that order
- * *is* the priority. What is left over — verses an achievement covered that no
- * item planned — comes back as `outside`.
+ * *is* the priority. Whatever stays unspent after the last item — verses no item
+ * planned, and repeats beyond the number of items that planned them — comes back
+ * as `outside`.
  */
 export function settleTrack(
   items: SettlementItem[],
   achievements: SettlementAchievement[],
 ): TrackSettlement {
   const byItem = new Map<number, CreditedSegment[]>();
-  let pool = unionIntervals(achievements.map((a) => a.interval));
+  const ordered = [...achievements].sort(chronologically);
+  const unspent = new Map<number, Interval[]>(
+    ordered.map((a) => [a.id, [[a.interval[0], a.interval[1]] as Interval]]),
+  );
 
   for (const item of items) {
-    const claimed = intersectIntervals([item.interval], pool);
-    byItem.set(item.planItemId, attributeSegments(claimed, achievements));
-    if (claimed.length) pool = subtractIntervals(pool, claimed);
+    const segments: CreditedSegment[] = [];
+    // What the item still wants; shrinks as achievements pay into it, so no
+    // verse of the item is credited twice.
+    let want: Interval[] = [item.interval];
+
+    for (const a of ordered) {
+      if (!want.length) break;
+      const rest = unspent.get(a.id) ?? [];
+      if (!rest.length) continue;
+
+      const paid = intersectIntervals(want, rest);
+      if (!paid.length) continue;
+
+      for (const interval of paid) segments.push(segmentOf(interval, a));
+      want = subtractIntervals(want, paid);
+      unspent.set(a.id, subtractIntervals(rest, paid));
+    }
+
+    segments.sort((x, y) => x.interval[0] - y.interval[0]);
+    byItem.set(item.planItemId, mergeAdjacent(segments));
   }
 
-  const planned = unionIntervals(items.map((i) => i.interval));
   const outside: OutsideSegment[] = [];
-  for (const a of achievements) {
-    for (const [from, to] of subtractIntervals([a.interval], planned)) {
+  for (const a of ordered) {
+    for (const [from, to] of unspent.get(a.id) ?? []) {
       outside.push({
         achievementId: a.id,
         achievementDate: a.date,

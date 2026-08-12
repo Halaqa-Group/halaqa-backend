@@ -78,25 +78,26 @@ function run(items: PlannedItemInput[], achievements: SettlementAchievement[]) {
 }
 
 describe('assembleTrack', () => {
-  it('test 7 — overlap keeps the higher score per segment, no double count', () => {
+  it('test 7 — overlap credits the earlier achievement first, no double count', () => {
     const res = run(
       [plan(1, [2, 1, 2, 15])],
       [ach(1, [2, 1, 2, 10], 80), ach(2, [2, 6, 2, 15], 95)],
     );
     const segs = res.reconciliation.approvedSegments;
     expect(segs).toHaveLength(2);
+    // The older achievement is spent whole; the newer one covers only the rest.
     expect(segs[0]).toMatchObject({
       startSurah: 2,
       startVerse: 1,
       endSurah: 2,
-      endVerse: 5,
+      endVerse: 10,
       percentageScore: 80,
       selectedAchievementId: 1,
       planItemId: 1,
     });
     expect(segs[1]).toMatchObject({
       startSurah: 2,
-      startVerse: 6,
+      startVerse: 11,
       endSurah: 2,
       endVerse: 15,
       percentageScore: 95,
@@ -200,13 +201,13 @@ describe('assembleTrack', () => {
     expect(res.qualityRate).toBeCloseTo(expected, 9);
   });
 
-  it('tie on score → latest approvedAt wins, then highest id', () => {
+  it('same date → earliest approvedAt is spent first, then lowest id', () => {
     const res = run(
       [plan(1, [1, 1, 1, 7])],
       [ach(1, [1, 1, 1, 7], 90, 500), ach(2, [1, 1, 1, 7], 90, 100)],
     );
     expect(res.reconciliation.approvedSegments[0].selectedAchievementId).toBe(
-      1,
+      2,
     );
 
     const sameTime = run(
@@ -215,7 +216,41 @@ describe('assembleTrack', () => {
     );
     expect(
       sameTime.reconciliation.approvedSegments[0].selectedAchievementId,
-    ).toBe(2);
+    ).toBe(1);
+  });
+
+  it('a repeated recitation settles the duplicate item, in date order', () => {
+    // Both items plan Al-Fatiha 1–7; the student recited it twice that week.
+    const res = run(
+      [plan(1, [1, 1, 1, 7]), plan(2, [1, 1, 1, 7])],
+      [
+        ach(1, [1, 1, 1, 7], 90, 1, '2026-05-10'),
+        ach(2, [1, 1, 1, 7], 60, 2, '2026-05-12'),
+      ],
+    );
+    const segs = res.reconciliation.approvedSegments;
+    expect(segs).toHaveLength(2);
+    expect(segs.map((s) => [s.planItemId, s.selectedAchievementId])).toEqual([
+      [1, 1],
+      [2, 2],
+    ]);
+    expect(res.reconciliation.outsidePlanSegments).toHaveLength(0);
+  });
+
+  it('a repeat beyond the planned items lands outside the plan', () => {
+    const res = run(
+      [plan(1, [1, 1, 1, 7])],
+      [
+        ach(1, [1, 1, 1, 7], 90, 1, '2026-05-10'),
+        ach(2, [1, 1, 1, 7], 60, 2, '2026-05-12'),
+      ],
+    );
+    expect(res.reconciliation.approvedSegments).toHaveLength(1);
+    expect(res.reconciliation.outsidePlanSegments).toEqual([
+      expect.objectContaining({ achievementId: 2 }),
+    ]);
+    // Completion still counts the planned part once.
+    expect(res.completionRate).toBeCloseTo(100, 9);
   });
 
   it('no achievements → whole plan is a gap, zero completion', () => {
